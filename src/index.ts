@@ -49,6 +49,7 @@ import {
   saveContent,
 } from "./ingestion";
 import { rank } from "./ranking";
+import { radarStatus } from "./radar";
 import { createPackage, generatePrompt } from "./research";
 import { normalizeCandidate, folded } from "./normalize";
 import { evaluate, prefilter, matchedTopics } from "./quality";
@@ -197,6 +198,12 @@ async function prefs(db: D1Database): Promise<Preferences> {
 }
 
 app.get("/api/preferences", async (c) => c.json(await prefs(c.env.DB)));
+app.get("/api/radar/status", async (c) => {
+  const { since } = z
+    .object({ since: z.string().datetime().optional() })
+    .parse(c.req.query());
+  return c.json(await radarStatus(c.env, since ?? null));
+});
 app.put("/api/preferences", async (c) => {
   const input = await json(c, preferencesSchema);
   await stmt(

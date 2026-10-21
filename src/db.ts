@@ -50,6 +50,9 @@ export type SourceRow = {
   next_fetch_at: string | null;
   etag: string | null;
   last_modified: string | null;
+  last_cycle_key: string | null;
+  retry_at: string | null;
+  consecutive_failures: number;
 };
 export function sourceView(r: SourceRow): Source {
   return {

@@ -11,4 +11,5 @@ export type Env = {
   ALLOWED_FETCH_HOSTS?: string;
   OPENALEX_API_KEY?: string;
   INGEST_ENABLED?: string;
+  INGEST_BATCH_SIZE?: string;
 };

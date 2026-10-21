@@ -97,6 +97,10 @@ export function createLastroClient(
     return new URLSearchParams(values).toString();
   };
   return {
+    radarStatus: (since?: string) =>
+      request<import("./index").RadarStatus>(
+        `/radar/status?${query({ since })}`,
+      ),
     adminOverview: () => request<AdminOverview>("/admin/overview"),
     sources: (offset = 0) =>
       request<Page<AdminSource>>(`/admin/sources?limit=50&offset=${offset}`),

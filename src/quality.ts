@@ -6,10 +6,36 @@ import type {
 } from "../packages/contracts/index";
 import { folded, safeUrl } from "./normalize";
 export function matchedTopics(c: Candidate, s: Source): string[] {
-  const text = folded(
-    [c.title, c.description, ...c.topics].filter(Boolean).join(" "),
-  );
-  return s.topics.map(folded).filter((t) => text.includes(t));
+  const tokens = (v: string) =>
+    folded(v)
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim();
+  const text = ` ${tokens([c.title, ...c.topics].join(" "))} `;
+  const aliases: Record<string, string[]> = {
+    design: [
+      "designer",
+      "designers",
+      "graphic design",
+      "visual identity",
+      "user interface",
+    ],
+    brand: ["branding", "brands", "brand identity"],
+    typography: ["typeface", "typefaces", "fonts", "lettering", "tipografia"],
+    type: ["typeface", "typefaces", "typography"],
+    font: ["fonts", "typeface", "typefaces"],
+    ux: ["user experience", "usability"],
+    perception: ["perceptual", "percepcao"],
+    cognition: ["cognitive", "cognicao"],
+    creative: ["creativity", "criatividade"],
+  };
+  // Require evidence in title or provider topics; an incidental summary mention is insufficient.
+  return s.topics
+    .map(folded)
+    .filter((t) =>
+      [t, ...(aliases[t] ?? [])].some((term) =>
+        text.includes(` ${tokens(term)} `),
+      ),
+    );
 }
 export function prefilter(c: Candidate, s: Source, at = Date.now()): string[] {
   const failures: string[] = [];

@@ -62,6 +62,7 @@ Esse script cadastra/aprova duas fontes de metadados no banco **local**, realiza
 - [Interface — etapa 02](docs/STAGE_02.md): fluxos testados, limites de UX, dependências e próximo ciclo.
 - [Radar Vivo — etapa 03](docs/STAGE_03.md): Curadoria, ingestão real local e ativação pendente de produção.
 - [Lastro Vivo — etapa 04](docs/STAGE_04.md): redesign, design system, Pulso, Jarvis e testes de interface.
+- [Radar Vivo — etapa 04.1](docs/STAGE_04_1.md): ciclos diário/mensal, capacidade, fontes, validação e ativação gradual.
 - [Catálogo de fontes](docs/SOURCES.md): oito integrações verificadas, três sugestões e configurações reutilizáveis.
 
 Contratos e cliente compartilhados: `packages/contracts/index.ts` e `packages/contracts/client.ts`. Implementação: `src/`. SQL versionado: `migrations/`.

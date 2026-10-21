@@ -476,7 +476,7 @@ test("busca/filtros, favoritos e pacote exportável geram prompt idempotente", a
 test("falhas externas persistem sem vazamento de segredo; cron desativado não coleta", async () => {
   await stmt(
     env.DB,
-    "UPDATE sources SET next_fetch_at=NULL WHERE id=?",
+    "UPDATE sources SET next_fetch_at=NULL,last_cycle_key=NULL,retry_at=NULL WHERE id=?",
     source.id,
   ).run();
   const failed = await ingestSource(
@@ -505,7 +505,7 @@ test("falhas externas persistem sem vazamento de segredo; cron desativado não c
 test("fila retoma lotes sem nova coleta e respeita orçamento de 50 consultas D1", async () => {
   await stmt(
     env.DB,
-    "UPDATE sources SET next_fetch_at=NULL WHERE id=?",
+    "UPDATE sources SET next_fetch_at=NULL,last_cycle_key=NULL,retry_at=NULL WHERE id=?",
     source.id,
   ).run();
   const items = Array.from(
@@ -554,12 +554,14 @@ test("fila retoma lotes sem nova coleta e respeita orçamento de 50 consultas D1
   assert.equal(one.queuedRemaining, 3);
   assert.equal(one.received, 5);
   assert.equal(one.status, "partial");
-  assert.ok(queries <= 50, `${queries} queries`);
+  assert.ok(queries <= 47, `${queries} queries plus 3 scheduler queries`);
+  console.info(`D1 ingestion statements: ${queries}`);
   queries = 0;
   const two = await ingestSource(counted, source.id, fetcher);
   assert.equal(two.queuedRemaining, 1);
   assert.equal(two.received, 0);
-  assert.ok(queries <= 50, `${queries} queries`);
+  assert.ok(queries <= 47, `${queries} queries plus 3 scheduler queries`);
+  console.info(`D1 ingestion statements: ${queries}`);
   const three = await ingestSource(env, source.id, fetcher);
   assert.equal(three.status, "completed");
   assert.equal(three.queuedRemaining, 0);

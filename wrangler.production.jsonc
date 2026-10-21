@@ -19,7 +19,7 @@
       "migrations_dir": "migrations",
     },
   ],
-  "triggers": { "crons": ["*/15 * * * *"] },
+  "triggers": { "crons": ["*/5 * * * *"] },
   "vars": {
     "ENVIRONMENT": "production",
     "ALLOWED_ORIGIN": "https://lastro-api.marioserafim-da.workers.dev",

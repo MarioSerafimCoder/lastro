@@ -24,7 +24,7 @@ A allowlist é controlada pelo operador, nunca pelo cadastro de fonte via API. N
 
 ## Cron e fila
 
-O cron configurado é a cada 15 minutos, processando uma fonte e duas entradas por invocação. Fonte com fila restante não faz outra chamada externa. Uma fonte limpa respeita seu `intervalMinutes`; a configuração do exemplo OpenAlex usa 24 horas. RSS/OpenAlex pegam no máximo a primeira página recente de 25 itens; não há backfill nem promessa de cobertura de fontes que publiquem mais do que essa janela entre coletas.
+O cron configurado é a cada 5 minutos, processando uma fonte e até duas entradas por invocação. Fonte com fila restante não faz outra chamada externa. Uma fonte limpa respeita seu `intervalMinutes`; a configuração do exemplo OpenAlex usa 24 horas. RSS/OpenAlex pegam no máximo a primeira página recente de 25 itens; não há backfill nem promessa de cobertura de fontes que publiquem mais do que essa janela entre coletas.
 
 `npm run dev -- --test-scheduled` já está incorporado no script. Para disparar localmente, usar o endpoint de simulação do Wrangler:
 
@@ -71,6 +71,6 @@ As etapas remotas descritas abaixo foram executadas em 21/10/2026 após autoriza
 7. Conferir os candidatos nas páginas originais. Os dois URLs do relatório local são candidatos à primeira aprovação remota, se disponíveis e ainda adequados. Corrigir autoria e idioma quando necessário, sem atribuir validade científica. Não aprovar substitutos sem revisão.
 8. Aprovar os conteúdos revisados e conferir For You, busca, favoritos e Oficina no ambiente remoto. Registrar contagens e decisão. A contagem “aprovados” de uma execução reflete aprovação durante ingestão, não revisões posteriores.
 
-Para habilitar agendamento no futuro: obter autorização separada; revisar fontes/direitos/allowlist/quota; manter revisão humana; alterar `INGEST_ENABLED` para `true` e publicar. Cron existente: a cada 15 minutos, uma fonte e duas entradas por invocação; intervalo individual de 24 horas nas configurações do catálogo. Pausar uma fonte interrompe sua coleta; para suspender toda a coleta automática, publicar novamente com `INGEST_ENABLED=false`. O botão manual continua disponível para fontes aprovadas, sujeito aos mesmos limites.
+Para habilitar agendamento no futuro: obter autorização separada; revisar fontes/direitos/allowlist/quota; manter revisão humana; alterar `INGEST_ENABLED` para `true` e publicar. Cron existente: a cada 5 minutos, uma fonte e até duas entradas por invocação; intervalo individual de 24 horas nas configurações do catálogo. Pausar uma fonte interrompe sua coleta; para suspender toda a coleta automática, publicar novamente com `INGEST_ENABLED=false`. O botão manual continua disponível para fontes aprovadas, sujeito aos mesmos limites.
 
 O catálogo não é importado automaticamente. `wrangler.jsonc` permite os hosts verificados apenas para desenvolvimento; `wrangler.production.jsonc` permanece separado. `scripts/stage03-check.mjs` usa endereço local fixo e modifica somente a base de desenvolvimento; não adaptá-lo para aprovações remotas em lote.

@@ -1,0 +1,12 @@
+ALTER TABLE sources ADD COLUMN last_cycle_key TEXT;
+ALTER TABLE sources ADD COLUMN last_attempt_at TEXT;
+ALTER TABLE sources ADD COLUMN last_success_at TEXT;
+ALTER TABLE sources ADD COLUMN last_processed_at TEXT;
+ALTER TABLE sources ADD COLUMN retry_at TEXT;
+ALTER TABLE sources ADD COLUMN consecutive_failures INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE ingestion_runs ADD COLUMN cycle_key TEXT;
+ALTER TABLE ingestion_runs ADD COLUMN discovery INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX runs_source_time ON ingestion_runs(source_id,started_at DESC);
+CREATE INDEX candidates_source_outcome ON ingestion_candidates(source_id,outcome);
+CREATE INDEX decisions_content_time ON editorial_decisions(content_id,created_at);
+CREATE INDEX contents_source_status ON contents(source_id,editorial_status);

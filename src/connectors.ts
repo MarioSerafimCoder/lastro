@@ -10,6 +10,14 @@ export type Fetcher = (
   input: string | URL | Request,
   init?: RequestInit,
 ) => Promise<Response>;
+export class UpstreamError extends Error {
+  constructor(
+    status: number,
+    public retryAt = 0,
+  ) {
+    super(`upstream_${status}`);
+  }
+}
 const list = (v: any): any[] => (v == null ? [] : Array.isArray(v) ? v : [v]);
 const val = (v: any, n = 1200) => plainText(v, n);
 export function parseRss(xml: string, s: Source): Candidate[] {
@@ -48,10 +56,7 @@ export function parseRss(xml: string, s: Source): Candidate[] {
         url,
         authors: names.slice(0, 50).map((name: string) => ({ name })),
         publication: val(feed.title, 300) ?? s.name,
-        publishedAt: val(
-          e.pubDate ?? e.published ?? e.updated ?? e["dc:date"],
-          100,
-        ),
+        publishedAt: val(e.pubDate ?? e.published ?? e["dc:date"], 100),
         language: val(
           e["dc:language"] ?? feed.language ?? feed["@xml:lang"],
           20,
@@ -240,7 +245,10 @@ export async function collect(
             : Math.ceil((Date.parse(retry) - Date.now()) / 1000)
           : 0;
         if (attempt === 2 || seconds > 5)
-          throw new Error(`upstream_${response.status}`);
+          throw new UpstreamError(
+            response.status,
+            seconds > 0 ? Date.now() + seconds * 1000 : 0,
+          );
         await sleep(Math.max(500 * 2 ** attempt, (seconds || 0) * 1000));
         continue;
       }

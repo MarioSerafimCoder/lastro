@@ -89,6 +89,46 @@ export const candidateSchema = z
 export type Candidate = z.infer<typeof candidateSchema>;
 
 export type AdminSource = Source & { lastRun?: IngestionRun | null };
+export type RadarSourceStatus = {
+  id: string;
+  name: string;
+  cycle: "daily" | "monthly";
+  lastCycleKey: string | null;
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  nextDiscoveryAt: string | null;
+  queued: number;
+  approved: number;
+  pending: number;
+  rejected: number;
+  duplicates: number;
+  processed: number;
+  received: number | null;
+  consecutiveFailures: number;
+  error: string | null;
+  state:
+    | "pending"
+    | "paused"
+    | "rejected"
+    | "unauthorized"
+    | "failed"
+    | "processing"
+    | "queued"
+    | "unverified"
+    | "no_new_entries"
+    | "checked";
+};
+export type RadarStatus = {
+  checkedAt: string;
+  timezone: "UTC";
+  ingestEnabled: boolean;
+  sources: RadarSourceStatus[];
+  lastEditorialCheck: string | null;
+  lastScientificRound: string | null;
+  approved: number;
+  newApprovalsSince: string | null;
+  newApprovals: number | null;
+};
 export type ReviewCandidate = {
   id: string;
   sourceId: string;

@@ -5,7 +5,8 @@ import {
   type Source,
   type IngestionRun,
 } from "../packages/contracts/index";
-import { collect, type Fetcher } from "./connectors";
+import { collect, UpstreamError, type Fetcher } from "./connectors";
+import { cycleKey, nextCycle, retryAt } from "./schedule";
 import {
   first,
   rows,
@@ -218,12 +219,20 @@ export async function processCandidate(
       const q = evaluate(c, s, p, at);
       const approved =
         s.autoApprove &&
+        s.connector !== "openalex" &&
         c.kind !== "paper" &&
         !!c.language &&
         !!c.publishedAt &&
         c.authors.length > 0 &&
         q.score >= p.approvalThreshold;
       outcome = approved ? "approved" : "pending";
+      const similar = await first<{ id: string }>(
+        db,
+        "SELECT id FROM contents WHERE source_id=? AND lower(trim(title))=lower(trim(?)) LIMIT 1",
+        s.id,
+        c.title,
+      );
+      if (similar) reasons.push(`possible_title_duplicate:${similar.id}`);
       if (!approved)
         reasons.push(
           q.score < p.approvalThreshold
@@ -266,6 +275,7 @@ export async function ingestSource(
   env: Env,
   sourceId: string,
   fetcher?: Fetcher,
+  clock = Date.now(),
 ): Promise<IngestionRun> {
   const row = must(
       await first<SourceRow>(
@@ -287,16 +297,19 @@ export async function ingestSource(
       "metadata_not_authorized",
       "Coleta não autorizada.",
     );
-  const at = now(),
+  const at = new Date(clock).toISOString(),
     leaseToken = id();
   const locked = await stmt(
     env.DB,
-    `UPDATE sources SET lease_until=?,lease_token=? WHERE id=? AND status='approved' AND (lease_until IS NULL OR lease_until<?) AND (next_fetch_at IS NULL OR next_fetch_at<=? OR EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id))`,
-    new Date(Date.now() + 300000).toISOString(),
+    `UPDATE sources SET lease_until=?,lease_token=?,last_processed_at=? WHERE id=? AND status='approved' AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?) AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (last_cycle_key IS NULL OR last_cycle_key<>?)))`,
+    new Date(clock + 300000).toISOString(),
     leaseToken,
+    at,
     sourceId,
     at,
     at,
+    at,
+    cycleKey(source, clock),
   ).run();
   if (!locked.meta.changes)
     throw new ApiFault(
@@ -316,7 +329,7 @@ export async function ingestSource(
     queuedRemaining: 0,
     error: null,
   };
-  let fetched = false;
+  let retryAfter = 0;
   try {
     await stmt(
       env.DB,
@@ -326,11 +339,12 @@ export async function ingestSource(
     ).run();
     await stmt(
       env.DB,
-      "INSERT INTO ingestion_runs (id,source_id,started_at,status) VALUES (?,?,?,?)",
+      "INSERT INTO ingestion_runs (id,source_id,started_at,status,cycle_key) VALUES (?,?,?,?,?)",
       run.id,
       sourceId,
       at,
       "running",
+      row.last_cycle_key,
     ).run();
     const hasQueue = await first(
       env.DB,
@@ -338,7 +352,20 @@ export async function ingestSource(
       sourceId,
     );
     if (!hasQueue) {
-      fetched = true;
+      await env.DB.batch([
+        stmt(
+          env.DB,
+          "UPDATE sources SET last_attempt_at=? WHERE id=?",
+          at,
+          sourceId,
+        ),
+        stmt(
+          env.DB,
+          "UPDATE ingestion_runs SET discovery=1,cycle_key=? WHERE id=?",
+          cycleKey(source, clock),
+          run.id,
+        ),
+      ]);
       const collected = await collect(source, env, row, fetcher);
       run.received = collected.items.length;
       await env.DB.batch([
@@ -350,18 +377,23 @@ export async function ingestSource(
         ),
         stmt(
           env.DB,
-          "UPDATE sources SET etag=?,last_modified=? WHERE id=?",
+          "UPDATE sources SET etag=?,last_modified=?,last_cycle_key=?,last_success_at=?,next_fetch_at=? WHERE id=? AND lease_token=?",
           collected.etag,
           collected.lastModified,
+          cycleKey(source, clock),
+          at,
+          nextCycle(source, clock),
           sourceId,
+          leaseToken,
         ),
       ]);
       if (collected.notModified) run.status = "not_modified";
     }
     const queued = await rows<{ id: number; payload_json: string }>(
       env.DB,
-      "SELECT id,payload_json FROM ingestion_queue WHERE source_id=? ORDER BY id LIMIT 2",
+      "SELECT id,payload_json FROM ingestion_queue WHERE source_id=? ORDER BY id LIMIT ?",
       sourceId,
+      env.INGEST_BATCH_SIZE === "1" ? 1 : 2,
     );
     for (const queuedItem of queued) {
       const current = await first<{ status: string }>(
@@ -398,6 +430,7 @@ export async function ingestSource(
     if (run.status === "running")
       run.status = run.queuedRemaining ? "partial" : "completed";
   } catch (e) {
+    if (e instanceof UpstreamError) retryAfter = e.retryAt;
     run.status = "failed";
     run.error =
       e instanceof Error &&
@@ -407,6 +440,12 @@ export async function ingestSource(
         ? e.message
         : "ingestion_failed";
   } finally {
+    if (run.status === "failed")
+      run.queuedRemaining = (await first<{ count: number }>(
+        env.DB,
+        "SELECT COUNT(*) count FROM ingestion_queue WHERE source_id=?",
+        sourceId,
+      ))!.count;
     await env.DB.batch([
       stmt(
         env.DB,
@@ -424,10 +463,11 @@ export async function ingestSource(
       ),
       stmt(
         env.DB,
-        "UPDATE sources SET lease_until=NULL,lease_token=NULL,next_fetch_at=? WHERE id=? AND lease_token=?",
-        fetched
-          ? new Date(Date.now() + source.intervalMinutes * 60000).toISOString()
-          : row.next_fetch_at,
+        "UPDATE sources SET lease_until=NULL,lease_token=NULL,retry_at=?,consecutive_failures=? WHERE id=? AND lease_token=?",
+        run.status === "failed"
+          ? retryAt(row.consecutive_failures, clock, retryAfter)
+          : null,
+        run.status === "failed" ? row.consecutive_failures + 1 : 0,
         sourceId,
         leaseToken,
       ),
@@ -435,16 +475,24 @@ export async function ingestSource(
   }
   return run;
 }
-export async function scheduledIngest(env: Env): Promise<void> {
+export async function scheduledIngest(
+  env: Env,
+  fetcher?: Fetcher,
+  clock = Date.now(),
+): Promise<void> {
   if (env.INGEST_ENABLED !== "true") return;
   const due = await rows<{ id: string }>(
     env.DB,
-    "SELECT id FROM sources WHERE status='approved' AND (next_fetch_at IS NULL OR next_fetch_at<=? OR EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id)) ORDER BY COALESCE(next_fetch_at,'') ASC,id LIMIT 1",
-    now(),
+    "SELECT id FROM sources WHERE status='approved' AND json_extract(config_json,'$.metadataAllowed')=1 AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?) AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (last_cycle_key IS NULL OR last_cycle_key<>CASE WHEN connector='openalex' THEN ? ELSE ? END))) ORDER BY COALESCE(last_processed_at,'') ASC,id LIMIT 1",
+    new Date(clock).toISOString(),
+    new Date(clock).toISOString(),
+    new Date(clock).toISOString(),
+    cycleKey({ connector: "openalex" }, clock),
+    cycleKey({ connector: "rss" }, clock),
   );
   for (const s of due) {
     try {
-      await ingestSource(env, s.id);
+      await ingestSource(env, s.id, fetcher, clock);
     } catch (e) {
       if (!(e instanceof ApiFault && e.status === 409))
         console.error("scheduled_ingestion_failed");
