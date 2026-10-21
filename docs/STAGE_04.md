@@ -73,3 +73,17 @@ Filtros de coleções continuam limitados aos itens carregados porque o contrato
 ## Publicação
 
 Configuração de produção preservada: `wrangler.production.jsonc`, Worker `lastro-api`, D1 existente, autenticação e `INGEST_ENABLED=false`. Nenhuma migração nova é necessária. A publicação substitui código/arquivos estáticos, sem importar dados de teste. Versão anterior registrada para eventual retorno: `3684db6e-c025-432e-95d0-80dcf0be5b56`.
+
+### Resultado final
+
+- `npm run verify`: aprovado, 23 testes, tipagem e builds concluídos. Reexecutado pelo comando de publicação.
+- `npm run test:ui`: 12 testes aprovados em Chrome, incluindo os quatro tamanhos e navegação entre áreas.
+- `npm run format:check`: aprovado. `.gitattributes` padroniza LF no checkout para evitar falhas de formatação por CRLF no Windows; nenhuma lógica do backend foi alterada nessa normalização.
+- Implementação enviada a `origin/master`: commit `5a308e4`.
+- Worker publicado: versão `fc0a095f-6d37-45d3-ab45-44ee13aa9996`.
+- Endereço: https://lastro-api.marioserafim-da.workers.dev.
+- Após publicação: HTML e `/health` responderam 200; sessão sem cookie informou `authenticated:false`; feed e administração sem autenticação responderam 401.
+- Na sessão existente do navegador, o novo Radar exibiu os dois artigos reais da A List Apart, com autores e datas preservados. Jarvis abriu com sugestão baseada nesse conjunto real. Console sem avisos/erros capturados.
+- Curadoria em produção confirmou agendamento desativado, 1 fonte, 0 candidatos pendentes e 2 referências aprovadas. Não houve coleta, revisão ou mutação de conteúdos durante a conferência.
+
+O D1 remoto, as credenciais, os contratos e a configuração de produção foram preservados. As capturas com TESTE são evidências da suíte isolada, não conteúdo publicado no Radar.
