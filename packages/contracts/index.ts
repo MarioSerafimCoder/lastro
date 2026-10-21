@@ -87,6 +87,34 @@ export const candidateSchema = z
   })
   .strict();
 export type Candidate = z.infer<typeof candidateSchema>;
+
+export type AdminSource = Source & { lastRun?: IngestionRun | null };
+export type ReviewCandidate = {
+  id: string;
+  sourceId: string;
+  runId: string;
+  contentId: string | null;
+  outcome: string;
+  reasons: string[];
+  metadata: Candidate;
+  createdAt: string;
+  quality: Quality;
+};
+export type EditorialDecision = {
+  id: string;
+  targetId: string;
+  scope: string;
+  decision: string;
+  reason: string;
+  createdAt: string;
+};
+export type AdminOverview = {
+  ingestEnabled: boolean;
+  allowedHosts: string[];
+  sources: number;
+  pending: number;
+  approved: number;
+};
 export const qualityWeightsSchema = z.object({
   authority: unit,
   material: unit,
@@ -243,11 +271,33 @@ export type PromptResponse = {
   version: "prompt-1.0";
   text: string;
 };
+export type ReviewInput = z.infer<typeof reviewSchema>;
+// Zod defaults on Candidate must not turn an omitted correction into a reset.
+export const candidateCorrectionSchema = z
+  .record(z.string(), z.unknown())
+  .transform((input, ctx) => {
+    const result = candidateSchema.partial().safeParse(input);
+    if (!result.success) {
+      for (const issue of result.error.issues)
+        ctx.addIssue({
+          code: "custom",
+          path: issue.path,
+          message: issue.message,
+        });
+      return z.NEVER;
+    }
+    return Object.fromEntries(
+      Object.keys(input).map((key) => [
+        key,
+        result.data[key as keyof Candidate],
+      ]),
+    ) as Partial<Candidate>;
+  });
 export const reviewSchema = z
   .object({
     decision: z.enum(["approved", "rejected"]),
     reason: z.string().trim().min(5).max(2000),
-    correction: candidateSchema.partial().optional(),
+    correction: candidateCorrectionSchema.optional(),
     materialScore: unit.optional(),
     originalityScore: unit.optional(),
   })
@@ -270,6 +320,9 @@ export type ApiError = {
   };
 };
 export type IngestionRun = {
+  received?: number | null;
+  startedAt?: string;
+  finishedAt?: string | null;
   id: string;
   sourceId: string;
   status: string;

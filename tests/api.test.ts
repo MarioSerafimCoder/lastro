@@ -552,11 +552,13 @@ test("fila retoma lotes sem nova coleta e respeita orçamento de 50 consultas D1
   };
   const one = await ingestSource(counted, source.id, fetcher);
   assert.equal(one.queuedRemaining, 3);
+  assert.equal(one.received, 5);
   assert.equal(one.status, "partial");
   assert.ok(queries <= 50, `${queries} queries`);
   queries = 0;
   const two = await ingestSource(counted, source.id, fetcher);
   assert.equal(two.queuedRemaining, 1);
+  assert.equal(two.received, 0);
   assert.ok(queries <= 50, `${queries} queries`);
   const three = await ingestSource(env, source.id, fetcher);
   assert.equal(three.status, "completed");
@@ -579,4 +581,35 @@ test("retratação posterior retira o original do índice sem apagar favoritos",
   assert.equal(detail.state.favorite, true);
   const feed = await api("/api/feed");
   assert.ok(!feed.items.some((item: any) => item.content.id === contentId));
+});
+
+test("Curadoria exige autenticação e expõe estado, avaliação e histórico paginado", async () => {
+  for (const path of [
+    "overview",
+    "decisions",
+    "sources",
+    "candidates",
+    "ingestion-runs",
+  ]) {
+    assert.equal(
+      (await app.fetch(new Request(`http://localhost/api/admin/${path}`), env))
+        .status,
+      401,
+    );
+  }
+  const overview = await api("/api/admin/overview");
+  assert.equal(overview.ingestEnabled, false);
+  assert.ok(overview.sources > 0);
+  assert.ok(overview.allowedHosts.includes("fixtures.example.test"));
+  const listing = await api("/api/admin/sources?limit=1");
+  assert.ok("lastRun" in listing.items[0]);
+  const queue = await api("/api/admin/candidates?limit=1");
+  assert.equal(typeof queue.items[0].quality.score, "number");
+  assert.ok(Array.isArray(queue.items[0].quality.limitations));
+  const decisions = await api("/api/admin/decisions?limit=1");
+  assert.equal(decisions.items.length, 1);
+  assert.ok(decisions.items[0].reason);
+  assert.equal(decisions.nextCursor, "1");
+  const second = await api("/api/admin/decisions?limit=1&offset=1");
+  assert.notEqual(decisions.items[0].id, second.items[0].id);
 });

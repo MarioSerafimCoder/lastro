@@ -57,3 +57,20 @@ Verificação pós-publicação: a página inicial responde 200 com formulário 
 Os arquivos estáticos de `dist/web` acompanham o Worker. As rotas `/api/*` e `/health` executam o Worker primeiro, e as rotas da interface usam o fallback de SPA. Essa configuração segue a [documentação oficial de SPA em Workers](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/). A senha e a chave de sessão não aparecem na configuração versionada nem nos logs da aplicação.
 
 Chave OpenAlex é opcional para consulta básica, conforme [documentação oficial](https://help.openalex.org/api/authentication/); o teste externo desta entrega funcionou sem chave. A licença CC0 dos metadados não é uma licença universal dos artigos. Conector preserva licença/acesso declarados, sem baixar textos integrais.
+
+## Ativação da Etapa 03
+
+**Não executar as etapas remotas sem autorização específica do proprietário.** O pedido da Etapa 03 exige autorização antes de mudanças de produção, aprovação de fontes remotas e coleta automática. O envio do código ao GitHub não publica o Worker.
+
+1. Revisar [resultados](STAGE_03.md), [catálogo](SOURCES.md) e testes. Proposta inicial: somente A List Apart e coleta manual, com `INGEST_ENABLED=false` e `autoApprove:false`.
+2. Após autorização, exportar D1 remoto para arquivo privado fora do repositório: `npx wrangler d1 export DB --remote --config wrangler.production.jsonc --output <caminho-privado.sql>`. Não versionar o backup.
+3. Acrescentar `alistapart.com` aos hosts existentes em `wrangler.production.jsonc`. Não substituir a allowlist inteira nem incluir as demais fontes por antecipação. Preservar todos os segredos e o login atual.
+4. Executar `npm run db:migrate:production` para aplicar `0003_ingestion_received.sql`. É aditiva: mantém dados existentes, e contagens antigas ficam desconhecidas (`null`). Depois executar `npm run deploy:production` e registrar a versão implantada. A versão anterior tolera a coluna adicional em eventual rollback.
+5. Conferir página/login e 401 sem sessão nas rotas administrativas. Com sessão, abrir Curadoria e confirmar agendamento inativo, fontes e histórico. Não colocar senha em URL, código ou documentação.
+6. Cadastrar a configuração [02.json](../examples/catalog/02.json), revisar os direitos limitados a metadados e aprovar a fonte com justificativa. Executar uma coleta manual; o lote processa duas entradas e mantém o restante na fila. Se houver erro, conferir histórico; não contornar 403/429 nem desativar restrições.
+7. Conferir os candidatos nas páginas originais. Os dois URLs do relatório local são candidatos à primeira aprovação remota, se disponíveis e ainda adequados. Corrigir autoria e idioma quando necessário, sem atribuir validade científica. Não aprovar substitutos sem revisão.
+8. Aprovar os conteúdos revisados e conferir For You, busca, favoritos e Oficina no ambiente remoto. Registrar contagens e decisão. A contagem “aprovados” de uma execução reflete aprovação durante ingestão, não revisões posteriores.
+
+Para habilitar agendamento no futuro: obter autorização separada; revisar fontes/direitos/allowlist/quota; manter revisão humana; alterar `INGEST_ENABLED` para `true` e publicar. Cron existente: a cada 15 minutos, uma fonte e duas entradas por invocação; intervalo individual de 24 horas nas configurações do catálogo. Pausar uma fonte interrompe sua coleta; para suspender toda a coleta automática, publicar novamente com `INGEST_ENABLED=false`. O botão manual continua disponível para fontes aprovadas, sujeito aos mesmos limites.
+
+O catálogo não é importado automaticamente. `wrangler.jsonc` permite os hosts verificados apenas para desenvolvimento; `wrangler.production.jsonc` permanece separado. `scripts/stage03-check.mjs` usa endereço local fixo e modifica somente a base de desenvolvimento; não adaptá-lo para aprovações remotas em lote.

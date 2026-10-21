@@ -1,4 +1,11 @@
 import type {
+  AdminSource,
+  AdminOverview,
+  ReviewCandidate,
+  EditorialDecision,
+  IngestionRun,
+  SourceInput,
+  Source,
   ApiError,
   Content,
   FeedPage,
@@ -90,6 +97,40 @@ export function createLastroClient(
     return new URLSearchParams(values).toString();
   };
   return {
+    adminOverview: () => request<AdminOverview>("/admin/overview"),
+    sources: (offset = 0) =>
+      request<Page<AdminSource>>(`/admin/sources?limit=50&offset=${offset}`),
+    saveSource: (input: SourceInput, id?: string) =>
+      request<AdminSource>(
+        `/admin/sources${id ? `/${id}` : ""}`,
+        id ? "PUT" : "POST",
+        input,
+      ),
+    sourceStatus: (id: string, status: Source["status"], reason: string) =>
+      request<AdminSource>(`/admin/sources/${id}/status`, "PATCH", {
+        status,
+        reason,
+      }),
+    ingest: (id: string) =>
+      request<IngestionRun>(`/admin/sources/${id}/ingest`, "POST"),
+    candidates: (outcome = "pending", offset = 0) =>
+      request<Page<ReviewCandidate>>(
+        `/admin/candidates?${query({ outcome: outcome || undefined, offset, limit: 20 })}`,
+      ),
+    review: (id: string, input: import("./index").ReviewInput) =>
+      request<{ contentId: string | null }>(
+        `/admin/candidates/${id}/review`,
+        "POST",
+        input,
+      ),
+    runs: (offset = 0) =>
+      request<Page<IngestionRun>>(
+        `/admin/ingestion-runs?limit=20&offset=${offset}`,
+      ),
+    decisions: (offset = 0) =>
+      request<Page<EditorialDecision>>(
+        `/admin/decisions?limit=20&offset=${offset}`,
+      ),
     feed: (q: { limit?: number; cursor?: string } = {}) =>
       request<FeedPage>(`/feed?${query(q)}`),
     search: (q: SearchQuery = {}) =>

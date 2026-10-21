@@ -23,7 +23,7 @@
   "vars": {
     "ENVIRONMENT": "production",
     "ALLOWED_ORIGIN": "http://127.0.0.1:5173",
-    "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,www.smashingmagazine.com,api.openalex.org",
+    "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,feeds2.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com,typographica.org,www.creativeboom.com",
     "INGEST_ENABLED": "false",
   },
 }

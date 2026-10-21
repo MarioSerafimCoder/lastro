@@ -6,6 +6,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import Curation from "./Curation";
 import {
   ArrowDownRight,
   ArrowLeft,
@@ -41,12 +42,13 @@ import type {
 } from "../../../packages/contracts";
 
 const api = createLastroClient();
-type Area = "for-you" | "salvos" | "oficina" | "publicacoes";
+type Area = "for-you" | "salvos" | "oficina" | "publicacoes" | "curadoria";
 const areas: { id: Area; label: string; index: string }[] = [
   { id: "for-you", label: "For You", index: "01" },
   { id: "salvos", label: "Salvos", index: "02" },
   { id: "oficina", label: "Oficina", index: "03" },
   { id: "publicacoes", label: "Publicações", index: "04" },
+  { id: "curadoria", label: "Curadoria", index: "05" },
 ];
 const navArea = (): Area => {
   const path = location.pathname.slice(1);
@@ -442,6 +444,7 @@ function Filters({
 }
 
 function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
+  const [ingestionError, setIngestionError] = useState("");
   const [area, setArea] = useState<Area>(navArea),
     [mobileMenu, setMobileMenu] = useState(false),
     [selected, setSelected] = useState<Content[]>([]),
@@ -571,15 +574,22 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
         setSelected(r.items);
       })
       .catch((e) => notify(errorText(e)));
-    void fetch("/api/admin/sources?limit=50", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then(
-        (r) =>
-          r &&
-          setSources(r.items.filter((s: Source) => s.status === "approved")),
-      )
-      .catch(() => {});
-  }, [loadFeed]);
+    void api
+      .sources()
+      .then((r) => {
+        setSources(r.items.filter((s) => s.status === "approved"));
+        setIngestionError(
+          r.items.some((s) => s.lastRun?.error)
+            ? "Há fontes com erro na última coleta. Consulte Curadoria → Fontes."
+            : "",
+        );
+      })
+      .catch(() =>
+        setIngestionError(
+          "Não foi possível verificar o estado das fontes. Consulte a Curadoria.",
+        ),
+      );
+  }, [loadFeed, area]);
   useEffect(() => {
     if (area === "salvos") {
       void loadSaved();
@@ -908,6 +918,10 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
               <>
                 Ideias em <em>construção.</em>
               </>
+            ) : area === "curadoria" ? (
+              <>
+                Repertório com <em>procedência.</em>
+              </>
             ) : (
               <>
                 Do rascunho ao <em>mundo.</em>
@@ -922,10 +936,12 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                   ? "Sua biblioteca pessoal de ideias, pesquisas e referências."
                   : area === "oficina"
                     ? "Reúna fontes, defina a direção e prepare a próxima criação."
-                    : "Um espaço editorial em preparação."}
+                    : area === "curadoria"
+                      ? "Acompanhe as fontes, revise referências e consulte as decisões."
+                      : "Um espaço editorial em preparação."}
             </p>
             <span className="edition">
-              {areas.find((a) => a.id === area)?.index} / 04
+              {areas.find((a) => a.id === area)?.index} / 05
             </span>
           </div>
         </div>
@@ -941,6 +957,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
               <span className="section-note">Curadoria que abre caminhos.</span>
             </div>
             <Filters query={query} setQuery={setQuery} sources={sources} />
+            {ingestionError && <p role="alert">{ingestionError}</p>}
             {feedError ? (
               <ErrorState message={feedError} onRetry={() => void loadFeed()} />
             ) : feedLoading ? (
@@ -1420,6 +1437,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             </div>
           </section>
         )}
+        {area === "curadoria" && <Curation />}
         {area === "publicacoes" && (
           <section className="page-section publications">
             <div className="section-heading">

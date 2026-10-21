@@ -53,6 +53,10 @@ Pacote novo não reutiliza automaticamente o anterior; representa uma fotografia
 
 ## Administração privada
 
+O painel Curadoria usa as rotas abaixo com a mesma sessão privada por senha do restante da aplicação. `GET /admin/overview` retorna `AdminOverview` (agendamento, hosts permitidos e contagens). `GET /admin/decisions?limit=20&offset=0` retorna `Page<EditorialDecision>` combinando decisões de fontes e candidatos/conteúdos, com motivo, alvo e data. Nenhum segredo é retornado.
+
+`GET /admin/sources` retorna `Page<AdminSource>`: campos de `Source` e `lastRun` (ou `null`). `GET /admin/candidates` retorna `Page<ReviewCandidate>`, acrescentando `quality` calculada pela política atual; não representa uma validação científica nem a avaliação humana histórica. `IngestionRun.received` registra novas entradas externas, zero em retomadas de fila e `null` em execuções anteriores à migração 0003. As contagens da execução não são reescritas por revisões posteriores.
+
 | Método e caminho                       | Entrada / efeito                                                                 |
 | -------------------------------------- | -------------------------------------------------------------------------------- |
 | GET `/admin/sources`                   | página por `limit`, `offset` de `Source`                                         |
@@ -88,7 +92,7 @@ As duas configurações em `examples/` usam `autoApprove:false`. Para aprovar co
 }
 ```
 
-A revisão aceita `correction` com campos parciais de `Candidate` e, quando houver análise humana, `materialScore`/`originalityScore` (0–100). Para um item rejeitado por metadados faltantes, corrigir título e URL, por exemplo. A revisão não ultrapassa fonte rejeitada, direitos negados, retratação ou indisponibilidade: é necessário corrigir o impedimento. Uma duplicata remete ao registro original; não edita outro conteúdo silenciosamente.
+A revisão aceita `correction` com campos parciais de `Candidate` e, quando houver análise humana, `materialScore`/`originalityScore` (0–100). Campos omitidos são preservados, inclusive quando o contrato de criação possui defaults; `null` explícito continua sendo aplicado nos campos que o aceitam. Para um item rejeitado por metadados faltantes, corrigir título e URL, por exemplo. A revisão não ultrapassa fonte rejeitada, direitos negados, retratação ou indisponibilidade: é necessário corrigir o impedimento. Uma duplicata remete ao registro original; não edita outro conteúdo silenciosamente.
 
 Anotação permite classificar uma afirmação (`statement`) ou fazer marcação editorial (`statement:null`). Há múltiplas marcações por item. `scientific_evidence` exige `referenceUrl` e `limitations`. Nenhuma anotação é gerada automaticamente. `materialScore` humano não representa verificação automática do estudo.
 

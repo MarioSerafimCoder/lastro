@@ -1,0 +1,79 @@
+{
+  "checkedAt": "2026-10-21T03:02:24.206Z",
+  "checks": [
+    {
+      "name": "Smashing Magazine",
+      "url": "https://www.smashingmagazine.com/feed/",
+      "status": 200,
+      "redirect": null,
+      "parsed": 25,
+      "sample": "Embracing Playful Imperfection With The CSS `random()` Function"
+    },
+    {
+      "name": "A List Apart",
+      "url": "https://alistapart.com/main/feed/",
+      "status": 200,
+      "redirect": null,
+      "parsed": 20,
+      "sample": "Designed for a Dead Language"
+    },
+    {
+      "name": "Typographica",
+      "url": "https://typographica.org/feed/",
+      "status": 200,
+      "redirect": null,
+      "parsed": 25,
+      "sample": "Jim Parkinson, 1941–2025"
+    },
+    {
+      "name": "Creative Boom",
+      "url": "https://www.creativeboom.com/feed/",
+      "status": 200,
+      "redirect": null,
+      "parsed": 20,
+      "sample": "Casey Roarty digs through Facebook Marketplace listings and transforms his findings into art"
+    },
+    {
+      "name": "It’s Nice That",
+      "url": "https://feeds2.feedburner.com/itsnicethat/SlXC",
+      "status": 200,
+      "redirect": null,
+      "parsed": 20,
+      "sample": "Why self-publishing pays off: No Ideas studio on the journey behind building their own imprint"
+    },
+    {
+      "name": "Journal of Vision",
+      "url": "https://api.openalex.org/works?filter=primary_location.source.id:S137468011&search=visual%20perception&sort=publication_date:desc",
+      "status": 200,
+      "sourceId": "https://openalex.org/S137468011",
+      "issn": [
+        "1534-7362"
+      ],
+      "parsed": 2,
+      "sample": "Navigational affordances emerge stably with brief stimulus exposure despite changes in scene content"
+    },
+    {
+      "name": "Design Studies",
+      "url": "https://api.openalex.org/works?filter=primary_location.source.id:S152445846&search=design&sort=publication_date:desc",
+      "status": 200,
+      "sourceId": "https://openalex.org/S152445846",
+      "issn": [
+        "0142-694X",
+        "1872-6909"
+      ],
+      "parsed": 2,
+      "sample": "Special issue: Doctoral design dialogues editorial"
+    },
+    {
+      "name": "Frontiers in Psychology",
+      "url": "https://api.openalex.org/works?filter=primary_location.source.id:S9692511&search=visual%20perception&sort=publication_date:desc",
+      "status": 200,
+      "sourceId": "https://openalex.org/S9692511",
+      "issn": [
+        "1664-1078"
+      ],
+      "parsed": 2,
+      "sample": "AI feedback does not motivate by itself: a motivational-meaning model for university physical education"
+    }
+  ]
+}

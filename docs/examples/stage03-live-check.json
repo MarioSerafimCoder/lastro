@@ -1,0 +1,100 @@
+{
+  "checkedAt": "2026-10-21T08:56:55.378Z",
+  "environment": "local",
+  "sourceId": "29f27d96-0123-4c98-a407-18d8a47fba98",
+  "runs": [
+    {
+      "id": "bf297a3d-5f80-4245-bab5-a88184fd83db",
+      "sourceId": "29f27d96-0123-4c98-a407-18d8a47fba98",
+      "startedAt": "2026-10-21T08:56:52.003Z",
+      "finishedAt": "2026-10-21T08:56:52.588Z",
+      "status": "partial",
+      "accepted": 0,
+      "pending": 2,
+      "rejected": 0,
+      "duplicates": 0,
+      "queuedRemaining": 16,
+      "error": null
+    },
+    {
+      "id": "81ef3d31-6906-4c9a-b1aa-abb106aa6fd4",
+      "sourceId": "29f27d96-0123-4c98-a407-18d8a47fba98",
+      "startedAt": "2026-10-21T03:03:08.203Z",
+      "finishedAt": "2026-10-21T03:03:10.037Z",
+      "status": "partial",
+      "accepted": 0,
+      "pending": 2,
+      "rejected": 0,
+      "duplicates": 0,
+      "queuedRemaining": 18,
+      "error": null
+    }
+  ],
+  "candidates": [
+    {
+      "id": "bc6fac6d-18e0-411b-8283-c889fa6e0ac0",
+      "title": "Design Dialects: Breaking the Rules, Not the System",
+      "outcome": "pending",
+      "authors": [
+        {
+          "name": "by",
+          "orcid": null,
+          "openalex": null
+        }
+      ],
+      "score": 72.6
+    },
+    {
+      "id": "93c71fe7-7571-4d9f-a76a-5f5ded6cbb1c",
+      "title": "Design for Amiability: Lessons from Vienna",
+      "outcome": "pending",
+      "authors": [
+        {
+          "name": "by",
+          "orcid": null,
+          "openalex": null
+        }
+      ],
+      "score": 72.8
+    },
+    {
+      "id": "44fd1930-1d29-4081-8e8e-b9030be5d13e",
+      "title": "Good designers, bad websites: a proposal",
+      "outcome": "approved",
+      "authors": [
+        {
+          "name": "Alan Dalton",
+          "orcid": null,
+          "openalex": null
+        }
+      ],
+      "score": 75.2
+    },
+    {
+      "id": "cf300eea-db52-4f51-9169-2080e72916a3",
+      "title": "Designed for a Dead Language",
+      "outcome": "approved",
+      "authors": [
+        {
+          "name": "Shrey Shah",
+          "orcid": null,
+          "openalex": null
+        }
+      ],
+      "score": 76.8
+    }
+  ],
+  "approved": [
+    "bb0a8072-8649-46cd-bfc0-d10930cfd2a8",
+    "4b4e3713-ca3e-452f-8b7d-cd3a4c67a31f"
+  ],
+  "workflow": {
+    "feed": true,
+    "searchFilters": true,
+    "favorites": true,
+    "selection": true,
+    "promptId": "0867980f-63ce-48e2-8960-9d69d91db7df",
+    "promptContainsBothAuthors": true,
+    "previousUserStateRestored": true
+  }
+}

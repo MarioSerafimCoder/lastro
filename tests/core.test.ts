@@ -245,3 +245,29 @@ test("requisições limitam retries, não seguem redirects e não enviam segredo
     validateFetchUrl("https://fixtures.example.test/feed?api_key=secret", env),
   );
 });
+
+test("correção parcial preserva metadados omitidos e rejeita campos desconhecidos", async () => {
+  const { reviewSchema } = await import("../packages/contracts/index");
+  const correction = reviewSchema.parse({
+    decision: "approved",
+    reason: "Idioma conferido",
+    correction: { language: "en" },
+  }).correction;
+  assert.deepEqual(correction, { language: "en" });
+  assert.equal(
+    reviewSchema.safeParse({
+      decision: "approved",
+      reason: "Dados conferidos",
+      correction: { unknown: "bad" },
+    }).success,
+    false,
+  );
+  assert.deepEqual(
+    reviewSchema.parse({
+      decision: "approved",
+      reason: "Resumo removido",
+      correction: { description: null },
+    }).correction,
+    { description: null },
+  );
+});

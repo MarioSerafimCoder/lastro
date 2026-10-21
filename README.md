@@ -2,7 +2,7 @@
 
 Aplicação privada online: [Abrir o Lastro](https://lastro-api.marioserafim-da.workers.dev). A senha inicial foi salva apenas no computador do proprietário, em `C:\Users\pc mario\Documents\Lastro-acesso-privado.txt`; nunca no Git. A produção usa um banco D1 próprio e começa sem itens até a revisão editorial de fontes e conteúdos.
 
-Etapas 01 e 02 implementadas: API privada, banco D1, coleta RSS/Atom e OpenAlex, triagem editorial e interface React para For You, Salvos, Oficina e estrutura honesta de Publicações. Identidade visual provisória; sem API paga de IA.
+Etapas 01, 02 e 03 implementadas: API privada, banco D1, coleta RSS/Atom e OpenAlex, For You, Salvos, Oficina e painel de Curadoria com fontes, revisão e histórico. A Etapa 03 foi validada localmente com artigos reais; sua publicação e primeira ingestão remota aguardam autorização específica do proprietário. Identidade visual provisória; sem API paga de IA.
 
 ## Executar localmente
 
@@ -21,7 +21,7 @@ Em outro terminal, inicie a interface:
 npm run web:dev
 ```
 
-Abra `http://127.0.0.1:5173`. O servidor local encaminha `/api` ao Worker e acrescenta o token de `.dev.vars` apenas no processo de desenvolvimento. O navegador não recebe esse segredo. Mantenha os dois processos em execução. Em produção, a interface deverá ser servida no mesmo domínio protegido pela sessão Cloudflare Access.
+Abra `http://127.0.0.1:5173`. O servidor local encaminha `/api` ao Worker e acrescenta o token de `.dev.vars` apenas no processo de desenvolvimento. O navegador não recebe esse segredo. Mantenha os dois processos em execução. Em produção, a interface e API são servidas no mesmo domínio; os dados são protegidos pelo login privado por senha.
 
 API em `http://127.0.0.1:8787`. Apenas `/health` é público. `npm run setup` cria `.dev.vars` com token aleatório, ignorado pelo Git, sem substituir configurações existentes. O banco persiste em `.wrangler/state`; não apague essa pasta para “reiniciar” o servidor.
 
@@ -60,6 +60,8 @@ Esse script cadastra/aprova duas fontes de metadados no banco **local**, realiza
 - [Operação](docs/OPERATIONS.md): fontes, agendamento, credenciais e publicação de produção.
 - [Validação](docs/VALIDATION.md): evidências e limites dos testes executados.
 - [Interface — etapa 02](docs/STAGE_02.md): fluxos testados, limites de UX, dependências e próximo ciclo.
+- [Radar Vivo — etapa 03](docs/STAGE_03.md): Curadoria, ingestão real local e ativação pendente de produção.
+- [Catálogo de fontes](docs/SOURCES.md): oito integrações verificadas, três sugestões e configurações reutilizáveis.
 
 Contratos e cliente compartilhados: `packages/contracts/index.ts` e `packages/contracts/client.ts`. Implementação: `src/`. SQL versionado: `migrations/`.
 

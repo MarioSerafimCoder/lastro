@@ -1,0 +1,14 @@
+{
+  "name": "It’s Nice That",
+  "connector": "rss",
+  "url": "https://feeds2.feedburner.com/itsnicethat/SlXC",
+  "authority": 70,
+  "topics": ["design", "brand", "typography", "illustration"],
+  "languages": ["en"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "rightsNote": "Feed indicado pelo próprio editor para acompanhamento. Apenas metadados e links; não reproduzir resumos, imagens ou texto integral. Revisar direitos antes de ampliar o uso.",
+  "autoApprove": false,
+  "intervalMinutes": 1440
+}

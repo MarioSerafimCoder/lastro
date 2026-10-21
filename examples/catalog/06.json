@@ -1,0 +1,14 @@
+{
+  "name": "Journal of Vision — via OpenAlex",
+  "connector": "openalex",
+  "url": "https://api.openalex.org/works?filter=primary_location.source.id:S137468011&search=visual%20perception&sort=publication_date:desc",
+  "authority": 70,
+  "topics": ["visual", "perception", "design", "cognition", "attention"],
+  "languages": ["en"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "rightsNote": "Metadados OpenAlex CC0: https://help.openalex.org/api/. Licença dos artigos é independente. Sem abstracts ou texto integral. DOI e indexação não comprovam validade científica; revisão humana obrigatória.",
+  "autoApprove": false,
+  "intervalMinutes": 1440
+}

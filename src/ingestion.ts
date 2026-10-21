@@ -308,6 +308,7 @@ export async function ingestSource(
     id: id(),
     sourceId,
     status: "running",
+    received: 0,
     accepted: 0,
     pending: 0,
     rejected: 0,
@@ -339,6 +340,7 @@ export async function ingestSource(
     if (!hasQueue) {
       fetched = true;
       const collected = await collect(source, env, row, fetcher);
+      run.received = collected.items.length;
       await env.DB.batch([
         stmt(
           env.DB,
@@ -408,7 +410,7 @@ export async function ingestSource(
     await env.DB.batch([
       stmt(
         env.DB,
-        "UPDATE ingestion_runs SET status=?,finished_at=?,accepted=?,pending=?,rejected=?,duplicates=?,queued_remaining=?,error=? WHERE id=?",
+        "UPDATE ingestion_runs SET status=?,finished_at=?,accepted=?,pending=?,rejected=?,duplicates=?,queued_remaining=?,error=?,received=? WHERE id=?",
         run.status,
         now(),
         run.accepted,
@@ -417,6 +419,7 @@ export async function ingestSource(
         run.duplicates,
         run.queuedRemaining,
         run.error,
+        run.received,
         run.id,
       ),
       stmt(

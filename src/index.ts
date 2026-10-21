@@ -609,16 +609,42 @@ app.delete("/api/collections/:id/items/:contentId", async (c) => {
   return c.body(null, 204);
 });
 
-app.get("/api/admin/sources", async (c) => {
+app.get("/api/admin/overview", async (c) =>
+  c.json({
+    ingestEnabled: c.env.INGEST_ENABLED === "true",
+    allowedHosts: (c.env.ALLOWED_FETCH_HOSTS ?? "").split(",").filter(Boolean),
+    ...(await first<{ sources: number; pending: number; approved: number }>(
+      c.env.DB,
+      "SELECT (SELECT COUNT(*) FROM sources) sources, (SELECT COUNT(*) FROM ingestion_candidates WHERE outcome='pending') pending, (SELECT COUNT(*) FROM contents WHERE editorial_status='approved') approved",
+    )),
+  }),
+);
+app.get("/api/admin/decisions", async (c) => {
   const q = pageQuery.parse(c.req.query());
-  const data = await rows<SourceRow>(
+  const data = await rows(
     c.env.DB,
-    "SELECT * FROM sources ORDER BY created_at,id LIMIT ? OFFSET ?",
+    "SELECT id,source_id targetId,'source' scope,status decision,reason,created_at createdAt FROM source_decisions UNION ALL SELECT id,COALESCE(content_id,candidate_id) targetId,'content' scope,decision,reason,created_at createdAt FROM editorial_decisions ORDER BY createdAt DESC,id LIMIT ? OFFSET ?",
     q.limit + 1,
     q.offset,
   );
   return c.json({
-    items: data.slice(0, q.limit).map(sourceView),
+    items: data.slice(0, q.limit),
+    nextCursor: data.length > q.limit ? String(q.offset + q.limit) : null,
+  });
+});
+app.get("/api/admin/sources", async (c) => {
+  const q = pageQuery.parse(c.req.query());
+  const data = await rows<SourceRow & { last_run_json: string | null }>(
+    c.env.DB,
+    "SELECT s.*, (SELECT json_object('id',r.id,'sourceId',r.source_id,'startedAt',r.started_at,'finishedAt',r.finished_at,'status',r.status,'received',r.received,'accepted',r.accepted,'pending',r.pending,'rejected',r.rejected,'duplicates',r.duplicates,'queuedRemaining',r.queued_remaining,'error',r.error) FROM ingestion_runs r WHERE r.source_id=s.id ORDER BY r.started_at DESC,r.id DESC LIMIT 1) last_run_json FROM sources s ORDER BY created_at,id LIMIT ? OFFSET ?",
+    q.limit + 1,
+    q.offset,
+  );
+  return c.json({
+    items: data.slice(0, q.limit).map((r) => ({
+      ...sourceView(r),
+      lastRun: r.last_run_json ? JSON.parse(r.last_run_json) : null,
+    })),
     nextCursor: data.length > q.limit ? String(q.offset + q.limit) : null,
   });
 });
@@ -768,7 +794,7 @@ app.get("/api/admin/ingestion-runs", async (c) => {
   const q = pageQuery.parse(c.req.query());
   const data = await rows<any>(
     c.env.DB,
-    "SELECT id,source_id sourceId,started_at startedAt,finished_at finishedAt,status,accepted,pending,rejected,duplicates,queued_remaining queuedRemaining,error FROM ingestion_runs ORDER BY started_at DESC,id LIMIT ? OFFSET ?",
+    "SELECT id,source_id sourceId,started_at startedAt,finished_at finishedAt,status,received,accepted,pending,rejected,duplicates,queued_remaining queuedRemaining,error FROM ingestion_runs ORDER BY started_at DESC,id LIMIT ? OFFSET ?",
     q.limit + 1,
     q.offset,
   );
@@ -778,6 +804,7 @@ app.get("/api/admin/ingestion-runs", async (c) => {
   });
 });
 app.get("/api/admin/candidates", async (c) => {
+  const activePolicy = await policy(c.env.DB);
   const q = pageQuery
     .extend({
       runId: z.string().uuid().optional(),
@@ -788,7 +815,7 @@ app.get("/api/admin/candidates", async (c) => {
     .parse(c.req.query());
   const data = await rows<any>(
     c.env.DB,
-    "SELECT * FROM ingestion_candidates WHERE (? IS NULL OR run_id=?) AND (? IS NULL OR outcome=?) ORDER BY created_at DESC,id LIMIT ? OFFSET ?",
+    "SELECT ic.*, s.config_json source_config, s.status source_status FROM ingestion_candidates ic JOIN sources s ON s.id=ic.source_id WHERE (? IS NULL OR run_id=?) AND (? IS NULL OR outcome=?) ORDER BY ic.created_at DESC,ic.id LIMIT ? OFFSET ?",
     q.runId ?? null,
     q.runId ?? null,
     q.outcome ?? null,
@@ -805,6 +832,11 @@ app.get("/api/admin/candidates", async (c) => {
       outcome: r.outcome,
       reasons: JSON.parse(r.reasons_json),
       metadata: JSON.parse(r.payload_json),
+      quality: evaluate(
+        JSON.parse(r.payload_json),
+        { ...JSON.parse(r.source_config), status: r.source_status },
+        activePolicy,
+      ),
       createdAt: r.created_at,
     })),
     nextCursor: data.length > q.limit ? String(q.offset + q.limit) : null,
