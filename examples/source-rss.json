@@ -1,0 +1,22 @@
+{
+  "name": "Smashing Magazine — metadados",
+  "connector": "rss",
+  "url": "https://www.smashingmagazine.com/feed/",
+  "authority": 75,
+  "topics": [
+    "design",
+    "css",
+    "ux",
+    "accessibility",
+    "typography",
+    "web",
+    "figma"
+  ],
+  "languages": ["en"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "rightsNote": "Feed público para acompanhamento por RSS. Armazenar somente título, autoria, links e metadados; nenhum resumo ou texto integral. Revisar termos antes de ampliar uso.",
+  "autoApprove": false,
+  "intervalMinutes": 360
+}

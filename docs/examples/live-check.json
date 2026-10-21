@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-10-20T21:40:14.306Z",
+  "environment": "local",
+  "external": [
+    {
+      "connector": "rss",
+      "sourceId": "10549e43-cc76-4499-9694-bd2f2bc8a14c",
+      "id": "92d80364-8515-410e-aaf3-68715d20d971",
+      "status": "partial",
+      "accepted": 0,
+      "pending": 1,
+      "rejected": 1,
+      "duplicates": 0,
+      "queuedRemaining": 23,
+      "error": null
+    },
+    {
+      "connector": "openalex",
+      "sourceId": "073d38b7-fd95-4d97-9524-b5b6bde5125e",
+      "id": "9f5f4d68-fc4f-4291-80c6-479265e51a85",
+      "status": "partial",
+      "accepted": 0,
+      "pending": 1,
+      "rejected": 1,
+      "duplicates": 0,
+      "queuedRemaining": 23,
+      "error": null
+    }
+  ],
+  "workflow": {
+    "contentId": "72ed95db-f87e-46ed-a346-404eac705cbe",
+    "packageId": "4931e6d3-ce26-43cd-8fc6-81d2e4199a4d",
+    "promptId": "13579085-e8eb-43eb-aed4-b47efff2bc2f",
+    "status": "passed"
+  }
+}

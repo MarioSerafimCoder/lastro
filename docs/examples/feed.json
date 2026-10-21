@@ -1,0 +1,95 @@
+{
+  "items": [
+    {
+      "content": {
+        "title": "Embracing Playful Imperfection With The CSS `random()` Function",
+        "url": "https://smashingmagazine.com/2026/10/embracing-playful-imperfection-css-random-function/",
+        "authors": [
+          {
+            "name": "hello@smashingmagazine.com (Brecht De Ruyte)",
+            "orcid": null,
+            "openalex": null
+          }
+        ],
+        "publication": "Articles on Smashing Magazine — For Web Designers And Developers",
+        "publishedAt": "2026-10-20T10:00:00.000Z",
+        "kind": "article",
+        "language": "en",
+        "description": null,
+        "identifiers": [
+          {
+            "scheme": "source_guid",
+            "value": "https://smashingmagazine.com/2026/10/embracing-playful-imperfection-css-random-function/"
+          }
+        ],
+        "topics": [
+          "css"
+        ],
+        "access": "unknown",
+        "license": null,
+        "accessNote": "Somente metadados do feed; página original não foi consultada.",
+        "isPrimary": null,
+        "retracted": false,
+        "evergreen": false,
+        "id": "72ed95db-f87e-46ed-a346-404eac705cbe",
+        "sourceId": "10549e43-cc76-4499-9694-bd2f2bc8a14c",
+        "sourceName": "Smashing Magazine — metadados",
+        "canonicalUrl": "https://smashingmagazine.com/2026/10/embracing-playful-imperfection-css-random-function",
+        "collectedAt": "2026-10-20T21:40:16.114Z",
+        "editorialStatus": "approved",
+        "quality": {
+          "version": "lastro-1.0",
+          "score": 82.5,
+          "factors": {
+            "authority": 75,
+            "material": 80,
+            "relevance": 100,
+            "originality": 50,
+            "freshness": 100
+          },
+          "limitations": [
+            "Resumo não disponível ou não autorizado.",
+            "Texto integral não consultado; acesso unknown.",
+            "Originalidade e procedência primária não verificadas."
+          ]
+        },
+        "state": {
+          "favorite": true,
+          "selected": true,
+          "seen": false,
+          "opened": false,
+          "read": false,
+          "dismissed": false,
+          "used": false,
+          "note": null
+        },
+        "annotations": []
+      },
+      "explanation": {
+        "algorithmVersion": "lastro-1.0",
+        "score": 63.85,
+        "factors": {
+          "quality": 28.875,
+          "interests": 0,
+          "originality": 5,
+          "freshness": 9.973017135519015,
+          "affinity": 10,
+          "seen": 0,
+          "read": 0,
+          "diversity": 10
+        },
+        "reasons": [
+          "Fonte aprovada; qualidade editorial mínima atendida.",
+          "Afinidade com referências salvas ou utilizadas.",
+          "Diversidade considera repetição de temas e fontes nesta sequência."
+        ],
+        "exploration": false
+      }
+    }
+  ],
+  "nextCursor": null,
+  "snapshotId": "fbba9275-b17d-4099-bd56-51e32ad99d80",
+  "expiresAt": "2026-10-20T22:10:20.468Z",
+  "candidateLimit": 500,
+  "algorithmVersion": "lastro-1.0"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "OpenAlex — design e percepção visual",
+  "connector": "openalex",
+  "url": "https://api.openalex.org/works?search=visual%20design&filter=from_publication_date:2025-01-01,to_publication_date:2026-10-20",
+  "authority": 65,
+  "topics": ["design", "visual", "perception", "typography"],
+  "languages": ["en", "pt"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "rightsNote": "Metadados OpenAlex distribuídos sob CC0. A licença do artigo é separada; não baixar abstracts ou textos integrais.",
+  "autoApprove": false,
+  "intervalMinutes": 1440
+}
