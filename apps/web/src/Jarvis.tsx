@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Minus, X } from "lucide-react";
 import { contextualSuggestion, type JarvisContext } from "./experience";
-
+import { fullMotion } from "./Appearance";
 const preferenceKey = "lastro:jarvis:proactive";
 function read(store: "localStorage" | "sessionStorage", key: string) {
   try {
@@ -18,28 +18,56 @@ function write(
   try {
     window[store].setItem(key, value);
   } catch {
-    /* Private mode: keep in-memory preference. */
+    /* Keep the in-memory preference when storage is unavailable. */
   }
 }
 export function JarvisMark() {
   return (
     <svg
       className="jarvis-mark"
-      viewBox="0 0 32 32"
+      viewBox="0 0 48 48"
       fill="none"
       aria-hidden="true"
     >
-      <circle cx="16" cy="16" r="5" fill="currentColor" />
-      <ellipse
-        cx="16"
-        cy="16"
-        rx="14"
-        ry="8"
+      <circle
+        className="jarvis-halo"
+        cx="24"
+        cy="24"
+        r="17"
         stroke="currentColor"
-        strokeWidth="1.5"
-        transform="rotate(-35 16 16)"
+        strokeWidth=".6"
+        opacity=".24"
       />
-      <circle cx="25" cy="7" r="2.5" fill="currentColor" />
+      <g className="jarvis-orbit">
+        <ellipse
+          cx="24"
+          cy="24"
+          rx="21"
+          ry="10"
+          stroke="currentColor"
+          strokeWidth="1.1"
+        />
+        <circle cx="45" cy="24" r="2.4" fill="currentColor" />
+      </g>
+      <g className="jarvis-orbit counter">
+        <ellipse
+          cx="24"
+          cy="24"
+          rx="10"
+          ry="21"
+          stroke="currentColor"
+          strokeWidth=".8"
+          opacity=".6"
+        />
+        <circle cx="24" cy="3" r="1.6" fill="currentColor" />
+      </g>
+      <circle
+        className="jarvis-core"
+        cx="24"
+        cy="24"
+        r="5"
+        fill="currentColor"
+      />
     </svg>
   );
 }
@@ -50,39 +78,101 @@ export default function Jarvis({
   context: JarvisContext;
   onAction: (action: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false),
+    [closing, setClosing] = useState(false);
   const [enabled, setEnabled] = useState(
     () => read("localStorage", "lastro:jarvis:enabled") !== "false",
   );
   const [proactive, setProactive] = useState(
     () => read("localStorage", preferenceKey) !== "false",
   );
-  const [hint, setHint] = useState(false);
+  const [hint, setHint] = useState(false),
+    [hintClosing, setHintClosing] = useState(false);
   const offered = useRef(
     read("sessionStorage", "lastro:jarvis:offered") === "true",
   );
+  const toggleRef = useRef<HTMLButtonElement>(null),
+    panelRef = useRef<HTMLDivElement>(null);
+  const timer = useRef<number | undefined>(undefined),
+    hintTimer = useRef<number | undefined>(undefined);
   const suggestion = contextualSuggestion(context);
+  const dismissHint = () => {
+    window.clearTimeout(hintTimer.current);
+    if (!fullMotion()) {
+      setHint(false);
+      return;
+    }
+    setHintClosing(true);
+    hintTimer.current = window.setTimeout(() => {
+      setHint(false);
+      setHintClosing(false);
+    }, 160);
+  };
+  const close = () => {
+    window.clearTimeout(timer.current);
+    toggleRef.current?.focus({ preventScroll: true });
+    const finish = () => {
+      setOpen(false);
+      setClosing(false);
+      requestAnimationFrame(() =>
+        toggleRef.current?.focus({ preventScroll: true }),
+      );
+    };
+    if (!fullMotion()) {
+      finish();
+      return;
+    }
+    setClosing(true);
+    timer.current = window.setTimeout(finish, 180);
+  };
+  const show = () => {
+    window.clearTimeout(timer.current);
+    setClosing(false);
+    setOpen(true);
+    setHint(false);
+  };
   useEffect(() => {
     if (context.area !== "for-you") setHint(false);
   }, [context.area]);
   useEffect(() => {
-    // Only offer on an idle Radar with real content, never during a form or reading.
     if (
       !enabled ||
       !proactive ||
       offered.current ||
       context.area !== "for-you" ||
-      context.available === 0
+      !context.available
     )
       return;
     offered.current = true;
     write("sessionStorage", "lastro:jarvis:offered", "true");
     setHint(true);
   }, [enabled, proactive, context.area, context.available]);
+  useEffect(() => {
+    if (open && !closing)
+      panelRef.current
+        ?.querySelector<HTMLButtonElement>("button")
+        ?.focus({ preventScroll: true });
+  }, [open, closing]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector('[role="dialog"]'))
+        close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+  useEffect(
+    () => () => {
+      window.clearTimeout(timer.current);
+      window.clearTimeout(hintTimer.current);
+    },
+    [],
+  );
   if (!enabled)
     return (
-      <aside className="jarvis-dock">
-        <p>Jarvis desativado</p>
+      <aside className="jarvis-dock is-disabled" aria-label="Assistente Jarvis">
+        <span>Jarvis desativado</span>
         <button
           className="secondary-button"
           onClick={() => {
@@ -95,62 +185,63 @@ export default function Jarvis({
       </aside>
     );
   return (
-    <aside className="jarvis-dock" aria-label="Assistente Jarvis">
+    <aside
+      className={`jarvis-dock ${open ? "is-open" : ""} ${hint ? "has-suggestion" : ""}`}
+      aria-label="Assistente Jarvis"
+    >
       <button
+        ref={toggleRef}
         className="jarvis-toggle"
         aria-expanded={open}
         aria-controls="jarvis-panel"
-        onClick={() => {
-          setOpen(!open);
-          setHint(false);
-        }}
+        onClick={() => (open ? close() : show())}
       >
         <JarvisMark />
-        <span>Jarvis</span>
-        <span className="jarvis-caption">Seu próximo caminho</span>
+        <span>
+          Jarvis<span className="jarvis-caption">Seu próximo caminho</span>
+        </span>
+        <span className="jarvis-signal" aria-hidden="true" />
         {open ? <Minus size={16} /> : <ArrowUpRight size={16} />}
       </button>
       {hint && !open && (
-        <div className="jarvis-hint">
+        <div className={`jarvis-hint ${hintClosing ? "is-closing" : ""}`}>
           <p>Quer explorar uma referência diferente?</p>
-          <button
-            onClick={() => {
-              setOpen(true);
-              setHint(false);
-            }}
-          >
-            Explorar com Jarvis
-          </button>
-          <button
-            aria-label="Dispensar sugestão"
-            onClick={() => setHint(false)}
-          >
+          <button onClick={show}>Explorar com Jarvis</button>
+          <button aria-label="Dispensar sugestão" onClick={dismissHint}>
             <X size={16} />
           </button>
         </div>
       )}
       {open && (
-        <div id="jarvis-panel" className="jarvis-panel">
+        <div
+          id="jarvis-panel"
+          ref={panelRef}
+          className={`jarvis-panel ${closing ? "is-closing" : ""}`}
+          role="region"
+          aria-label="Painel Jarvis"
+        >
           <div className="jarvis-heading">
+            <JarvisMark />
             <span>Uma provocação, um caminho.</span>
-            <button
-              aria-label="Minimizar Jarvis"
-              onClick={() => setOpen(false)}
-            >
-              <Minus size={16} />
+            <button aria-label="Minimizar Jarvis" onClick={close}>
+              <Minus size={18} />
             </button>
           </div>
-          <h3>{suggestion.title}</h3>
-          <p>{suggestion.body}</p>
-          <button
-            className="primary-button"
-            onClick={() => {
-              onAction(suggestion.action);
-            }}
-          >
-            {suggestion.label}
-            <ArrowUpRight size={16} />
-          </button>
+          <div className="jarvis-suggestion" key={suggestion.action}>
+            <span className="kicker">Um ponto de partida</span>
+            <h3>{suggestion.title}</h3>
+            <p>{suggestion.body}</p>
+            <button
+              className="primary-button"
+              onClick={() => {
+                close();
+                onAction(suggestion.action);
+              }}
+            >
+              {suggestion.label}
+              <ArrowUpRight size={16} />
+            </button>
+          </div>
           <label className="jarvis-preference">
             <input
               type="checkbox"

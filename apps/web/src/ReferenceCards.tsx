@@ -1,3 +1,4 @@
+import Select from "./Select";
 import { useState, type ReactNode } from "react";
 import {
   BookOpen,
@@ -75,6 +76,7 @@ type CardProps = {
   onExplore?: (topic: string) => void;
   busy: boolean;
   featured?: boolean;
+  discovering?: boolean;
 };
 export function ContentCard({
   item,
@@ -88,6 +90,7 @@ export function ContentCard({
   onExplore,
   busy,
   featured = false,
+  discovering = false,
 }: CardProps) {
   const [why, setWhy] = useState(false);
   const author = item.authors
@@ -97,7 +100,7 @@ export function ContentCard({
     <article
       id={`content-${item.id}`}
       tabIndex={-1}
-      className={`content-card ${item.state.selected ? "is-selected" : ""} ${featured ? "featured" : ""}`}
+      className={`content-card ${item.state.selected ? "is-selected" : ""} ${discovering ? "is-discovering" : ""} ${featured ? "featured" : ""}`}
     >
       <div className="card-copy">
         <div className="eyebrow">
@@ -267,12 +270,13 @@ export function Filters({
         <Filter size={16} />
         <label>
           <span className="sr-only">Assunto</span>
-          <select
+          <Select
+            label="Assunto"
             value={query.topic ?? ""}
-            onChange={(e) =>
+            onValueChange={(nextValue) =>
               setQuery({
                 ...query,
-                topic: e.target.value || undefined,
+                topic: nextValue || undefined,
                 offset: 0,
               })
             }
@@ -291,19 +295,33 @@ export function Filters({
               "accessibility",
             ].map((t) => (
               <option key={t} value={t}>
-                {t}
+                {(
+                  {
+                    design: "Design",
+                    branding: "Branding",
+                    typography: "Tipografia",
+                    visual: "Referências visuais",
+                    perception: "Percepção",
+                    technology: "Tecnologia",
+                    cultura: "Cultura",
+                    css: "CSS",
+                    ux: "UX",
+                    accessibility: "Acessibilidade",
+                  } as Record<string, string>
+                )[t] ?? t}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label>
           <span className="sr-only">Fonte</span>
-          <select
+          <Select
+            label="Fonte"
             value={query.sourceId ?? ""}
-            onChange={(e) =>
+            onValueChange={(nextValue) =>
               setQuery({
                 ...query,
-                sourceId: e.target.value || undefined,
+                sourceId: nextValue || undefined,
                 offset: 0,
               })
             }
@@ -314,16 +332,17 @@ export function Filters({
                 {s.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label>
           <span className="sr-only">Formato</span>
-          <select
+          <Select
+            label="Formato"
             value={query.kind ?? ""}
-            onChange={(e) =>
+            onValueChange={(nextValue) =>
               setQuery({
                 ...query,
-                kind: (e.target.value as Content["kind"]) || undefined,
+                kind: (nextValue as Content["kind"]) || undefined,
                 offset: 0,
               })
             }
@@ -334,7 +353,7 @@ export function Filters({
                 {value}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       </div>
     </div>

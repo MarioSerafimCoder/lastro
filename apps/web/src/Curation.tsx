@@ -1,3 +1,4 @@
+import Select from "./Select";
 import { useEffect, useState, type FormEvent } from "react";
 import { createLastroClient } from "../../../packages/contracts/client";
 import {
@@ -152,13 +153,14 @@ function SourceForm({
       </label>
       <label>
         Conector
-        <select
+        <Select
+          label="Conector"
           value={value.connector}
-          onChange={(e) => field("connector", e.target.value)}
+          onValueChange={(nextValue) => field("connector", nextValue)}
         >
           <option value="rss">RSS / Atom</option>
           <option value="openalex">OpenAlex</option>
-        </select>
+        </Select>
       </label>
       <label>
         Assuntos, separados por vírgula
@@ -464,20 +466,21 @@ function CandidateCard({
         </label>
         <label>
           Idioma
-          <select
+          <Select
+            label="Idioma"
             value={
               ("language" in correction ? correction.language : m.language) ??
               ""
             }
-            onChange={(e) =>
-              setCorrection((v) => ({ ...v, language: e.target.value || null }))
+            onValueChange={(nextValue) =>
+              setCorrection((v) => ({ ...v, language: nextValue || null }))
             }
           >
             <option value="">Não informado</option>
             <option value="pt">Português</option>
             <option value="en">Inglês</option>
             <option value="es">Espanhol</option>
-          </select>
+          </Select>
         </label>
       </details>
       <label>
@@ -674,10 +677,11 @@ export default function Curation({
             <>
               <label>
                 Estado
-                <select
+                <Select
+                  label="Estado"
                   value={outcome}
-                  onChange={(e) => {
-                    setOutcome(e.target.value);
+                  onValueChange={(nextValue) => {
+                    setOutcome(nextValue);
                     setOffset(0);
                   }}
                 >
@@ -692,7 +696,7 @@ export default function Curation({
                       {l}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               {queue.items.length === 0 && (
                 <p>Nenhum candidato neste estado.</p>

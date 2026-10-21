@@ -1,3 +1,4 @@
+import Select from "./Select";
 import {
   useCallback,
   useEffect,
@@ -10,6 +11,11 @@ import Curation from "./Curation";
 import { ContentCard, Filters } from "./ReferenceCards";
 import Jarvis from "./Jarvis";
 import Pulso from "./Pulso";
+import AppearanceControls, {
+  fullMotion,
+  transitionLayout,
+  transitionCards,
+} from "./Appearance";
 import { chooseDiscovery, discoveryPool } from "./experience";
 import { useDialogFocus } from "./useDialogFocus";
 import {
@@ -181,10 +187,13 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     [workError, setWorkError] = useState(""),
     [copied, setCopied] = useState(false);
   const [discovered, setDiscovered] = useState<string>();
+  const [discoveryId, setDiscoveryId] = useState<string>();
+  const discoveryTimer = useRef<number | undefined>(undefined);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [pending, setPending] = useState<number | null>(null);
   const radarDirty = useRef(false);
   const positions = useRef<Partial<Record<Area, number>>>({});
+  const activeArea = useRef<Area>(area);
   useDialogFocus(selectionOpen || noteTarget !== null);
   const seq = useRef(Promise.resolve()),
     selectedRef = useRef<Content[]>([]),
@@ -196,21 +205,41 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
   };
   const navigate = (to: Area) => {
     if (area !== to) {
-      positions.current[area] = window.scrollY;
+      positions.current[area] = document.getElementById("main")?.scrollTop ?? 0;
+      activeArea.current = to;
       history.pushState({}, "", `/${to}`);
-      setArea(to);
-      requestAnimationFrame(() =>
-        window.scrollTo({
-          top: positions.current[to] ?? 0,
-          behavior: "instant",
-        }),
-      );
+      transitionLayout(() => {
+        setArea(to);
+        requestAnimationFrame(() =>
+          document.getElementById("main")?.scrollTo({
+            top: positions.current[to] ?? 0,
+            behavior: "instant",
+          }),
+        );
+      });
     }
     setMobileMenu(false);
     setSelectionOpen(false);
   };
+  useEffect(() => () => window.clearTimeout(discoveryTimer.current), []);
   useEffect(() => {
-    const onPop = () => setArea(navArea());
+    const onPop = () => {
+      const to = navArea();
+      positions.current[activeArea.current] =
+        document.getElementById("main")?.scrollTop ?? 0;
+      activeArea.current = to;
+      transitionLayout(() => {
+        setArea(to);
+        requestAnimationFrame(() =>
+          document.getElementById("main")?.scrollTo({
+            top: positions.current[to] ?? 0,
+            behavior: "instant",
+          }),
+        );
+      });
+      setMobileMenu(false);
+      setSelectionOpen(false);
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -544,11 +573,9 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
       });
       setPrompt(await api.prompt(pack.id));
       notify("Prompt gerado com as referências selecionadas.");
-      window.scrollTo({
+      document.getElementById("main")?.scrollTo({
         top: 0,
-        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "instant"
-          : "smooth",
+        behavior: fullMotion() ? "smooth" : "instant",
       });
     } catch (err) {
       setWorkError(errorText(err));
@@ -598,13 +625,17 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     const item = chooseDiscovery(feedItems, discovered);
     if (!item) return;
     setDiscovered(item.id);
+    setDiscoveryId(item.id);
+    window.clearTimeout(discoveryTimer.current);
+    discoveryTimer.current = window.setTimeout(
+      () => setDiscoveryId(undefined),
+      1900,
+    );
     requestAnimationFrame(() => {
       const card = document.getElementById(`content-${item.id}`);
       card?.scrollIntoView({
         block: "center",
-        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "instant"
-          : "smooth",
+        behavior: fullMotion() ? "smooth" : "instant",
       });
       card?.focus({ preventScroll: true });
     });
@@ -686,7 +717,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
         </div>
       </header>
       <main id="main">
-        <div className="workspace-heading">
+        <div className="workspace-heading" key={area}>
           <div>
             <span className="workspace-breadcrumb">
               Lastro <span>/</span> {areas.find((a) => a.id === area)?.label}
@@ -714,6 +745,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                       : "O próximo destino das suas ideias."}
             </p>
           </div>
+          <AppearanceControls />
           <button
             className="secondary-button"
             onClick={() =>
@@ -724,7 +756,11 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             <ArrowRight size={16} />
           </button>
           <div className="workspace-feedback">
-            {toast && <Pulso message={toast} />}
+            {feedLoading && area === "for-you" ? (
+              <Pulso message="Carregando referências…" busy />
+            ) : (
+              toast && <Pulso message={toast} />
+            )}
           </div>
         </div>
         {area === "for-you" && (
@@ -770,7 +806,11 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                 </button>
                 <button
                   aria-pressed={view === "list"}
-                  onClick={() => setView(view === "grid" ? "list" : "grid")}
+                  onClick={() =>
+                    transitionCards(() =>
+                      setView(view === "grid" ? "list" : "grid"),
+                    )
+                  }
                 >
                   {view === "grid" ? "Ver lista" : "Ver cards"}
                 </button>
@@ -840,6 +880,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                     <ContentCard
                       key={item.id}
                       {...cardProps(item)}
+                      discovering={discoveryId === item.id}
                       explanation={
                         !exploring
                           ? feed?.items.find((i) => i.content.id === item.id)
@@ -986,11 +1027,11 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                         ) : collections.length > 0 ? (
                           <label>
                             Adicionar à coleção{" "}
-                            <select
+                            <Select
                               aria-label={`Adicionar ${item.title} à coleção`}
                               value=""
-                              onChange={(e) =>
-                                void addCollection(item, e.target.value)
+                              onValueChange={(nextValue) =>
+                                void addCollection(item, nextValue)
                               }
                             >
                               <option value="">Escolha uma coleção</option>
@@ -999,7 +1040,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                                   {c.name}
                                 </option>
                               ))}
-                            </select>
+                            </Select>
                           </label>
                         ) : (
                           <span>
@@ -1043,7 +1084,10 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
               </span>
             </div>
             <div className="work-grid">
-              <div className="work-main">
+              <div
+                className="work-main"
+                key={prompt ? "result" : "configuration"}
+              >
                 {selected.length === 0 ? (
                   <Empty
                     title="Escolha por onde começar"
@@ -1172,9 +1216,10 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                       <summary>Ajustar linguagem, público e contexto</summary>{" "}
                       <label className="field">
                         Linguagem editorial
-                        <select
+                        <Select
+                          label="Linguagem editorial"
                           value={tone}
-                          onChange={(e) => setTone(e.target.value)}
+                          onValueChange={(nextValue) => setTone(nextValue)}
                         >
                           <option value="autoral e analítico">
                             Autoral e analítica
@@ -1183,7 +1228,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                           <option value="técnico-científico">
                             Técnico-científica
                           </option>
-                        </select>
+                        </Select>
                       </label>
                       <label className="field">
                         Público-alvo
@@ -1529,6 +1574,7 @@ export default function App() {
   if (authenticated) return <WorkspaceApp onLogout={() => void logout()} />;
   return (
     <main className="login-shell">
+      <AppearanceControls />
       <div className="login-card">
         <span className="login-mark">
           L<span>.</span>

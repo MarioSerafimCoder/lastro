@@ -1,6 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 import { contentFixture, fixtureSource } from "./fixtures";
 
+async function selectMenu(page: Page, label: string, choice: string) {
+  await page.getByRole("combobox", { name: label, exact: true }).click();
+  await page.getByRole("option", { name: choice, exact: true }).click();
+}
+
 async function mockApi(page: Page, count = 24, initialSession = true) {
   const items = Array.from({ length: count }, (_, i) =>
     contentFixture({
@@ -137,9 +142,21 @@ for (const count of [2, 12, 24, 100])
       await expect(cards).toHaveCount(24);
     }
     const feedCalls = calls.filter((c) => c === "GET /api/feed").length;
+    if (count >= 24)
+      await page.locator("#main").evaluate((main) => (main.scrollTop = 400));
     await page.getByRole("button", { name: "Salvos", exact: true }).click();
     await page.getByRole("button", { name: "For You", exact: true }).click();
     await expect(cards).toHaveCount(count > 12 ? 24 : count);
+    if (count >= 24) {
+      await expect
+        .poll(() => page.locator("#main").evaluate((main) => main.scrollTop))
+        .toBe(400);
+      await page.getByRole("button", { name: "Salvos", exact: true }).click();
+      await page.goBack();
+      await expect
+        .poll(() => page.locator("#main").evaluate((main) => main.scrollTop))
+        .toBe(400);
+    }
     expect(calls.filter((c) => c === "GET /api/feed")).toHaveLength(feedCalls);
     await page
       .getByRole("button", { name: "Surpreenda-me", exact: true })
@@ -177,8 +194,11 @@ test("Favorito, leitura, coleção, nota, seleção independente e prompt", asyn
     .getByRole("button", { name: "Todos os salvos", exact: true })
     .click();
   await page
-    .getByLabel(/Adicionar TESTE.*à coleção/)
-    .selectOption("TEST-COLLECTION");
+    .getByRole("combobox", { name: /Adicionar TESTE.*à coleção/ })
+    .click();
+  await page
+    .getByRole("option", { name: "TESTE Projeto", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "TESTE Projeto", exact: true })
     .click();
@@ -331,7 +351,7 @@ for (const [width, height] of [
     expect(first!.y).toBeLessThan(height);
     if (width === 1440 || width === 390)
       await page.screenshot({
-        path: `docs/examples/stage04-${width}.png`,
+        path: `docs/examples/stage04-3-${width}-dark.png`,
         fullPage: false,
       });
     await page.keyboard.press("Tab");
@@ -367,3 +387,311 @@ for (const [width, height] of [
     }
     expect(errors).toEqual([]);
   });
+
+test("Temas: paleta medida, contraste, ausência de verde e persistência", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mockApi(page);
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  for (const theme of ["dark", "light"]) {
+    if (theme === "light")
+      await page.getByRole("button", { name: "Ativar tema claro" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    const palette = await page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      const green = [...document.querySelectorAll("*")]
+        .filter((e) => e.getClientRects().length)
+        .flatMap((e) => {
+          const style = getComputedStyle(e);
+          return [style.color, style.backgroundColor, style.borderColor].filter(
+            (v) => {
+              const c = v.match(/[\d.]+/g)?.map(Number);
+              return (
+                c &&
+                c.length >= 3 &&
+                (c.length < 4 || c[3] > 0) &&
+                c[1] > c[0] + 8 &&
+                c[1] > c[2] + 5
+              );
+            },
+          );
+        });
+      return {
+        accent: root.getPropertyValue("--accent").trim(),
+        paper: root.getPropertyValue("--paper").trim(),
+        ink: root.getPropertyValue("--ink").trim(),
+        muted: root.getPropertyValue("--muted").trim(),
+        surface: root.getPropertyValue("--surface").trim(),
+        green,
+      };
+    });
+    expect(palette.accent).toBe("#e50914");
+    expect(palette.green).toEqual([]);
+    const luminance = (hex: string) => {
+      const raw = hex.replace("#", "");
+      const c = raw.length === 3 ? [...raw].map((v) => v + v).join("") : raw;
+      return [0, 2, 4]
+        .map((i) => parseInt(c.slice(i, i + 2), 16) / 255)
+        .map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+        .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+    };
+    const contrast = (a: string, b: string) => {
+      const x = luminance(a),
+        y = luminance(b);
+      return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+    };
+    expect(contrast(palette.ink, palette.paper)).toBeGreaterThan(4.5);
+    expect(contrast(palette.muted, palette.surface)).toBeGreaterThan(4.5);
+    if (theme === "light") {
+      await page.waitForTimeout(500);
+    }
+    if (theme === "light")
+      await page.screenshot({ path: "docs/examples/stage04-3-1440-light.png" });
+  }
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
+test("Movimento: órbitas reais, intensidade persistente e preferência do sistema", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await mockApi(page);
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "full");
+  const orbit = page.locator(".jarvis-toggle .jarvis-orbit").first();
+  const before = await orbit.evaluate((e) => getComputedStyle(e).transform);
+  await page.waitForTimeout(150);
+  expect(await orbit.evaluate((e) => getComputedStyle(e).transform)).not.toBe(
+    before,
+  );
+  await selectMenu(page, "Intensidade de movimento", "Movimento desativado");
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "off");
+  expect(
+    await page.evaluate(
+      () =>
+        document.getAnimations().filter((a) => a.playState === "running")
+          .length,
+    ),
+  ).toBe(0);
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "off");
+  await selectMenu(page, "Intensidade de movimento", "Movimento reduzido");
+  expect(await orbit.evaluate((e) => getComputedStyle(e).animationName)).toBe(
+    "none",
+  );
+  await selectMenu(page, "Intensidade de movimento", "Movimento completo");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "reduced");
+  expect(await orbit.evaluate((e) => getComputedStyle(e).animationName)).toBe(
+    "none",
+  );
+  await page
+    .getByRole("button", { name: "Surpreenda-me", exact: true })
+    .click();
+  await expect(page.locator(".is-discovering")).toHaveCount(1);
+  expect(
+    await page
+      .locator(".is-discovering")
+      .evaluate((e) => getComputedStyle(e).animationName),
+  ).toBe("none");
+  await expect(page.locator(".is-discovering")).toHaveCount(0, {
+    timeout: 4000,
+  });
+});
+
+for (const width of [1440, 768, 390])
+  test(`Jarvis ${width}: faixa segura, painel sem cobrir conteúdo e seleção`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockApi(page);
+    await page.goto("/");
+    await page
+      .getByRole("button", { name: "Selecionar para a Oficina", exact: true })
+      .first()
+      .click();
+    const overlaps = (
+      a: { x: number; y: number; width: number; height: number },
+      b: { x: number; y: number; width: number; height: number },
+    ) =>
+      a.x < b.x + b.width &&
+      a.x + a.width > b.x &&
+      a.y < b.y + b.height &&
+      a.y + a.height > b.y;
+    const main = await page.locator("#main").boundingBox(),
+      toggle = await page.locator(".jarvis-toggle").boundingBox(),
+      selection = await page.locator(".selection-bar").boundingBox();
+    expect(overlaps(main!, toggle!)).toBe(false);
+    expect(overlaps(selection!, toggle!)).toBe(false);
+    await page
+      .getByRole("button", { name: "Jarvis Seu próximo caminho" })
+      .click();
+    await expect(
+      page.getByRole("region", { name: "Painel Jarvis" }),
+    ).toBeVisible();
+    expect(
+      overlaps(
+        (await page.locator("#main").boundingBox())!,
+        (await page.locator(".jarvis-panel").boundingBox())!,
+      ),
+    ).toBe(false);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".jarvis-panel")).toHaveCount(0);
+    await expect(page.locator(".jarvis-toggle")).toBeFocused();
+  });
+
+test("Descoberta e cards: reação visual, limite do destaque e grid/lista", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/");
+  const card = page.locator(".content-card").first();
+  await card.hover();
+  await expect
+    .poll(() => card.evaluate((e) => getComputedStyle(e).transform))
+    .not.toBe("none");
+  await page
+    .getByRole("button", { name: "Surpreenda-me", exact: true })
+    .click();
+  await expect(page.locator(".is-discovering")).toHaveCount(1);
+  const animations = await page
+    .locator(".is-discovering")
+    .evaluate((e) =>
+      e.getAnimations().map((a) => (a as CSSAnimation).animationName),
+    );
+  expect(animations).toContain("discovery-flash");
+  await expect(page.locator(".is-discovering")).toHaveCount(0, {
+    timeout: 4000,
+  });
+  await page.getByRole("button", { name: "Ver lista", exact: true }).click();
+  await expect(page.locator(".view-list")).toHaveCount(1);
+  expect(
+    await page.evaluate(() => {
+      const r = document.querySelector("footer")!.getBoundingClientRect();
+      return (
+        document
+          .elementFromPoint(r.x + 60, r.y + 30)
+          ?.closest(".content-card") === null
+      );
+    }),
+  ).toBe(true);
+  await page.getByRole("button", { name: "Ver cards", exact: true }).click();
+  await expect(page.locator(".view-grid")).toHaveCount(1);
+});
+
+test("Menus profissionais: teclado, opções em português, seleção e recorte responsivo", async ({
+  page,
+}) => {
+  await mockApi(page);
+  await page.goto("/");
+  const subject = page.getByRole("combobox", { name: "Assunto", exact: true });
+  await subject.click();
+  await expect(
+    page.getByRole("listbox", { name: "Assunto", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "docs/examples/stage04-3-menu-dark.png",
+    animations: "disabled",
+  });
+  await subject.press("End");
+  await subject.press("Enter");
+  await expect(subject).toContainText("Acessibilidade");
+  await subject.click();
+  await subject.press("Escape");
+  await expect(subject).toBeFocused();
+  await selectMenu(page, "Assunto", "Todos os assuntos");
+  await selectMenu(page, "Formato", "Artigo");
+  await expect(page.locator(".content-card")).toHaveCount(19);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await subject.click();
+  const menu = await page
+    .getByRole("listbox", { name: "Assunto", exact: true })
+    .boundingBox();
+  expect(menu!.x).toBeGreaterThanOrEqual(0);
+  expect(menu!.x + menu!.width).toBeLessThanOrEqual(390);
+  expect(menu!.y + menu!.height).toBeLessThanOrEqual(844);
+  await subject.press("Escape");
+});
+
+test.describe("Demonstração animada 04.3", () => {
+  test.skip(
+    !process.env.LASTRO_RECORD_DEMO,
+    "Gravação opt-in; execute com LASTRO_RECORD_DEMO=1 e FFmpeg do Playwright instalado.",
+  );
+  test("gravar experiência real da interface com fixtures isoladas", async ({
+    browser,
+  }) => {
+    test.setTimeout(90000);
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+      reducedMotion: "no-preference",
+      recordVideo: {
+        dir: ".wrangler/motion-demo",
+        size: { width: 1440, height: 900 },
+      },
+    });
+    const page = await context.newPage();
+    await mockApi(page);
+    const video = page.video()!;
+    await page.goto("http://127.0.0.1:5175/");
+    await expect(page.locator(".content-card")).toHaveCount(12);
+    await page.waitForTimeout(1300);
+    for (const index of [0, 1]) {
+      await page.locator(".content-card").nth(index).hover();
+      await page.waitForTimeout(700);
+    }
+    await page
+      .getByRole("button", { name: "Salvar referência", exact: true })
+      .first()
+      .click();
+    for (let i = 0; i < 2; i++) {
+      await page
+        .getByRole("button", { name: "Selecionar para a Oficina", exact: true })
+        .first()
+        .click();
+      await page.waitForTimeout(650);
+    }
+    await page.getByRole("button", { name: "Salvos", exact: true }).click();
+    await page.waitForTimeout(850);
+    await page.getByRole("button", { name: "Oficina", exact: true }).click();
+    await page.waitForTimeout(900);
+    await page.getByRole("button", { name: "For You", exact: true }).click();
+    await page.waitForTimeout(900);
+    await page
+      .getByRole("button", { name: "Jarvis Seu próximo caminho" })
+      .click();
+    await page.waitForTimeout(1700);
+    await page
+      .getByRole("button", { name: "Minimizar Jarvis", exact: true })
+      .click();
+    await page.waitForTimeout(650);
+    await page
+      .getByRole("button", { name: "Surpreenda-me", exact: true })
+      .click();
+    await page.waitForTimeout(2200);
+    await page.getByRole("combobox", { name: "Assunto", exact: true }).click();
+    await page.waitForTimeout(900);
+    await page
+      .getByRole("combobox", { name: "Assunto", exact: true })
+      .press("Escape");
+    await page.getByRole("button", { name: "Ativar tema claro" }).click();
+    await page.waitForTimeout(1200);
+    await page.getByRole("button", { name: "Ver lista", exact: true }).click();
+    await page.waitForTimeout(1100);
+    await page.getByRole("button", { name: "Ver cards", exact: true }).click();
+    await page.waitForTimeout(750);
+    await page.getByRole("button", { name: "Ativar tema escuro" }).click();
+    await page.waitForTimeout(1200);
+    await page.close();
+    await context.close();
+    await video.saveAs("docs/examples/stage04-3-motion.webm");
+  });
+});
