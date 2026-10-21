@@ -23,7 +23,7 @@
   "vars": {
     "ENVIRONMENT": "production",
     "ALLOWED_ORIGIN": "https://lastro-api.marioserafim-da.workers.dev",
-    "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,www.smashingmagazine.com,api.openalex.org",
+    "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com",
     "INGEST_ENABLED": "false",
   },
 }

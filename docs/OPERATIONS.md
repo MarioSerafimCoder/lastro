@@ -50,7 +50,7 @@ O login de produção usa senha aleatória de 192 bits, enviada somente por HTTP
 
 Cloudflare Zero Trust não foi ativado: o cadastro do plano gratuito exigia cartão, aceite dos termos e autorização de cobrança de excedentes. A alternativa por senha foi escolhida pelo proprietário. O código conserva suporte opcional a Access JWT, mas ele não está configurado na produção atual.
 
-Para nova versão: executar `npm run db:migrate:production` somente se houver migrações novas, depois `npm run deploy:production`. O comando roda testes e build antes de publicar. Não copiar `.dev.vars` ou o banco local para produção. O D1 remoto inicia vazio; fontes e conteúdos locais usados para validação da interface não receberam aprovação editorial para produção. O cron está instalado, mas `INGEST_ENABLED=false` impede coleta automática até aprovação de fontes, direitos, quotas e volumes.
+Para nova versão: executar `npm run db:migrate:production` somente se houver migrações novas, depois `npm run deploy:production`. O comando roda testes e build antes de publicar. Não copiar `.dev.vars` ou o banco local para produção. O D1 remoto agora contém uma fonte aprovada e dois artigos revisados manualmente; outros dados locais não foram copiados. O cron está instalado, mas `INGEST_ENABLED=false` impede coleta automática.
 
 Verificação pós-publicação: a página inicial responde 200 com formulário de senha; `/api/auth/session` sem cookie indica `authenticated:false`; `/api/feed` sem cookie responde 401; login correto cria cookie protegido e permite sessão e feed. Essas verificações passaram no primeiro deploy. Favoritos, Oficina e prompt foram validados no ambiente local com conteúdo real de metadados, mas ainda não foram repetidos no D1 remoto vazio. Fazer backup remoto antes de mudanças de esquema ou ingestão expressiva; backups e retenção de longo prazo ainda precisam de política operacional.
 
@@ -60,7 +60,7 @@ Chave OpenAlex é opcional para consulta básica, conforme [documentação ofici
 
 ## Ativação da Etapa 03
 
-**Não executar as etapas remotas sem autorização específica do proprietário.** O pedido da Etapa 03 exige autorização antes de mudanças de produção, aprovação de fontes remotas e coleta automática. O envio do código ao GitHub não publica o Worker.
+As etapas remotas descritas abaixo foram executadas em 21/10/2026 após autorização específica do proprietário. Para novas fontes ou ativação da coleta automática, obter nova decisão. O envio do código ao GitHub não publica o Worker.
 
 1. Revisar [resultados](STAGE_03.md), [catálogo](SOURCES.md) e testes. Proposta inicial: somente A List Apart e coleta manual, com `INGEST_ENABLED=false` e `autoApprove:false`.
 2. Após autorização, exportar D1 remoto para arquivo privado fora do repositório: `npx wrangler d1 export DB --remote --config wrangler.production.jsonc --output <caminho-privado.sql>`. Não versionar o backup.

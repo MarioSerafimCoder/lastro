@@ -1,8 +1,8 @@
 # Lastro — Hub Criativo
 
-Aplicação privada online: [Abrir o Lastro](https://lastro-api.marioserafim-da.workers.dev). A senha inicial foi salva apenas no computador do proprietário, em `C:\Users\pc mario\Documents\Lastro-acesso-privado.txt`; nunca no Git. A produção usa um banco D1 próprio e começa sem itens até a revisão editorial de fontes e conteúdos.
+Aplicação privada online: [Abrir o Lastro](https://lastro-api.marioserafim-da.workers.dev). A senha inicial foi salva apenas no computador do proprietário, em `C:\Users\pc mario\Documents\Lastro-acesso-privado.txt`; nunca no Git. A produção usa um banco D1 próprio e já contém A List Apart e dois artigos revisados manualmente.
 
-Etapas 01, 02 e 03 implementadas: API privada, banco D1, coleta RSS/Atom e OpenAlex, For You, Salvos, Oficina e painel de Curadoria com fontes, revisão e histórico. A Etapa 03 foi validada localmente com artigos reais; sua publicação e primeira ingestão remota aguardam autorização específica do proprietário. Identidade visual provisória; sem API paga de IA.
+Etapas 01, 02 e 03 implementadas: API privada, banco D1, coleta RSS/Atom e OpenAlex, For You, Salvos, Oficina e painel de Curadoria com fontes, revisão e histórico. A Etapa 03 foi validada localmente e publicada em produção após autorização do proprietário; a coleta automática permanece desligada. Identidade visual provisória; sem API paga de IA.
 
 ## Executar localmente
 

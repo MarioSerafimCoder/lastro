@@ -1,6 +1,6 @@
 # Etapa 03 — Radar Vivo
 
-Implementação e validação local em 21/10/2026. A publicação em produção depende de autorização específica do proprietário, conforme o pedido desta etapa. Código preparado para o mesmo Worker, D1 e login privado por senha.
+Implementação e validação local em 21/10/2026. O proprietário autorizou explicitamente a publicação e a primeira coleta manual, concluídas no mesmo dia. O Worker, D1 e login privado por senha existentes foram preservados.
 
 ## Diagnóstico de produção
 
@@ -56,8 +56,19 @@ A interface local foi conferida no navegador: navegação das três seções, fo
 
 Para repetir a demonstração real, com servidor local e migrações aplicadas: `node scripts/stage03-check.mjs`. **É opt-in e altera o banco local**: registra/aprova A List Apart, revisa somente os dois URLs conferidos, continua uma rodada de fila e gera pacote/prompt. Em nova execução pode consumir outro lote e substituir o relatório. Se os dois artigos já não estiverem no lote recente, interrompe sem escolher substitutos. Não aponta para produção. A suíte determinística é a base de regressão; essa demonstração externa depende da disponibilidade e conteúdo atual do feed.
 
-## Ativação pendente
+## Publicação em produção
 
-Seguir o [procedimento operacional](OPERATIONS.md#ativação-da-etapa-03). Escopo proposto para autorização: aplicar migração 0003, publicar Curadoria, permitir o domínio A List Apart, cadastrar/aprovar apenas essa fonte, executar a coleta manual e revisar os dois artigos conferidos se ainda disponíveis. Manter coleta automática desativada. Aprovar outras fontes ou habilitar agendamento exige decisão posterior do proprietário.
+Backup D1 criado **antes da migração** em `C:\Users\pc mario\Documents\Lastro-backups\lastro-d1-before-stage03-20261021-061010.sql` (9.592 bytes), fora do Git. Migração `0003_ingestion_received.sql` aplicada; backup e dados existentes preservados. Worker publicado na versão Cloudflare `3684db6e-c025-432e-95d0-80dcf0be5b56`, com `INGEST_ENABLED=false`. A allowlist remota recebeu somente `alistapart.com` além dos hosts existentes.
 
-Limitações: revisão de demonstração não valida ciência; correspondência temática é textual; somente primeira página recente é coletada; dados antigos não têm contagem de recebidos; a interface não cobre todas as anotações avançadas da API. Nenhum deploy, migração remota, aprovação remota ou habilitação de cron foi executado nesta etapa sem essa autorização.
+Apenas **A List Apart** foi cadastrada e aprovada, `autoApprove:false`. A primeira coleta manual recebeu **20 entradas**, processou **2**, registrou **0 aprovações automáticas**, **0 rejeições**, **0 duplicatas**, **0 erros** e deixou **18 na fila persistida**. Os dois candidatos foram conferidos nas páginas originais, corrigidos (autor/idioma) e aprovados manualmente como referências editoriais:
+
+1. [Good designers, bad websites: a proposal](https://alistapart.com/article/good-designers-bad-websites-a-proposal/) — Alan Dalton.
+2. [Designed for a Dead Language](https://alistapart.com/article/designed-for-a-dead-language/) — Shrey Shah.
+
+Consulta direta ao D1 após a revisão: **1 fonte**, **2 conteúdos aprovados**, **0 candidatos pendentes**, **18 entradas ainda não processadas**, **1 execução**. Essas 18 entradas não equivalem a candidatos aprovados ou revisados. Nenhum outro conteúdo ficou pendente de decisão editorial nesta primeira rodada.
+
+Validação pós-publicação: Curadoria exibiu a fonte, coleta inativa, contagens, histórico e justificativas; as rotas administrativas sem sessão retornaram 401. Os dois artigos apareceram no For You com autoria corrigida e sem resumo inventado. Busca, Salvos, seleção e prompt na Oficina funcionaram; favorito e seleção temporários foram desfeitos. Publicações continuou acessível. [Captura da Curadoria em produção](examples/stage03-production-curation.png).
+
+O pacote/prompt criado na validação permanece no histórico da Oficina; não foi publicado externamente. O único problema de metadados encontrado foi a autoria `by` no RSS, corrigida durante a revisão. A fila de 18 entradas exige futuras coletas manuais e revisão individual. O procedimento de operação está em [OPERATIONS.md](OPERATIONS.md#ativação-da-etapa-03); novas fontes ou agendamento não foram autorizados.
+
+Limitações: revisão editorial não valida ciência; correspondência temática é textual; somente primeira página recente é coletada; dados antigos não têm contagem de recebidos; a interface não cobre todas as anotações avançadas da API.

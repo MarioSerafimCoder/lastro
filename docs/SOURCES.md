@@ -35,4 +35,4 @@ As fontes editoriais têm cobertura parcialmente sobreposta; identificadores e U
 | [Design Week](https://www.designweek.co.uk/)                                   | Design gráfico, indústria criativa e identidade. | Requisição direta retornou 403. Não contornar bloqueio nem presumir RSS. Somente sugestão.                                                                                           |
 | [Nielsen Norman Group](https://www.nngroup.com/)                               | Usabilidade, UX e pesquisa aplicada.             | Página acessível, mas RSS compatível não foi confirmado nesta verificação. Nenhuma configuração criada; pesquisa aplicada não recebe automaticamente rótulo de evidência científica. |
 
-O catálogo tem 11 fontes, das quais 8 tecnicamente verificadas e 3 apenas sugeridas. Nenhuma foi cadastrada ou aprovada remotamente nesta etapa.
+O catálogo tem 11 fontes, das quais 8 tecnicamente verificadas e 3 apenas sugeridas. Em produção, apenas **A List Apart** foi cadastrada e aprovada após autorização do proprietário. As demais permanecem como configurações locais ou sugestões documentadas.
