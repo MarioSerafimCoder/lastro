@@ -441,7 +441,7 @@ function Filters({
   );
 }
 
-export default function App() {
+function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
   const [area, setArea] = useState<Area>(navArea),
     [mobileMenu, setMobileMenu] = useState(false),
     [selected, setSelected] = useState<Content[]>([]),
@@ -876,6 +876,9 @@ export default function App() {
           <span className="private-label">
             <span className="live-dot" /> ESPAÇO PRIVADO
           </span>
+          <button className="logout-button" onClick={onLogout} type="button">
+            Sair
+          </button>
           <button
             className="menu-button"
             onClick={() => setMobileMenu((v) => !v)}
@@ -1583,5 +1586,110 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function App() {
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/session", { credentials: "include" })
+      .then(async (response) => {
+        if (!response.ok)
+          throw new Error("Não foi possível verificar o acesso.");
+        return response.json() as Promise<{ authenticated: boolean }>;
+      })
+      .then((data) => {
+        if (active) setAuthenticated(data.authenticated);
+      })
+      .catch((e) => {
+        if (active) {
+          setAuthenticated(false);
+          setError(errorText(e));
+        }
+      });
+    const expired = () => setAuthenticated(false);
+    window.addEventListener("lastro:unauthorized", expired);
+    return () => {
+      active = false;
+      window.removeEventListener("lastro:unauthorized", expired);
+    };
+  }, []);
+  async function login(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (!response.ok) {
+        const body = (await response.json()) as {
+          error?: { message?: string };
+        };
+        throw new Error(body.error?.message ?? "Não foi possível entrar.");
+      }
+      setPassword("");
+      setAuthenticated(true);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function logout() {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => undefined);
+    setAuthenticated(false);
+  }
+  if (authenticated === null)
+    return (
+      <div className="login-shell">
+        <p>Verificando acesso…</p>
+      </div>
+    );
+  if (authenticated) return <WorkspaceApp onLogout={() => void logout()} />;
+  return (
+    <main className="login-shell">
+      <div className="login-card">
+        <span className="login-mark">
+          L<span>.</span>
+        </span>
+        <span className="kicker">LASTRO / HUB CRIATIVO</span>
+        <h1>
+          Seu repertório,
+          <br />
+          <em>em um só lugar.</em>
+        </h1>
+        <p>Este é um espaço privado. Entre com sua senha para continuar.</p>
+        <form onSubmit={(event) => void login(event)}>
+          <label htmlFor="owner-password">Senha de acesso</label>
+          <input
+            id="owner-password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+          {error && (
+            <p className="login-error" role="alert">
+              {error}
+            </p>
+          )}
+          <button className="primary-button" type="submit" disabled={busy}>
+            {busy ? "Entrando…" : "Entrar"} <ArrowRight size={18} />
+          </button>
+        </form>
+      </div>
+    </main>
   );
 }

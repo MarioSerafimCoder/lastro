@@ -1,5 +1,7 @@
 # Lastro — Hub Criativo
 
+Aplicação privada online: [Abrir o Lastro](https://lastro-api.marioserafim-da.workers.dev). A senha inicial foi salva apenas no computador do proprietário, em `C:\Users\pc mario\Documents\Lastro-acesso-privado.txt`; nunca no Git. A produção usa um banco D1 próprio e começa sem itens até a revisão editorial de fontes e conteúdos.
+
 Etapas 01 e 02 implementadas: API privada, banco D1, coleta RSS/Atom e OpenAlex, triagem editorial e interface React para For You, Salvos, Oficina e estrutura honesta de Publicações. Identidade visual provisória; sem API paga de IA.
 
 ## Executar localmente
@@ -55,10 +57,10 @@ Esse script cadastra/aprova duas fontes de metadados no banco **local**, realiza
 - [API](docs/API.md): rotas, entradas, respostas e erros.
 - [Arquitetura](docs/ARCHITECTURE.md): decisões e limites.
 - [Algoritmos](docs/ALGORITHMS.md): triagem, pontuação, ranking e calibração.
-- [Operação](docs/OPERATIONS.md): fontes, agendamento, credenciais e preparação futura de produção.
+- [Operação](docs/OPERATIONS.md): fontes, agendamento, credenciais e publicação de produção.
 - [Validação](docs/VALIDATION.md): evidências e limites dos testes executados.
 - [Interface — etapa 02](docs/STAGE_02.md): fluxos testados, limites de UX, dependências e próximo ciclo.
 
 Contratos e cliente compartilhados: `packages/contracts/index.ts` e `packages/contracts/client.ts`. Implementação: `src/`. SQL versionado: `migrations/`.
 
-Blog, newsletter, editor, identidade visual definitiva e envio de e-mails permanecem fora desta etapa. O deploy da aplicação privada depende de uma conta Cloudflare e da configuração de D1 e Access; veja [operação](docs/OPERATIONS.md).
+Blog, newsletter, editor, identidade visual definitiva e envio de e-mails permanecem fora desta etapa. A produção usa login privado por senha, sem Cloudflare Zero Trust; veja [operação](docs/OPERATIONS.md).

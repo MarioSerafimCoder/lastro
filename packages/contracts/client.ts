@@ -63,6 +63,8 @@ export function createLastroClient(
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     if (!response.ok) {
+      if (response.status === 401 && typeof window !== "undefined")
+        window.dispatchEvent(new Event("lastro:unauthorized"));
       let error: ApiError;
       try {
         error = (await response.json()) as ApiError;

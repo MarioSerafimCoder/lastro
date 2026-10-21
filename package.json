@@ -10,6 +10,8 @@
     "setup": "node scripts/setup.mjs",
     "dev": "npm run web:build && wrangler dev --local --ip 127.0.0.1 --port 8787 --test-scheduled",
     "db:migrate": "wrangler d1 migrations apply DB --local",
+    "db:migrate:production": "wrangler d1 migrations apply DB --remote --config wrangler.production.jsonc",
+    "deploy:production": "npm run verify && wrangler deploy --config wrangler.production.jsonc",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
     "build": "npm run web:build && wrangler deploy --dry-run --outdir dist/worker",

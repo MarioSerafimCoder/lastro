@@ -25,4 +25,4 @@ Foram verificados visualmente: For You com quatro referências; favorito indepen
 
 ## Próximo ciclo
 
-Definir identidade visual final; contrato de imagens e catálogo de assuntos; busca paginada em coleções; listagem e retomada de pacotes; editor/publicação com fluxos de revisão; e auditoria de teclado, leitor de tela e contraste em navegadores adicionais. Para colocar a aplicação privada online, configurar uma conta Cloudflare, D1, Access e hostname protegido conforme `OPERATIONS.md`; o repositório não contém credenciais ou banco remoto.
+Definir identidade visual final; contrato de imagens e catálogo de assuntos; busca paginada em coleções; listagem e retomada de pacotes; editor/publicação com fluxos de revisão; e auditoria de teclado, leitor de tela e contraste em navegadores adicionais. A aplicação está online com login privado por senha e D1 remoto; o banco de produção começa vazio até haver revisão editorial. O repositório não contém credenciais.

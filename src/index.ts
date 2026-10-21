@@ -22,7 +22,13 @@ import {
 } from "../packages/contracts/index";
 import type { Env } from "./env";
 import { ApiFault, must } from "./errors";
-import { authenticate } from "./auth";
+import {
+  authenticate,
+  passwordMode,
+  verifyPassword,
+  issueSession,
+  clearSession,
+} from "./auth";
 import {
   first,
   rows,
@@ -61,7 +67,60 @@ app.use("*", async (c, next) => {
 app.get("/health", (c) =>
   c.json({ status: "ok", service: "lastro-api", version: "0.1.0" }),
 );
+app.get("/api/auth/session", async (c) => {
+  try {
+    await authenticate(c.req.raw, c.env);
+    return c.json({ authenticated: true });
+  } catch {
+    return c.json({ authenticated: false });
+  }
+});
+app.post("/api/auth/login", async (c) => {
+  if (!passwordMode(c.env))
+    throw new ApiFault(
+      503,
+      "auth_not_configured",
+      "Login por senha não configurado.",
+    );
+  if (c.req.header("Origin") !== new URL(c.req.url).origin)
+    throw new ApiFault(403, "origin_forbidden", "Origem não autorizada.");
+  const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(ip),
+  );
+  const key = `login:${Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("")}:${Math.floor(Date.now() / 900000)}`;
+  const quota = await first<{ count: number }>(
+    c.env.DB,
+    "INSERT INTO request_budgets VALUES (?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count",
+    key,
+    Math.floor(Date.now() / 900000 + 2) * 900,
+  );
+  if (quota!.count > 5) {
+    c.header("Retry-After", "900");
+    throw new ApiFault(
+      429,
+      "rate_limited",
+      "Aguarde 15 minutos para tentar novamente.",
+    );
+  }
+  const input = await json(
+    c,
+    z.object({ password: z.string().min(1).max(256) }),
+  );
+  if (!(await verifyPassword(input.password, c.env)))
+    throw new ApiFault(401, "unauthorized", "Senha incorreta.");
+  c.header("Set-Cookie", await issueSession(c.env));
+  return c.json({ authenticated: true });
+});
+app.post("/api/auth/logout", (c) => {
+  if (c.req.header("Origin") !== new URL(c.req.url).origin)
+    throw new ApiFault(403, "origin_forbidden", "Origem não autorizada.");
+  c.header("Set-Cookie", clearSession());
+  return c.json({ authenticated: false });
+});
 app.use("/api/*", async (c, next) => {
+  if (c.req.path.startsWith("/api/auth/")) return next();
   const origin = c.req.header("Origin"),
     sameOrigin = new URL(c.req.url).origin;
   if (origin && origin !== c.env.ALLOWED_ORIGIN && origin !== sameOrigin)
