@@ -2,7 +2,7 @@
 
 Aplicação privada online: [Abrir o Lastro](https://lastro-api.marioserafim-da.workers.dev). A senha inicial foi salva apenas no computador do proprietário, em `C:\Users\pc mario\Documents\Lastro-acesso-privado.txt`; nunca no Git. A produção usa um banco D1 próprio e já contém A List Apart e dois artigos revisados manualmente.
 
-Etapas 01, 02 e 03 implementadas: API privada, banco D1, coleta RSS/Atom e OpenAlex, For You, Salvos, Oficina e painel de Curadoria com fontes, revisão e histórico. A Etapa 03 foi validada localmente e publicada em produção após autorização do proprietário; a coleta automática permanece desligada. Identidade visual provisória; sem API paga de IA.
+Etapas 01–04 implementadas: API privada, banco D1, coleta RSS/Atom e OpenAlex, For You, Salvos, Oficina e painel de Curadoria com fontes, revisão e histórico. A Etapa 04 traz o novo espaço de trabalho, Pulso e Jarvis contextual, sem modelos generativos. A coleta automática de produção permanece desligada.
 
 ## Executar localmente
 
@@ -61,6 +61,7 @@ Esse script cadastra/aprova duas fontes de metadados no banco **local**, realiza
 - [Validação](docs/VALIDATION.md): evidências e limites dos testes executados.
 - [Interface — etapa 02](docs/STAGE_02.md): fluxos testados, limites de UX, dependências e próximo ciclo.
 - [Radar Vivo — etapa 03](docs/STAGE_03.md): Curadoria, ingestão real local e ativação pendente de produção.
+- [Lastro Vivo — etapa 04](docs/STAGE_04.md): redesign, design system, Pulso, Jarvis e testes de interface.
 - [Catálogo de fontes](docs/SOURCES.md): oito integrações verificadas, três sugestões e configurações reutilizáveis.
 
 Contratos e cliente compartilhados: `packages/contracts/index.ts` e `packages/contracts/client.ts`. Implementação: `src/`. SQL versionado: `migrations/`.

@@ -20,7 +20,8 @@
     "format:check": "prettier --check src packages tests scripts examples docs apps/web *.json *.jsonc *.md",
     "web:dev": "vite --config apps/web/vite.config.ts",
     "web:build": "vite build --config apps/web/vite.config.ts",
-    "web:typecheck": "tsc --noEmit --project apps/web/tsconfig.json"
+    "web:typecheck": "tsc --noEmit --project apps/web/tsconfig.json",
+    "test:ui": "playwright test --config tests/playwright.config.ts"
   },
   "dependencies": {
     "fast-xml-parser": "^5.11.2",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261019.1",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

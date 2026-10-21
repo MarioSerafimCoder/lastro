@@ -7,6 +7,11 @@ import {
   type ReactNode,
 } from "react";
 import Curation from "./Curation";
+import { ContentCard, Filters } from "./ReferenceCards";
+import Jarvis from "./Jarvis";
+import Pulso from "./Pulso";
+import { chooseDiscovery, discoveryPool } from "./experience";
+import { useDialogFocus } from "./useDialogFocus";
 import {
   ArrowDownRight,
   ArrowLeft,
@@ -14,11 +19,9 @@ import {
   Bookmark,
   BookOpen,
   Check,
-  ChevronDown,
   Copy,
   ExternalLink,
   Filter,
-  Heart,
   Layers2,
   Menu,
   Plus,
@@ -34,7 +37,6 @@ import {
 } from "../../../packages/contracts/client";
 import type {
   Content,
-  FeedItem,
   FeedPage,
   PromptResponse,
   ResearchInput,
@@ -54,29 +56,6 @@ const navArea = (): Area => {
   const path = location.pathname.slice(1);
   return areas.some((a) => a.id === path) ? (path as Area) : "for-you";
 };
-const kindName: Record<Content["kind"], string> = {
-  news: "Notícia",
-  article: "Artigo",
-  paper: "Pesquisa",
-  case_study: "Estudo de caso",
-  visual_reference: "Referência visual",
-  post: "Post",
-  magazine: "Revista",
-  other: "Referência",
-};
-const knowledgeName = {
-  scientific_evidence: "Evidência científica",
-  editorial_interpretation: "Interpretação editorial",
-  application_hypothesis: "Hipótese de aplicação",
-};
-const date = (value: string | null) =>
-  value
-    ? new Intl.DateTimeFormat("pt-BR", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }).format(new Date(value))
-    : "Data não informada";
 const errorText = (err: unknown) =>
   err instanceof LastroApiError
     ? `${err.message}${err.body.error.requestId ? ` · Ref. ${err.body.error.requestId.slice(0, 8)}` : ""}`
@@ -165,283 +144,6 @@ function ErrorState({
     </div>
   );
 }
-function Cover({
-  item,
-  featured = false,
-}: {
-  item: Content;
-  featured?: boolean;
-}) {
-  const initials = item.sourceName
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-  return (
-    <div
-      className={`cover ${featured ? "cover-large" : ""}`}
-      aria-label={`Identidade gráfica de ${item.sourceName}; imagem da fonte indisponível`}
-    >
-      <span>{initials}</span>
-      <span className="cover-orbit" />
-      <small>{kindName[item.kind]}</small>
-    </div>
-  );
-}
-type CardProps = {
-  item: Content;
-  explanation?: FeedItem["explanation"];
-  onFavorite: (c: Content) => void;
-  onSelect: (c: Content) => void;
-  onDismiss?: (c: Content) => void;
-  onRead: (c: Content) => void;
-  onOpen: (c: Content) => void;
-  onNote?: (c: Content) => void;
-  busy: boolean;
-  featured?: boolean;
-};
-function ContentCard({
-  item,
-  explanation,
-  onFavorite,
-  onSelect,
-  onDismiss,
-  onRead,
-  onOpen,
-  onNote,
-  busy,
-  featured = false,
-}: CardProps) {
-  const [why, setWhy] = useState(false);
-  const author = item.authors
-    .map((a) => a.name.replace(/^.*\((.*)\)$/, "$1"))
-    .join(", ");
-  return (
-    <article className={`content-card ${featured ? "featured" : ""}`}>
-      <Cover item={item} featured={featured} />
-      <div className="card-copy">
-        <div className="eyebrow">
-          <span>{item.sourceName}</span>
-          <span className="dot">·</span>
-          <span>{kindName[item.kind]}</span>
-        </div>
-        <a
-          className="article-link"
-          href={item.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => onOpen(item)}
-        >
-          <h3>{item.title}</h3>
-          <ExternalLink size={featured ? 20 : 17} aria-hidden="true" />
-        </a>
-        <p className="description">
-          {item.description ??
-            "A fonte não forneceu um resumo autorizado. Consulte o conteúdo na origem."}
-        </p>
-        <div className="byline">
-          <span>{author || "Autoria não informada"}</span>
-          <span>{date(item.publishedAt)}</span>
-        </div>
-        <div className="badges">
-          {item.annotations.map((a) => (
-            <span key={a.id} className="badge">
-              {knowledgeName[a.classification]}
-            </span>
-          ))}
-          {item.state.read && <span className="badge subtle">Lido</span>}
-          {item.editorialStatus !== "approved" && (
-            <span className="badge caution">Fora do índice</span>
-          )}
-        </div>
-        <div className="card-bottom">
-          <div className="card-actions">
-            <IconButton
-              label={
-                item.state.favorite ? "Remover dos salvos" : "Salvar referência"
-              }
-              onClick={() => onFavorite(item)}
-              active={item.state.favorite}
-              disabled={busy}
-            >
-              <Heart
-                size={18}
-                fill={item.state.favorite ? "currentColor" : "none"}
-              />
-            </IconButton>
-            <IconButton
-              label={
-                item.state.selected
-                  ? "Remover da Oficina"
-                  : "Selecionar para a Oficina"
-              }
-              onClick={() => onSelect(item)}
-              active={item.state.selected}
-              disabled={
-                busy ||
-                (!item.state.selected && item.editorialStatus !== "approved")
-              }
-            >
-              <Plus size={19} />
-            </IconButton>
-            <IconButton
-              label={
-                item.state.read ? "Marcar como não lido" : "Marcar como lido"
-              }
-              onClick={() => onRead(item)}
-              active={item.state.read}
-              disabled={busy}
-            >
-              <BookOpen size={18} />
-            </IconButton>
-            {onNote && (
-              <IconButton
-                label="Editar nota pessoal"
-                onClick={() => onNote(item)}
-              >
-                <BookOpen size={17} />
-              </IconButton>
-            )}
-          </div>
-          <div className="minor-actions">
-            {explanation && (
-              <button
-                className="quiet-link"
-                type="button"
-                onClick={() => setWhy((v) => !v)}
-                aria-expanded={why}
-              >
-                Por que estou vendo? <ChevronDown size={14} />
-              </button>
-            )}
-            {onDismiss && (
-              <button
-                className="quiet-link"
-                type="button"
-                onClick={() => onDismiss(item)}
-              >
-                Não me interessa
-              </button>
-            )}
-          </div>
-        </div>
-        {why && explanation && (
-          <div className="why" role="region">
-            <strong>Esta referência aparece porque</strong>
-            <ul>
-              {explanation.reasons.map((reason, i) => (
-                <li key={i}>{reason}</li>
-              ))}
-            </ul>
-            <small>
-              Critério {explanation.algorithmVersion}. A pontuação é editorial,
-              não uma avaliação científica.
-            </small>
-          </div>
-        )}
-      </div>
-    </article>
-  );
-}
-function Filters({
-  query,
-  setQuery,
-  sources,
-}: {
-  query: SearchQuery;
-  setQuery: (q: SearchQuery) => void;
-  sources: Source[];
-}) {
-  return (
-    <div className="filters">
-      <label className="searchbox">
-        <Search size={19} />
-        <span className="sr-only">Buscar conteúdos</span>
-        <input
-          value={query.q ?? ""}
-          onChange={(e) => setQuery({ ...query, q: e.target.value, offset: 0 })}
-          placeholder="Busque uma ideia, fonte ou tema"
-          type="search"
-        />
-      </label>
-      <div className="filter-controls">
-        <Filter size={16} />
-        <label>
-          <span className="sr-only">Assunto</span>
-          <select
-            value={query.topic ?? ""}
-            onChange={(e) =>
-              setQuery({
-                ...query,
-                topic: e.target.value || undefined,
-                offset: 0,
-              })
-            }
-          >
-            <option value="">Todos os assuntos</option>
-            {[
-              "design",
-              "branding",
-              "typography",
-              "visual",
-              "perception",
-              "technology",
-              "cultura",
-              "css",
-              "ux",
-              "accessibility",
-            ].map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Fonte</span>
-          <select
-            value={query.sourceId ?? ""}
-            onChange={(e) =>
-              setQuery({
-                ...query,
-                sourceId: e.target.value || undefined,
-                offset: 0,
-              })
-            }
-          >
-            <option value="">Todas as fontes</option>
-            {sources.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Formato</span>
-          <select
-            value={query.kind ?? ""}
-            onChange={(e) =>
-              setQuery({
-                ...query,
-                kind: (e.target.value as Content["kind"]) || undefined,
-                offset: 0,
-              })
-            }
-          >
-            <option value="">Todos os formatos</option>
-            {Object.entries(kindName).map(([key, value]) => (
-              <option key={key} value={key}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-    </div>
-  );
-}
 
 function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
   const [ingestionError, setIngestionError] = useState("");
@@ -478,6 +180,12 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     [generating, setGenerating] = useState(false),
     [workError, setWorkError] = useState(""),
     [copied, setCopied] = useState(false);
+  const [discovered, setDiscovered] = useState<string>();
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [pending, setPending] = useState<number | null>(null);
+  const radarDirty = useRef(false);
+  const positions = useRef<Partial<Record<Area, number>>>({});
+  useDialogFocus(selectionOpen || noteTarget !== null);
   const seq = useRef(Promise.resolve()),
     selectedRef = useRef<Content[]>([]),
     toastTimer = useRef<number | undefined>(undefined);
@@ -488,9 +196,15 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
   };
   const navigate = (to: Area) => {
     if (area !== to) {
+      positions.current[area] = window.scrollY;
       history.pushState({}, "", `/${to}`);
       setArea(to);
-      window.scrollTo({ top: 0, behavior: "instant" });
+      requestAnimationFrame(() =>
+        window.scrollTo({
+          top: positions.current[to] ?? 0,
+          behavior: "instant",
+        }),
+      );
     }
     setMobileMenu(false);
     setSelectionOpen(false);
@@ -536,6 +250,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     try {
       const page = await api.feed({ limit: 12 });
       setFeed(page);
+      notify(`${page.items.length} referências carregadas no Radar.`);
     } catch (e) {
       setFeedError(errorText(e));
     } finally {
@@ -589,7 +304,13 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
           "Não foi possível verificar o estado das fontes. Consulte a Curadoria.",
         ),
       );
-  }, [loadFeed, area]);
+  }, [loadFeed]);
+  useEffect(() => {
+    if (area === "for-you" && radarDirty.current) {
+      radarDirty.current = false;
+      void loadFeed();
+    }
+  }, [area, loadFeed]);
   useEffect(() => {
     if (area === "salvos") {
       void loadSaved();
@@ -603,20 +324,32 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     query.kind
   );
   useEffect(() => {
-    if (area !== "for-you" || !exploring) return;
+    if (area !== "for-you" || !exploring) {
+      if (feed) setFeedLoading(false);
+      return;
+    }
+    let active = true;
     const timeout = window.setTimeout(() => {
       setFeedLoading(true);
       setFeedError("");
       void api
         .search({ ...query, limit: 20, offset: 0 })
         .then((r) => {
+          if (!active) return;
           setResults(r.items);
           setNext(r.nextCursor);
         })
-        .catch((e) => setFeedError(errorText(e)))
-        .finally(() => setFeedLoading(false));
+        .catch((e) => {
+          if (active) setFeedError(errorText(e));
+        })
+        .finally(() => {
+          if (active) setFeedLoading(false);
+        });
     }, 250);
-    return () => window.clearTimeout(timeout);
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
   }, [area, query.q, query.topic, query.sourceId, query.kind, exploring]);
   const more = async () => {
     setMoreLoading(true);
@@ -810,7 +543,13 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
           .join("\n\n"),
       });
       setPrompt(await api.prompt(pack.id));
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      notify("Prompt gerado com as referências selecionadas.");
+      window.scrollTo({
+        top: 0,
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+      });
     } catch (err) {
       setWorkError(errorText(err));
     } finally {
@@ -837,6 +576,10 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     onRead: (c: Content) => void interact(c, "read", !c.state.read),
     onOpen: (c: Content) => void interact(c, "opened"),
     busy: busyId === item.id,
+    onExplore: (topic: string) => {
+      setQuery({ topic });
+      navigate("for-you");
+    },
   });
   const feedItems = exploring
     ? results
@@ -851,8 +594,41 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
       (!query.sourceId || item.sourceId === query.sourceId)
     );
   });
+  const surprise = () => {
+    const item = chooseDiscovery(feedItems, discovered);
+    if (!item) return;
+    setDiscovered(item.id);
+    requestAnimationFrame(() => {
+      const card = document.getElementById(`content-${item.id}`);
+      card?.scrollIntoView({
+        block: "center",
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+      });
+      card?.focus({ preventScroll: true });
+    });
+    notify(`Descoberta entre as referências carregadas: ${item.title}`);
+  };
+  const jarvisAction = (action: string) => {
+    if (action === "surprise") surprise();
+    else if (action === "workshop") navigate("oficina");
+    else if (action === "radar") navigate("for-you");
+    else if (action === "collection")
+      document.getElementById("collection-name")?.focus();
+    else if (action === "form")
+      document
+        .querySelector<HTMLElement>('.creation-form input[name="format"]')
+        ?.focus();
+    else if (action === "queue")
+      document.getElementById("curation-queue")?.click();
+    else navigate("curadoria");
+  };
   return (
-    <div className="app-shell">
+    <div className={`app-shell view-${view}`}>
+      <a className="skip-link" href="#main">
+        Ir para o conteúdo
+      </a>
       <header className="topbar">
         <button
           className="brand"
@@ -877,15 +653,25 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
               onClick={() => navigate(a.id)}
               aria-current={area === a.id ? "page" : undefined}
             >
-              <small>{a.index}</small>
+              <span className="nav-icon" aria-hidden="true">
+                {a.id === "for-you" ? (
+                  <Search size={18} />
+                ) : a.id === "salvos" ? (
+                  <Bookmark size={18} />
+                ) : a.id === "oficina" ? (
+                  <Layers2 size={18} />
+                ) : a.id === "curadoria" ? (
+                  <Filter size={18} />
+                ) : (
+                  <BookOpen size={18} />
+                )}
+              </span>
               {a.label}
             </button>
           ))}
         </nav>
         <div className="top-right">
-          <span className="private-label">
-            <span className="live-dot" /> ESPAÇO PRIVADO
-          </span>
+          <span className="private-label">Espaço privado</span>
           <button className="logout-button" onClick={onLogout} type="button">
             Sair
           </button>
@@ -900,49 +686,45 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
         </div>
       </header>
       <main id="main">
-        <div className="masthead">
-          <div className="masthead-line">
-            <span>ARQUIVO VIVO / REPERTÓRIO EM MOVIMENTO</span>
-            <span>EST. 2026 ↗</span>
-          </div>
-          <h1>
-            {area === "for-you" ? (
-              <>
-                Informação com <em>critério.</em>
-              </>
-            ) : area === "salvos" ? (
-              <>
-                O que merece <em>ficar.</em>
-              </>
-            ) : area === "oficina" ? (
-              <>
-                Ideias em <em>construção.</em>
-              </>
-            ) : area === "curadoria" ? (
-              <>
-                Repertório com <em>procedência.</em>
-              </>
-            ) : (
-              <>
-                Do rascunho ao <em>mundo.</em>
-              </>
-            )}
-          </h1>
-          <div className="masthead-bottom">
+        <div className="workspace-heading">
+          <div>
+            <span className="workspace-breadcrumb">
+              Lastro <span>/</span> {areas.find((a) => a.id === area)?.label}
+            </span>
+            <h1>
+              {area === "for-you"
+                ? "Seu radar criativo"
+                : area === "salvos"
+                  ? "Biblioteca pessoal"
+                  : area === "oficina"
+                    ? "Oficina de ideias"
+                    : area === "curadoria"
+                      ? "Curadoria editorial"
+                      : "Publicações"}
+            </h1>
             <p>
               {area === "for-you"
-                ? "Referências escolhidas para expandir seu olhar, sem perder o fundamento."
+                ? "Referências que ampliam o olhar. Conexões que você constrói."
                 : area === "salvos"
-                  ? "Sua biblioteca pessoal de ideias, pesquisas e referências."
+                  ? "Guarde, organize e reencontre o que move suas ideias."
                   : area === "oficina"
-                    ? "Reúna fontes, defina a direção e prepare a próxima criação."
+                    ? "Das referências a uma proposta com direção."
                     : area === "curadoria"
-                      ? "Acompanhe as fontes, revise referências e consulte as decisões."
-                      : "Um espaço editorial em preparação."}
+                      ? "A origem importa. O critério também."
+                      : "O próximo destino das suas ideias."}
             </p>
-            <span className="edition">
-              {areas.find((a) => a.id === area)?.index} / 05
-            </span>
+          </div>
+          <button
+            className="secondary-button"
+            onClick={() =>
+              navigate(area === "curadoria" ? "for-you" : "curadoria")
+            }
+          >
+            {area === "curadoria" ? "Ver Radar" : "Gerenciar fontes"}
+            <ArrowRight size={16} />
+          </button>
+          <div className="workspace-feedback">
+            {toast && <Pulso message={toast} />}
           </div>
         </div>
         {area === "for-you" && (
@@ -957,6 +739,67 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
               <span className="section-note">Curadoria que abre caminhos.</span>
             </div>
             <Filters query={query} setQuery={setQuery} sources={sources} />
+            <div className="radar-toolbar">
+              <div className="radar-cycles" aria-label="Recortes do Radar">
+                <button
+                  aria-pressed={!query.kind}
+                  onClick={() => setQuery({ ...query, kind: undefined })}
+                >
+                  Todas as referências
+                </button>
+                <button
+                  aria-pressed={query.kind === "article"}
+                  onClick={() => setQuery({ ...query, kind: "article" })}
+                >
+                  Radar Diário · artigos
+                </button>
+                <button
+                  aria-pressed={query.kind === "paper"}
+                  onClick={() => setQuery({ ...query, kind: "paper" })}
+                >
+                  Radar Científico · pesquisas
+                </button>
+              </div>
+              <div className="radar-actions">
+                <button
+                  onClick={surprise}
+                  disabled={feedLoading || !discoveryPool(feedItems).length}
+                >
+                  <Sparkles size={15} />
+                  Surpreenda-me
+                </button>
+                <button
+                  aria-pressed={view === "list"}
+                  onClick={() => setView(view === "grid" ? "list" : "grid")}
+                >
+                  {view === "grid" ? "Ver lista" : "Ver cards"}
+                </button>
+                <button
+                  onClick={() => {
+                    setQuery({});
+                    void loadFeed();
+                  }}
+                  disabled={feedLoading}
+                >
+                  Atualizar
+                </button>
+              </div>
+            </div>
+            {exploring && (
+              <div className="active-filters">
+                <span>
+                  Filtro aplicado
+                  {query.topic
+                    ? `: ${query.topic}`
+                    : query.q
+                      ? `: ${query.q}`
+                      : ""}
+                </span>
+                <button onClick={() => setQuery({})}>
+                  Limpar filtros <X size={14} />
+                </button>
+              </div>
+            )}
             {ingestionError && <p role="alert">{ingestionError}</p>}
             {feedError ? (
               <ErrorState message={feedError} onRetry={() => void loadFeed()} />
@@ -992,16 +835,8 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                     {feedItems.length === 1 ? "REFERÊNCIA" : "REFERÊNCIAS"}
                   </span>
                 </div>
-                {!exploring && feedItems[0] && (
-                  <ContentCard
-                    {...cardProps(feedItems[0])}
-                    explanation={feed?.items[0]?.explanation}
-                    onDismiss={(c) => void interact(c, "dismissed")}
-                    featured
-                  />
-                )}
                 <div className="card-grid">
-                  {(exploring ? feedItems : feedItems.slice(1)).map((item) => (
+                  {feedItems.map((item) => (
                     <ContentCard
                       key={item.id}
                       {...cardProps(item)}
@@ -1322,29 +1157,6 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                       </label>
                     )}
                     <label className="field">
-                      Linguagem editorial
-                      <select
-                        value={tone}
-                        onChange={(e) => setTone(e.target.value)}
-                      >
-                        <option value="autoral e analítico">
-                          Autoral e analítica
-                        </option>
-                        <option value="didático">Didática</option>
-                        <option value="técnico-científico">
-                          Técnico-científica
-                        </option>
-                      </select>
-                    </label>
-                    <label className="field">
-                      Público-alvo
-                      <input
-                        value={audience}
-                        onChange={(e) => setAudience(e.target.value)}
-                        maxLength={300}
-                      />
-                    </label>
-                    <label className="field">
                       Objetivo da publicação <span className="required">*</span>
                       <textarea
                         value={objective}
@@ -1356,26 +1168,52 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                         rows={3}
                       />
                     </label>
-                    <label className="field">
-                      Orientação ou argumento central
-                      <textarea
-                        value={argument}
-                        onChange={(e) => setArgument(e.target.value)}
-                        maxLength={2000}
-                        placeholder="Qual ideia deve conduzir o texto?"
-                        rows={3}
-                      />
-                    </label>
-                    <label className="field">
-                      Notas adicionais
-                      <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        maxLength={5000}
-                        rows={3}
-                        placeholder="Contexto, ênfases e cuidados editoriais"
-                      />
-                    </label>
+                    <details className="work-refinements">
+                      <summary>Ajustar linguagem, público e contexto</summary>{" "}
+                      <label className="field">
+                        Linguagem editorial
+                        <select
+                          value={tone}
+                          onChange={(e) => setTone(e.target.value)}
+                        >
+                          <option value="autoral e analítico">
+                            Autoral e analítica
+                          </option>
+                          <option value="didático">Didática</option>
+                          <option value="técnico-científico">
+                            Técnico-científica
+                          </option>
+                        </select>
+                      </label>
+                      <label className="field">
+                        Público-alvo
+                        <input
+                          value={audience}
+                          onChange={(e) => setAudience(e.target.value)}
+                          maxLength={300}
+                        />
+                      </label>
+                      <label className="field">
+                        Orientação ou argumento central
+                        <textarea
+                          value={argument}
+                          onChange={(e) => setArgument(e.target.value)}
+                          maxLength={2000}
+                          placeholder="Qual ideia deve conduzir o texto?"
+                          rows={3}
+                        />
+                      </label>
+                      <label className="field">
+                        Notas adicionais
+                        <textarea
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                          maxLength={5000}
+                          rows={3}
+                          placeholder="Contexto, ênfases e cuidados editoriais"
+                        />
+                      </label>
+                    </details>
                     {workError && (
                       <div className="notice error" role="alert">
                         {workError}
@@ -1437,7 +1275,15 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             </div>
           </section>
         )}
-        {area === "curadoria" && <Curation />}
+        {area === "curadoria" && (
+          <Curation
+            onOverview={(overview) => setPending(overview.pending)}
+            onChanged={() => {
+              radarDirty.current = true;
+              notify("Curadoria atualizada.");
+            }}
+          />
+        )}
         {area === "publicacoes" && (
           <section className="page-section publications">
             <div className="section-heading">
@@ -1482,6 +1328,16 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
           </section>
         )}
       </main>
+      <Jarvis
+        context={{
+          area,
+          selected: selected.length,
+          available: discoveryPool(feedItems).length,
+          saved: saved.length,
+          pending,
+        }}
+        onAction={jarvisAction}
+      />
       <footer>
         <span className="footer-logo">
           LASTRO<span>.</span>
@@ -1586,6 +1442,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             </div>
             <p>{noteTarget.title}</p>
             <textarea
+              aria-label="Texto da nota pessoal"
               value={noteDraft}
               onChange={(e) => setNoteDraft(e.target.value)}
               maxLength={5000}
@@ -1596,11 +1453,6 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
               Salvar nota <Check size={17} />
             </button>
           </div>
-        </div>
-      )}
-      {toast && (
-        <div className="toast" role="status">
-          {toast}
         </div>
       )}
     </div>

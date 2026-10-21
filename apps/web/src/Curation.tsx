@@ -510,7 +510,13 @@ function CandidateCard({
     </article>
   );
 }
-export default function Curation() {
+export default function Curation({
+  onOverview,
+  onChanged,
+}: {
+  onOverview?: (overview: AdminOverview) => void;
+  onChanged?: () => void;
+}) {
   const [tab, setTab] = useState("sources"),
     [sources, setSources] = useState<AdminSource[]>([]),
     [overview, setOverview] = useState<AdminOverview | null>(null),
@@ -556,6 +562,8 @@ export default function Curation() {
       if (active) {
         setSources(all);
         setOverview(o);
+        onOverview?.(o);
+        if (revision > 0) onChanged?.();
         setQueue(q);
         setRuns(r);
         setDecisions(d);
@@ -572,7 +580,9 @@ export default function Curation() {
       active = false;
     };
   }, [outcome, offset, runOffset, decisionOffset, revision]);
-  const refresh = () => setRevision((v) => v + 1);
+  const refresh = () => {
+    setRevision((v) => v + 1);
+  };
   return (
     <section className="page-section curation">
       <div className="section-heading">
@@ -583,12 +593,26 @@ export default function Curation() {
         <button onClick={refresh}>Atualizar</button>
       </div>
       {overview && (
-        <p>
-          Coleta automática:{" "}
-          <strong>{overview.ingestEnabled ? "ativa" : "inativa"}</strong> ·{" "}
-          {overview.sources} fontes · {overview.pending} pendentes ·{" "}
-          {overview.approved} conteúdos aprovados
-        </p>
+        <div className="curation-metrics">
+          <div>
+            <span>Agendamento</span>
+            <strong>
+              {overview.ingestEnabled ? "Habilitado" : "Desativado"}
+            </strong>
+          </div>
+          <div>
+            <span>Fontes</span>
+            <strong>{overview.sources}</strong>
+          </div>
+          <div>
+            <span>Aguardando revisão</span>
+            <strong>{overview.pending}</strong>
+          </div>
+          <div>
+            <span>Referências aprovadas</span>
+            <strong>{overview.approved}</strong>
+          </div>
+        </div>
       )}
       <nav className="curation-actions" aria-label="Seções da Curadoria">
         {[
@@ -596,7 +620,12 @@ export default function Curation() {
           ["queue", "Fila de revisão"],
           ["history", "Histórico"],
         ].map(([id, label]) => (
-          <button key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
+          <button
+            id={`curation-${id}`}
+            key={id}
+            aria-pressed={tab === id}
+            onClick={() => setTab(id)}
+          >
             {label}
           </button>
         ))}
