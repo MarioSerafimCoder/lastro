@@ -10,6 +10,9 @@
     "run_worker_first": ["/api/*", "/health"],
   },
   "workers_dev": true,
+  "routes": [
+    { "pattern": "lastro.marioserafim.com.br", "custom_domain": true },
+  ],
   "preview_urls": false,
   "d1_databases": [
     {
@@ -22,7 +25,7 @@
   "triggers": { "crons": ["*/5 * * * *"] },
   "vars": {
     "ENVIRONMENT": "production",
-    "ALLOWED_ORIGIN": "https://lastro-api.marioserafim-da.workers.dev",
+    "ALLOWED_ORIGIN": "https://lastro.marioserafim.com.br",
     "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com",
     "INGEST_ENABLED": "false",
   },
