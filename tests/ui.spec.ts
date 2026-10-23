@@ -43,6 +43,17 @@ async function mockApi(
     } else if (p === "/api/auth/logout") {
       authenticated = false;
       result = {};
+    } else if (p === "/api/radar/status") {
+      const fresh =
+        (u.searchParams.get("since") ?? "") < "2026-10-22T00:00:00Z";
+      result = {
+        checkedAt: "2026-10-23T13:00:00Z",
+        lastEditorialCheck: "2026-10-23T12:00:00Z",
+        lastScientificRound: null,
+        newApprovals: fresh ? 3 : 0,
+        newContentIds: fresh ? items.slice(0, 3).map((item) => item.id) : [],
+        recentTopics: fresh ? [{ name: "design", count: 3 }] : [],
+      };
     } else if (p === "/api/feed") {
       const offset = Number(u.searchParams.get("cursor") ?? 0),
         limit = Number(u.searchParams.get("limit") ?? 12);
@@ -605,7 +616,7 @@ for (const width of [1440, 768, 390])
     await expect(page.locator(".jarvis-toggle")).toBeFocused();
   });
 
-test("Descoberta e cards: tamanho uniforme, ampliação suave e grid/lista", async ({
+test("Descoberta e cards: abertura editorial, ampliação suave e grid/lista", async ({
   page,
 }) => {
   await mockApi(page);
@@ -621,7 +632,9 @@ test("Descoberta e cards: tamanho uniforme, ampliação suave e grid/lista", asy
         ].join("x"),
       ),
     );
-  expect(new Set(dimensions).size).toBe(1);
+  expect(new Set(dimensions).size).toBeGreaterThan(1);
+  await expect(page.locator(".editorial-lead")).toHaveCount(1);
+  await expect(page.locator(".editorial-secondary")).toHaveCount(2);
   const card = page.locator(".content-card").first();
   await card.hover();
   await expect
@@ -656,6 +669,39 @@ test("Descoberta e cards: tamanho uniforme, ampliação suave e grid/lista", asy
   ).toBe(true);
   await page.getByRole("button", { name: "Ver cards", exact: true }).click();
   await expect(page.locator(".view-grid")).toHaveCount(1);
+});
+
+test("Pulso preserva novidades ao recarregar, usa cache e confirma somente ao explorar", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("lastro-editorial-visit"))
+      localStorage.setItem("lastro-editorial-visit", "2026-10-01T00:00:00Z");
+  });
+  const { calls } = await mockApi(page);
+  await page.goto("/");
+  await expect(
+    page.getByText("3 novas referências desde sua última conferência"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Para observar agora" }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByText("3 novas referências desde sua última conferência"),
+  ).toBeVisible();
+  expect(calls.filter((call) => call === "GET /api/radar/status")).toHaveLength(
+    1,
+  );
+  await page
+    .getByRole("button", { name: "Ver novidades", exact: true })
+    .click();
+  await expect(page.locator(".content-card.is-new")).toHaveCount(3);
+  await expect
+    .poll(() =>
+      page.evaluate(() => localStorage.getItem("lastro-editorial-visit")),
+    )
+    .toBe("2026-10-23T13:00:00Z");
 });
 
 test("Menus profissionais: teclado, opções em português, seleção e recorte responsivo", async ({

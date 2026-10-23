@@ -77,6 +77,8 @@ type CardProps = {
   onExplore?: (topic: string) => void;
   busy: boolean;
   discovering?: boolean;
+  prominence?: "lead" | "secondary";
+  fresh?: boolean;
 };
 export function ContentCard({
   item,
@@ -90,6 +92,8 @@ export function ContentCard({
   onExplore,
   busy,
   discovering = false,
+  prominence,
+  fresh = false,
 }: CardProps) {
   const [why, setWhy] = useState(false);
   const author = item.authors
@@ -99,7 +103,7 @@ export function ContentCard({
     <article
       id={`content-${item.id}`}
       tabIndex={-1}
-      className={`content-card kind-${item.kind} ${item.state.selected ? "is-selected" : ""} ${item.state.favorite ? "is-saved" : ""} ${item.state.read ? "is-read" : ""} ${discovering ? "is-discovering" : ""}`}
+      className={`content-card kind-${item.kind} ${prominence ? `editorial-${prominence}` : ""} ${fresh ? "is-new" : ""} ${item.state.selected ? "is-selected" : ""} ${item.state.favorite ? "is-saved" : ""} ${item.state.read ? "is-read" : ""} ${discovering ? "is-discovering" : ""}`}
     >
       {item.imageUrl && (
         <img
@@ -112,6 +116,7 @@ export function ContentCard({
       )}
       <div className="card-copy">
         <div className="eyebrow">
+          {fresh && <span className="new-label">Nova</span>}
           <span>{item.sourceName}</span>
           <span className="dot">·</span>
           <span>{kindName[item.kind]}</span>
@@ -126,9 +131,7 @@ export function ContentCard({
           <h3>{presentContent(item).originalTitle}</h3>
           <ExternalLink size={17} aria-hidden="true" />
         </a>
-        <p className="description">
-          {item.description ?? "Resumo não autorizado · leia na origem"}
-        </p>
+        {item.description && <p className="description">{item.description}</p>}
         <div className="byline">
           <span>{author || "Autoria não informada"}</span>
           <span>{date(item.publishedAt)}</span>

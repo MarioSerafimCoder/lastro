@@ -132,6 +132,8 @@ export type RadarStatus = {
   approved: number;
   newApprovalsSince: string | null;
   newApprovals: number | null;
+  newContentIds?: string[];
+  recentTopics?: { name: string; count: number }[];
 };
 export type ReviewCandidate = {
   id: string;

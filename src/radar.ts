@@ -64,11 +64,18 @@ export async function radarStatus(
                       : "checked",
     };
   });
-  const count = await first<{ count: number }>(
+  const count = await first<{ count: number; entries: string }>(
     env.DB,
-    `SELECT COUNT(*) count FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND EXISTS(SELECT 1 FROM editorial_decisions e WHERE e.content_id=c.id AND e.decision='approved' AND e.created_at>?)`,
+    `SELECT COUNT(*) count, json_group_array(json_object('id',c.id,'topics',json_extract(c.metadata_json,'$.topics'))) entries FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND EXISTS(SELECT 1 FROM editorial_decisions e WHERE e.content_id=c.id AND e.decision='approved' AND e.created_at>?)`,
     since ?? at,
   );
+  const entries: { id: string; topics: string[] }[] = JSON.parse(
+    count?.entries ?? "[]",
+  );
+  const topics = new Map<string, number>();
+  for (const entry of entries)
+    for (const topic of new Set(entry.topics ?? []))
+      topics.set(topic, (topics.get(topic) ?? 0) + 1);
   const last = (cycle: string) =>
     sources
       .filter((s) => s.cycle === cycle)
@@ -91,5 +98,10 @@ export async function radarStatus(
       .reduce((n, s) => n + s.approved, 0),
     newApprovalsSince: since,
     newApprovals: since ? count!.count : null,
+    newContentIds: entries.slice(0, 500).map((entry) => entry.id),
+    recentTopics: [...topics]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count })),
   };
 }

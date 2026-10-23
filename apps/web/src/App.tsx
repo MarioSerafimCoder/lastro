@@ -11,6 +11,7 @@ import Curation from "./Curation";
 import { ContentCard, Filters } from "./ReferenceCards";
 import Jarvis from "./Jarvis";
 import Pulso from "./Pulso";
+import EditorialPulse from "./EditorialPulse";
 import AppearanceControls, {
   fullMotion,
   transitionLayout,
@@ -206,8 +207,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<"grid" | "list">(() =>
     localStorage.getItem("lastro-feed-view") === "list" ? "list" : "grid",
   );
-  const [newCount, setNewCount] = useState(0);
-  const lastFeedIds = useRef<Set<string> | null>(null);
+  const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<number | null>(null);
   const radarDirty = useRef(false);
   const positions = useRef<Partial<Record<Area, number>>>({});
@@ -302,18 +302,8 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     setFeedError("");
     try {
       const page = await api.feed({ limit: 16 });
-      const ids = new Set(page.items.map((item) => item.content.id));
-      const newItems = lastFeedIds.current
-        ? [...ids].filter((value) => !lastFeedIds.current!.has(value)).length
-        : 0;
-      lastFeedIds.current = ids;
-      setNewCount(newItems);
       setFeed(page);
-      notify(
-        newItems
-          ? `${newItems} novas referências no For You.`
-          : `${page.items.length} referências carregadas no Radar.`,
-      );
+      return page;
     } catch (e) {
       setFeedError(errorText(e));
     } finally {
@@ -807,6 +797,35 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
         </div>
         {area === "for-you" && (
           <section className="page-section" aria-labelledby="feed-title">
+            <EditorialPulse
+              onExplore={async (ids) => {
+                setQuery({});
+                setFreshIds(new Set(ids));
+                const page = await loadFeed();
+                if (!page)
+                  throw new Error("Não foi possível atualizar o feed.");
+                const first = page.items.find((item) =>
+                  ids.includes(item.content.id),
+                );
+                if (first)
+                  requestAnimationFrame(() =>
+                    requestAnimationFrame(() => {
+                      const element = document.getElementById(
+                        `content-${first.content.id}`,
+                      );
+                      element?.scrollIntoView({
+                        block: "center",
+                        behavior: "instant",
+                      });
+                      element?.focus({ preventScroll: true });
+                    }),
+                  );
+                else
+                  notify(
+                    "As novidades ainda não compõem esta seleção equilibrada. Explore as próximas referências.",
+                  );
+              }}
+            />
             <div className="section-heading">
               <div>
                 <span className="kicker">RADAR / FOR YOU</span>
@@ -917,18 +936,25 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                     {feedItems.length === 1 ? "REFERÊNCIA" : "REFERÊNCIAS"}
                   </span>
                 </div>
-                {!exploring && newCount > 0 && (
-                  <p className="feed-new-count" role="status">
-                    {newCount}{" "}
-                    {newCount === 1 ? "nova referência" : "novas referências"}{" "}
-                    nesta atualização
-                  </p>
-                )}
-                <div className="card-grid feed-grid">
-                  {feedItems.map((item) => (
+                <p className="metadata-context">
+                  Metadados e links originais. Imagens e descrições aparecem
+                  somente quando autorizadas pela fonte.
+                </p>
+                <div
+                  className={`card-grid feed-grid ${!exploring ? "editorial-grid" : ""}`}
+                >
+                  {feedItems.map((item, index) => (
                     <ContentCard
                       key={item.id}
                       {...cardProps(item)}
+                      prominence={
+                        !exploring && index < 3
+                          ? index === 0
+                            ? "lead"
+                            : "secondary"
+                          : undefined
+                      }
+                      fresh={freshIds.has(item.id)}
                       discovering={discoveryId === item.id}
                       explanation={
                         !exploring
