@@ -925,11 +925,10 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                   </p>
                 )}
                 <div className="card-grid feed-grid">
-                  {feedItems.map((item, index) => (
+                  {feedItems.map((item) => (
                     <ContentCard
                       key={item.id}
                       {...cardProps(item)}
-                      featured={!exploring && (index === 0 || index === 9)}
                       discovering={discoveryId === item.id}
                       explanation={
                         !exploring

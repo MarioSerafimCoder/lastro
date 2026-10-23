@@ -605,16 +605,30 @@ for (const width of [1440, 768, 390])
     await expect(page.locator(".jarvis-toggle")).toBeFocused();
   });
 
-test("Descoberta e cards: reação visual, limite do destaque e grid/lista", async ({
+test("Descoberta e cards: tamanho uniforme, ampliação suave e grid/lista", async ({
   page,
 }) => {
   await mockApi(page);
   await page.goto("/");
+  await expect(page.locator(".content-card")).toHaveCount(16);
+  const dimensions = await page
+    .locator(".content-card")
+    .evaluateAll((cards) =>
+      cards.map((card) =>
+        [
+          Math.round((card as HTMLElement).offsetWidth),
+          Math.round((card as HTMLElement).offsetHeight),
+        ].join("x"),
+      ),
+    );
+  expect(new Set(dimensions).size).toBe(1);
   const card = page.locator(".content-card").first();
   await card.hover();
   await expect
-    .poll(() => card.evaluate((e) => getComputedStyle(e).transform))
-    .not.toBe("none");
+    .poll(() =>
+      card.evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).a),
+    )
+    .toBeCloseTo(1.025, 3);
   await page
     .getByRole("button", { name: "Surpreenda-me", exact: true })
     .click();

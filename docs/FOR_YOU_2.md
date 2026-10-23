@@ -1,6 +1,6 @@
 # For You 2.0 — direção editorial e operação
 
-O feed preserva a identidade claro/escuro do LASTRO. A grade agora entrega até 16 referências por lote, em quatro colunas quando há espaço, três ou duas em tablet e uma no celular. Dois cards por lote recebem peso tipográfico moderado. Sem imagem licenciada, o card usa título, categoria, fonte, autoria, data, idioma e ações; não cria capa ou resumo. Salvar e marcar como lido têm resposta visual imediata e reversão em erro. A seleção e os links externos mantêm os fluxos anteriores.
+O feed preserva a identidade claro/escuro do LASTRO. A grade agora entrega até 16 referências por lote, em quatro colunas quando há espaço, três ou duas em tablet e uma no celular. Os cards têm largura e altura uniformes no grid, sem destaques maiores. No desktop, o hover amplia suavemente em 2,5%, sem reorganizar a grade; a preferência por movimento reduzido é respeitada. Sem imagem licenciada, o card usa título, categoria, fonte, autoria, data, idioma e ações; não cria capa ou resumo. Salvar e marcar como lido têm resposta visual imediata e reversão em erro. A seleção e os links externos mantêm os fluxos anteriores.
 
 ## Distribuição por idioma
 

@@ -76,7 +76,6 @@ type CardProps = {
   onNote?: (c: Content) => void;
   onExplore?: (topic: string) => void;
   busy: boolean;
-  featured?: boolean;
   discovering?: boolean;
 };
 export function ContentCard({
@@ -90,7 +89,6 @@ export function ContentCard({
   onNote,
   onExplore,
   busy,
-  featured = false,
   discovering = false,
 }: CardProps) {
   const [why, setWhy] = useState(false);
@@ -101,7 +99,7 @@ export function ContentCard({
     <article
       id={`content-${item.id}`}
       tabIndex={-1}
-      className={`content-card kind-${item.kind} ${item.state.selected ? "is-selected" : ""} ${item.state.favorite ? "is-saved" : ""} ${item.state.read ? "is-read" : ""} ${discovering ? "is-discovering" : ""} ${featured ? "featured" : ""}`}
+      className={`content-card kind-${item.kind} ${item.state.selected ? "is-selected" : ""} ${item.state.favorite ? "is-saved" : ""} ${item.state.read ? "is-read" : ""} ${discovering ? "is-discovering" : ""}`}
     >
       {item.imageUrl && (
         <img
@@ -126,7 +124,7 @@ export function ContentCard({
           onClick={() => onOpen(item)}
         >
           <h3>{presentContent(item).originalTitle}</h3>
-          <ExternalLink size={featured ? 20 : 17} aria-hidden="true" />
+          <ExternalLink size={17} aria-hidden="true" />
         </a>
         <p className="description">
           {item.description ?? "Resumo não autorizado · leia na origem"}
