@@ -2,6 +2,7 @@ import {
   candidateSchema,
   type Candidate,
   type Quality,
+  type Policy,
   type Source,
   type IngestionRun,
 } from "../packages/contracts/index";
@@ -20,7 +21,12 @@ import {
 import { ApiFault, must } from "./errors";
 import type { Env } from "./env";
 import { canonicalUrl, normalizeCandidate, folded } from "./normalize";
-import { evaluate, prefilter, matchedTopics } from "./quality";
+import {
+  automaticReviewReasons,
+  evaluate,
+  prefilter,
+  matchedTopics,
+} from "./quality";
 
 export function identifierKey(
   i: Candidate["identifiers"][number],
@@ -130,13 +136,14 @@ export async function saveContent(
       authorJson,
     ),
   );
-  statements.push(
-    stmt(
-      db,
-      "INSERT OR IGNORE INTO author_identifiers SELECT json_extract(a.value,'$.id'),json_extract(i.value,'$.scheme'),json_extract(i.value,'$.value') FROM json_each(?) a,json_each(a.value,'$.identifiers') i",
-      authorJson,
-    ),
-  );
+  if (authors.some((a) => a.identifiers.length))
+    statements.push(
+      stmt(
+        db,
+        "INSERT OR IGNORE INTO author_identifiers SELECT json_extract(a.value,'$.id'),json_extract(i.value,'$.scheme'),json_extract(i.value,'$.value') FROM json_each(?) a,json_each(a.value,'$.identifiers') i",
+        authorJson,
+      ),
+    );
   statements.push(
     stmt(
       db,
@@ -184,14 +191,17 @@ export async function processCandidate(
   s: Source,
   runId: string,
   at = Date.now(),
+  activePolicy?: Policy,
 ): Promise<{ outcome: string; contentId: string | null; candidateId: string }> {
   let c = normalizeCandidate(raw);
   if (!s.summaryAllowed) c = { ...c, description: null };
+  if (!s.imageAllowed) c = { ...c, imageUrl: null };
   c.topics = [...new Set([...c.topics, ...matchedTopics(c, s)])].slice(0, 30);
-  const p = await policy(db),
+  const p = activePolicy ?? (await policy(db)),
     reasons = prefilter(c, s, at);
   let contentId: string | null = null,
-    outcome = "rejected";
+    outcome = "rejected",
+    autoApproved = false;
   // A later withdrawal must remove the existing reference from the index.
   if (s.status === "approved" && (c.retracted || c.access === "unavailable")) {
     contentId = await duplicate(db, c, s);
@@ -212,63 +222,86 @@ export async function processCandidate(
   }
   if (!reasons.length) {
     contentId = await duplicate(db, c, s);
-    if (contentId) {
-      outcome = "duplicate";
-      reasons.push("duplicate_identifier");
-    } else {
+    const existing = contentId
+      ? await first<{ editorial_status: string; source_id: string }>(
+          db,
+          "SELECT editorial_status,source_id FROM contents WHERE id=?",
+          contentId,
+        )
+      : null;
+    if (
+      !contentId ||
+      (existing?.editorial_status === "pending" && existing.source_id === s.id)
+    ) {
       const q = evaluate(c, s, p, at);
-      const approved =
-        s.autoApprove &&
-        s.connector !== "openalex" &&
-        c.kind !== "paper" &&
-        !!c.language &&
-        !!c.publishedAt &&
-        c.authors.length > 0 &&
-        q.score >= p.approvalThreshold;
-      outcome = approved ? "approved" : "pending";
       const similar = await first<{ id: string }>(
         db,
-        "SELECT id FROM contents WHERE source_id=? AND lower(trim(title))=lower(trim(?)) LIMIT 1",
+        "SELECT id FROM contents WHERE source_id=? AND lower(trim(title))=lower(trim(?)) AND id<>? LIMIT 1",
         s.id,
         c.title,
+        contentId ?? "",
       );
+      const reviewReasons = automaticReviewReasons(c, s, p, q, at, !!similar);
+      const approved = reviewReasons.length === 0;
       if (similar) reasons.push(`possible_title_duplicate:${similar.id}`);
-      if (!approved)
-        reasons.push(
-          q.score < p.approvalThreshold
-            ? "below_auto_threshold"
-            : "manual_review_required",
-        );
+      if (!approved) reasons.push(...reviewReasons);
+      outcome = approved ? "approved" : contentId ? "duplicate" : "pending";
       try {
-        contentId = await saveContent(
-          db,
-          c,
-          s,
-          q,
-          approved ? "approved" : "pending",
-        );
+        if (!contentId || approved) {
+          contentId = await saveContent(
+            db,
+            c,
+            s,
+            q,
+            approved ? "approved" : "pending",
+            contentId ?? undefined,
+          );
+          autoApproved = approved;
+        }
       } catch (e) {
         const concurrent = await duplicate(db, c, s);
         if (!concurrent) throw e;
         contentId = concurrent;
         outcome = "duplicate";
         reasons.push("concurrent_duplicate");
+        autoApproved = false;
       }
+    } else {
+      outcome = "duplicate";
+      reasons.push("duplicate_identifier");
     }
   }
   const candidateId = id();
-  await stmt(
-    db,
-    "INSERT INTO ingestion_candidates VALUES (?,?,?,?,?,?,?,?)",
-    candidateId,
-    runId,
-    s.id,
-    contentId,
-    JSON.stringify(c),
-    outcome,
-    JSON.stringify(reasons),
-    now(),
-  ).run();
+  const recordedAt = now();
+  const statements = [
+    stmt(
+      db,
+      "INSERT INTO ingestion_candidates VALUES (?,?,?,?,?,?,?,?)",
+      candidateId,
+      runId,
+      s.id,
+      contentId,
+      JSON.stringify(c),
+      outcome,
+      JSON.stringify(reasons),
+      recordedAt,
+    ),
+  ];
+  if (autoApproved)
+    statements.push(
+      stmt(
+        db,
+        "INSERT INTO editorial_decisions VALUES (?,?,?,?,?,?)",
+        id(),
+        candidateId,
+        contentId,
+        "approved",
+        `Aprovação automática: fonte autorizada, política ${p.version}, metadados e qualidade verificados.`,
+        recordedAt,
+      ),
+    );
+  if (statements.length === 1) await statements[0].run();
+  else await db.batch(statements);
   return { outcome, contentId, candidateId };
 }
 export async function ingestSource(
@@ -395,6 +428,7 @@ export async function ingestSource(
       sourceId,
       env.INGEST_BATCH_SIZE === "1" ? 1 : 2,
     );
+    const activePolicy = queued.length ? await policy(env.DB) : null;
     for (const queuedItem of queued) {
       const current = await first<{ status: string }>(
         env.DB,
@@ -411,6 +445,8 @@ export async function ingestSource(
         JSON.parse(queuedItem.payload_json),
         source,
         run.id,
+        clock,
+        activePolicy ?? undefined,
       );
       if (result.outcome === "approved") run.accepted++;
       else if (result.outcome === "pending") run.pending++;
@@ -498,12 +534,13 @@ export async function scheduledIngest(
         console.error("scheduled_ingestion_failed");
     }
   }
-  await env.DB.batch([
-    stmt(env.DB, "DELETE FROM feed_snapshots WHERE expires_at<?", now()),
-    stmt(
-      env.DB,
-      "DELETE FROM request_budgets WHERE expires_at<?",
-      Math.floor(Date.now() / 1000),
-    ),
-  ]);
+  if (!due.length)
+    await env.DB.batch([
+      stmt(env.DB, "DELETE FROM feed_snapshots WHERE expires_at<?", now()),
+      stmt(
+        env.DB,
+        "DELETE FROM request_budgets WHERE expires_at<?",
+        Math.floor(Date.now() / 1000),
+      ),
+    ]);
 }

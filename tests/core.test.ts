@@ -11,7 +11,7 @@ import {
   collect,
   validateFetchUrl,
 } from "../src/connectors";
-import { evaluate, prefilter } from "../src/quality";
+import { automaticReviewReasons, evaluate, prefilter } from "../src/quality";
 import { rank } from "../src/ranking";
 import { renderPrompt } from "../src/research";
 import { defaultPolicy } from "../packages/contracts/index";
@@ -96,11 +96,101 @@ test("RSS e Atom usam somente resumo autorizado e links alternativos", () => {
     null,
   );
   assert.equal(parseRss(atom, s)[0].url, "https://fixtures.example.test/atom");
+  const byline = rss.replace(
+    "<dc:creator>Autor de Teste</dc:creator>",
+    '<author>by <a href="https://fixtures.example.test/author">Autora Real</a></author>',
+  );
+  assert.equal(parseRss(byline, s)[0].authors[0].name, "Autora Real");
+  assert.equal(
+    parseRss(
+      rss.replace(
+        "<language>pt-BR</language>",
+        "<dc:language>en-US</dc:language>",
+      ),
+      s,
+    )[0].language,
+    "en-US",
+  );
+  assert.equal(
+    parseRss(
+      rss.replace("Design acessível", "Design &#039;acessível&#039;"),
+      s,
+    )[0].title,
+    "TESTE — Design 'acessível'",
+  );
+  const withImage = rss.replace(
+    "<category>design</category>",
+    '<media:thumbnail url="https://fixtures.example.test/image.jpg"/><category>design</category>',
+  );
+  assert.equal(
+    parseRss(withImage, { ...s, imageAllowed: true })[0].imageUrl,
+    "https://fixtures.example.test/image.jpg",
+  );
+  assert.equal(
+    parseRss(withImage, { ...s, imageAllowed: false })[0].imageUrl,
+    null,
+  );
+  assert.equal(
+    parseRss(
+      rss.replace(
+        "<category>design</category>",
+        "<category>opinion</category><category>design</category>",
+      ),
+      s,
+    )[0].kind,
+    "opinion",
+  );
   assert.throws(() =>
     parseRss(
       '<!DOCTYPE rss [<!ENTITY a SYSTEM "file:///etc/passwd">]><rss/>',
       s,
     ),
+  );
+});
+test("curadoria automática exige título relevante e não trata editoriais como estudo", () => {
+  const source = { ...s, autoTopics: ["perception"], languages: ["en"] };
+  const weak = {
+    ...c,
+    title: "Physics learning with AI",
+    language: "en",
+    topics: ["perception"],
+  };
+  assert.ok(
+    automaticReviewReasons(
+      weak,
+      source,
+      defaultPolicy,
+      evaluate(weak, source, defaultPolicy, at),
+      at,
+    ).includes("title_off_topic"),
+  );
+  const editorial = {
+    ...c,
+    title: "Special issue editorial on perception",
+    kind: "paper" as const,
+    language: "en",
+  };
+  assert.ok(
+    automaticReviewReasons(
+      editorial,
+      source,
+      defaultPolicy,
+      evaluate(editorial, source, defaultPolicy, at),
+      at,
+    ).includes("scientific_publication_type_unverified"),
+  );
+  const sponsored = {
+    ...c,
+    authors: [{ name: "Sponsored Content", orcid: null, openalex: null }],
+  };
+  assert.ok(
+    automaticReviewReasons(
+      sponsored,
+      s,
+      defaultPolicy,
+      evaluate(sponsored, s, defaultPolicy, at),
+      at,
+    ).includes("promotional_material"),
   );
 });
 test("ranking é determinístico, corta qualidade baixa e descartados, reduz repetição e reserva descoberta", () => {

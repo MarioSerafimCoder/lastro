@@ -16,6 +16,7 @@ import type {
   ResearchPackage,
   PromptResponse,
   Explanation,
+  Policy,
 } from "./index";
 
 export class LastroApiError extends Error {
@@ -102,6 +103,9 @@ export function createLastroClient(
         `/radar/status?${query({ since })}`,
       ),
     adminOverview: () => request<AdminOverview>("/admin/overview"),
+    policy: () => request<Policy>("/admin/policy"),
+    savePolicy: (input: Policy) =>
+      request<Policy>("/admin/policy", "PUT", input),
     sources: (offset = 0) =>
       request<Page<AdminSource>>(`/admin/sources?limit=50&offset=${offset}`),
     saveSource: (input: SourceInput, id?: string) =>

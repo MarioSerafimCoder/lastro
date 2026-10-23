@@ -14,8 +14,9 @@ import type { SearchQuery } from "../../../packages/contracts/client";
 import { presentContent } from "./experience";
 const kindName: Record<Content["kind"], string> = {
   news: "Notícia",
+  opinion: "Opinião",
   article: "Artigo",
-  paper: "Pesquisa",
+  paper: "Estudo (metadados)",
   case_study: "Estudo de caso",
   visual_reference: "Referência visual",
   post: "Post",
@@ -102,6 +103,15 @@ export function ContentCard({
       tabIndex={-1}
       className={`content-card ${item.state.selected ? "is-selected" : ""} ${discovering ? "is-discovering" : ""} ${featured ? "featured" : ""}`}
     >
+      {item.imageUrl && (
+        <img
+          className="card-image"
+          src={item.imageUrl}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      )}
       <div className="card-copy">
         <div className="eyebrow">
           <span>{item.sourceName}</span>
@@ -151,6 +161,9 @@ export function ContentCard({
               {knowledgeName[a.classification]}
             </span>
           ))}
+          {item.kind === "paper" && (
+            <span className="badge subtle">Método não revisado</span>
+          )}
           {item.state.read && <span className="badge subtle">Lido</span>}
           {item.editorialStatus !== "approved" && (
             <span className="badge caution">Fora do índice</span>

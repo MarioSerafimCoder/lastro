@@ -29,7 +29,7 @@ export async function radarStatus(
     return {
       id: s.id,
       name: s.name,
-      cycle: s.connector === "openalex" ? "monthly" : "daily",
+      cycle: s.connector === "openalex" ? "bimonthly" : "daily",
       lastCycleKey: s.last_cycle_key,
       lastAttemptAt: s.last_attempt_at,
       lastSuccessAt: s.last_success_at,
@@ -82,7 +82,7 @@ export async function radarStatus(
     ingestEnabled: env.INGEST_ENABLED === "true",
     sources,
     lastEditorialCheck: last("daily"),
-    lastScientificRound: last("monthly"),
+    lastScientificRound: last("bimonthly"),
     approved: sources
       .filter(
         (s) =>

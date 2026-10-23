@@ -6,13 +6,22 @@ async function selectMenu(page: Page, label: string, choice: string) {
   await page.getByRole("option", { name: choice, exact: true }).click();
 }
 
-async function mockApi(page: Page, count = 24, initialSession = true) {
+async function mockApi(
+  page: Page,
+  count = 24,
+  initialSession = true,
+  withImage = false,
+) {
   const items = Array.from({ length: count }, (_, i) =>
     contentFixture({
       id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
       title: `TESTE ${i + 1} — ${i % 2 ? "Tipografia, percepção e novos contextos" : "Design de informação e cultura visual"}`,
       kind: i % 5 === 0 ? "paper" : "article",
       topics: [i % 2 ? "typography" : "design"],
+      imageUrl:
+        withImage && i === 0
+          ? "https://fixtures.example.test/feed-image.svg"
+          : null,
     }),
   );
   let authenticated = initialSession;
@@ -126,6 +135,47 @@ async function mockApi(page: Page, count = 24, initialSession = true) {
   });
   return { calls };
 }
+
+test("Imagem autorizada, link externo e ações persistentes no celular", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("https://fixtures.example.test/feed-image.svg", (route) =>
+    route.fulfill({
+      contentType: "image/svg+xml",
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="40"><rect width="64" height="40" fill="red"/></svg>',
+    }),
+  );
+  await mockApi(page, 12, true, true);
+  await page.goto("/");
+  const card = page.locator(".content-card").first();
+  await expect(card.locator("img.card-image")).toHaveJSProperty(
+    "naturalWidth",
+    64,
+  );
+  await expect(card.locator(".article-link")).toHaveAttribute(
+    "target",
+    "_blank",
+  );
+  await card.getByRole("button", { name: "Salvar referência" }).click();
+  await card.getByRole("button", { name: "Selecionar para a Oficina" }).click();
+  await card.getByRole("button", { name: "Marcar como lido" }).click();
+  await page.reload();
+  await expect(
+    card.getByRole("button", { name: "Remover dos salvos" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    card.getByRole("button", { name: "Remover da Oficina" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    card.getByRole("button", { name: "Marcar como não lido" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
 
 for (const count of [2, 12, 24, 100])
   test(`Radar com ${count} referências, paginação e contexto preservado`, async ({

@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { cycleKey, nextCycle } from "../src/schedule";
-import { ingestSource, scheduledIngest } from "../src/ingestion";
+import {
+  ingestSource,
+  processCandidate,
+  scheduledIngest,
+} from "../src/ingestion";
 import { collect, parseRss } from "../src/connectors";
 import { first, stmt, id } from "../src/db";
 import { radarStatus } from "../src/radar";
@@ -159,12 +163,12 @@ async function source(connector: "rss" | "openalex" = "rss") {
 }
 const xml = (n: number) =>
   `<rss><channel><language>en</language>${Array.from({ length: n }, (_, i) => `<item><title>TEST design ${i}</title><link>https://fixtures.example.test/${id()}</link><author>TEST</author><pubDate>2026-10-01</pubDate></item>`).join("")}</channel></rss>`;
-test("calendário UTC: 28,29,30,31 dias, dezembro e offsets", () => {
+test("calendário UTC: rodadas científicas bimestrais e virada de ano", () => {
   for (const [from, to] of [
     ["2025-02-28", "2025-03-01"],
     ["2024-02-29", "2024-03-01"],
     ["2026-04-30", "2026-05-01"],
-    ["2026-01-31", "2026-02-01"],
+    ["2026-10-31", "2026-11-01"],
     ["2026-12-31", "2027-01-01"],
   ])
     assert.equal(
@@ -180,6 +184,17 @@ test("calendário UTC: 28,29,30,31 dias, dezembro e offsets", () => {
       Date.parse("2026-10-31T22:00:00-03:00"),
     ),
     "2026-11",
+  );
+  assert.equal(
+    cycleKey({ connector: "openalex" }, Date.parse("2026-10-23T00:00:00Z")),
+    "2026-09",
+  );
+  assert.equal(
+    nextCycle(
+      { ...fixtureSource, connector: "openalex" },
+      Date.parse("2026-09-01T00:00:00Z"),
+    ),
+    "2026-11-01T00:00:00.000Z",
   );
   assert.equal(nextCycle(fixtureSource, at), "2026-10-22T10:00:00.000Z");
 });
@@ -201,7 +216,7 @@ test("diário, 304, intervalo mínimo e próximo dia", async () => {
   await ingestSource(env, s.id, fetcher, at + 86400000);
   assert.equal(calls, 2);
 });
-test("mensal: fila continua sem segunda descoberta; mês seguinte abre rodada", async () => {
+test("bimestral: fila continua sem segunda descoberta; bimestre seguinte abre rodada", async () => {
   const s = await source("openalex");
   let calls = 0;
   const payload = {
@@ -235,6 +250,122 @@ test("mensal: fila continua sem segunda descoberta; mês seguinte abre rodada", 
   assert.equal(calls, 1);
   await ingestSource(env, s.id, fetcher, Date.parse("2026-11-01T00:00:00Z"));
   assert.equal(calls, 2);
+});
+test("aprovação automática registra decisão e reavalia pendente sem tocar aprovados", async () => {
+  const s = await source();
+  const runId = id();
+  await stmt(
+    env.DB,
+    "INSERT INTO ingestion_runs(id,source_id,started_at,status) VALUES (?,?,?,'running')",
+    runId,
+    s.id,
+    new Date(at).toISOString(),
+  ).run();
+  const item = {
+    ...fixtureCandidate,
+    url: `https://fixtures.example.test/${id()}`,
+    title: `TEST design ${id()}`,
+    identifiers: [],
+    language: null,
+    description: null,
+  };
+  const firstPass = await processCandidate(env.DB, item, s, runId, at);
+  assert.equal(firstPass.outcome, "pending");
+  const enabled = { ...s, autoApprove: true, languages: ["en"] };
+  await stmt(
+    env.DB,
+    "UPDATE sources SET config_json=? WHERE id=?",
+    JSON.stringify(enabled),
+    s.id,
+  ).run();
+  const secondPass = await processCandidate(env.DB, item, enabled, runId, at);
+  assert.equal(secondPass.outcome, "approved");
+  assert.equal(secondPass.contentId, firstPass.contentId);
+  assert.equal(
+    (
+      await first<any>(
+        env.DB,
+        "SELECT editorial_status FROM contents WHERE id=?",
+        firstPass.contentId,
+      )
+    ).editorial_status,
+    "approved",
+  );
+  assert.equal(
+    (
+      await first<any>(
+        env.DB,
+        "SELECT COUNT(*) n FROM editorial_decisions WHERE content_id=? AND decision='approved'",
+        firstPass.contentId,
+      )
+    ).n,
+    1,
+  );
+  const collision = await processCandidate(
+    env.DB,
+    { ...item, url: `https://fixtures.example.test/${id()}` },
+    enabled,
+    runId,
+    at,
+  );
+  assert.equal(collision.outcome, "pending");
+  assert.ok(
+    (
+      await first<any>(
+        env.DB,
+        "SELECT reasons_json FROM ingestion_candidates WHERE id=?",
+        collision.candidateId,
+      )
+    ).reasons_json.includes("possible_title_duplicate"),
+  );
+});
+test("cron processa dois itens aprováveis abaixo do limite de 50 consultas D1", async () => {
+  const s = await source();
+  const enabled = { ...s, autoApprove: true, languages: ["en"] };
+  await stmt(
+    env.DB,
+    "UPDATE sources SET config_json=? WHERE id=?",
+    JSON.stringify(enabled),
+    s.id,
+  ).run();
+  let queries = 0;
+  const wrap = (prepared: any): any =>
+    new Proxy(prepared, {
+      get(target, key) {
+        if (key === "bind")
+          return (...args: unknown[]) => wrap(target.bind(...args));
+        if (["run", "all", "first", "raw"].includes(String(key)))
+          return (...args: unknown[]) => {
+            queries++;
+            return target[key](...args);
+          };
+        return typeof target[key] === "function"
+          ? target[key].bind(target)
+          : target[key];
+      },
+    });
+  const tracked = new Proxy(env.DB, {
+    get(target, key) {
+      if (key === "prepare") return (sql: string) => wrap(target.prepare(sql));
+      if (key === "batch")
+        return (statements: D1PreparedStatement[]) => {
+          queries += statements.length;
+          return target.batch(statements);
+        };
+      return typeof (target as any)[key] === "function"
+        ? (target as any)[key].bind(target)
+        : (target as any)[key];
+    },
+  });
+  const result = await ingestSource(
+    { ...env, DB: tracked },
+    s.id,
+    async () => new Response(xml(2)),
+    at,
+  );
+  assert.equal(result.accepted, 2);
+  console.log(`Cron: ${queries} consultas na ingestão + 3 no agendamento`);
+  assert.ok(queries + 3 <= 50, `Cron usaria ${queries + 3} consultas D1`);
 });
 test("403 e 429 preservam Retry-After, backoff e observabilidade", async () => {
   for (const code of [403, 429]) {

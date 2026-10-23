@@ -12,6 +12,15 @@
     "web",
     "figma"
   ],
+  "autoTopics": [
+    "design",
+    "css",
+    "ux",
+    "accessibility",
+    "typography",
+    "web",
+    "figma"
+  ],
   "languages": ["en"],
   "maxAgeDays": null,
   "metadataAllowed": true,

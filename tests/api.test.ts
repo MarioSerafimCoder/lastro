@@ -280,7 +280,10 @@ test("incompletos, inacessíveis e papers deixam histórico e admitem correção
   assert.equal(inaccessible.outcome, "rejected");
   const paper = await processCandidate(
     env.DB,
-    parseOpenAlex(academic, source)[0],
+    {
+      ...parseOpenAlex(academic, source)[0],
+      title: "TEST — Design research editorial",
+    },
     source,
     run,
   );

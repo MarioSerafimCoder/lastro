@@ -4,6 +4,7 @@
   "url": "https://www.creativeboom.com/feed/",
   "authority": 70,
   "topics": ["design", "brand", "identity", "typography", "creative"],
+  "autoTopics": ["design", "brand", "identity", "typography"],
   "languages": ["en"],
   "maxAgeDays": null,
   "metadataAllowed": true,

@@ -20,6 +20,28 @@ export class UpstreamError extends Error {
 }
 const list = (v: any): any[] => (v == null ? [] : Array.isArray(v) ? v : [v]);
 const val = (v: any, n = 1200) => plainText(v, n);
+const imageFromFeed = (entry: any): string | null => {
+  const media = [
+    ...list(entry["media:content"]),
+    ...list(entry["media:thumbnail"]),
+    ...list(entry.enclosure),
+  ].find(
+    (item: any) =>
+      item &&
+      typeof item === "object" &&
+      (!item["@type"] || String(item["@type"]).startsWith("image/")),
+  );
+  const raw = val(media?.["@url"], 2000);
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" && !url.username && !url.password
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+};
 export function parseRss(xml: string, s: Source): Candidate[] {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml) !== true)
     throw new Error("invalid_feed_xml");
@@ -47,10 +69,21 @@ export function parseRss(xml: string, s: Source): Candidate[] {
           2000,
         ) ?? "";
       const names = list(e.author ?? e["dc:creator"])
-        .map((a: any) => val(a.name ?? a, 100))
+        .map((a: any) => val(a?.name ?? a?.a?.["#text"] ?? a?.a ?? a, 100))
         .filter((n): n is string => n !== null);
       const doi = val(e["prism:doi"] ?? e["dc:identifier"], 500);
       const guid = val(e.guid ?? e.id, 500);
+      const categories = list(e.category)
+        .map((t: any) => val(t?.["@term"] ?? t, 100))
+        .filter((t): t is string => !!t)
+        .slice(0, 30);
+      const kind = categories.some((t) =>
+        /\b(opinion|commentary|editorial|essay)\b/i.test(t),
+      )
+        ? "opinion"
+        : categories.some((t) => /\b(news|notícias|noticias)\b/i.test(t))
+          ? "news"
+          : "article";
       return candidateSchema.parse({
         title: val(e.title, 500) ?? "",
         url,
@@ -58,19 +91,21 @@ export function parseRss(xml: string, s: Source): Candidate[] {
         publication: val(feed.title, 300) ?? s.name,
         publishedAt: val(e.pubDate ?? e.published ?? e["dc:date"], 100),
         language: val(
-          e["dc:language"] ?? feed.language ?? feed["@xml:lang"],
+          e["dc:language"] ??
+            e["@xml:lang"] ??
+            feed.language ??
+            feed["dc:language"] ??
+            feed["@xml:lang"],
           20,
         ),
-        kind: "article",
+        kind,
         description: s.summaryAllowed ? val(e.description ?? e.summary) : null,
+        imageUrl: s.imageAllowed ? imageFromFeed(e) : null,
         identifiers: [
           ...(doi ? [{ scheme: "doi", value: doi }] : []),
           ...(guid ? [{ scheme: "source_guid", value: guid }] : []),
         ],
-        topics: list(e.category)
-          .map((t: any) => val(t["@term"] ?? t, 100))
-          .filter(Boolean)
-          .slice(0, 30),
+        topics: categories,
         access: "unknown",
         accessNote:
           "Somente metadados do feed; página original não foi consultada.",

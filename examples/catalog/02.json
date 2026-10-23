@@ -4,6 +4,7 @@
   "url": "https://alistapart.com/main/feed/",
   "authority": 70,
   "topics": ["design", "accessibility", "web", "user", "interface"],
+  "autoTopics": ["design", "accessibility", "web", "interface"],
   "languages": ["en"],
   "maxAgeDays": null,
   "metadataAllowed": true,

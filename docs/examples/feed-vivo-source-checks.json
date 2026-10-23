@@ -1,0 +1,1389 @@
+{
+  "checkedAt": "2026-10-23T12:01:35.489Z",
+  "environment": "ephemeral Miniflare, no personal or production data",
+  "sources": [
+    {
+      "name": "Smashing Magazine",
+      "url": "https://www.smashingmagazine.com/feed/",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 296,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "4cbb26e2-cabf-4b41-a985-e19b6b04515e",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 25,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 23,
+          "error": null
+        },
+        {
+          "id": "a896884d-44aa-4c67-8820-4cf950b188a0",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 21,
+          "error": null
+        },
+        {
+          "id": "f61798f2-3faa-4b56-ba50-865560621abc",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 0,
+          "accepted": 2,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 19,
+          "error": null
+        },
+        {
+          "id": "7a46e7be-ebe0-49d3-badf-4f3f775e8316",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 17,
+          "error": null
+        },
+        {
+          "id": "bdb1d052-c049-4354-81e2-dd42ca075c85",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 15,
+          "error": null
+        },
+        {
+          "id": "0219232e-1d14-4376-a0cd-9d2059723ce9",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 13,
+          "error": null
+        },
+        {
+          "id": "6c509fd8-1d78-41eb-ab72-059d036917e5",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 11,
+          "error": null
+        },
+        {
+          "id": "34ba7d21-e13f-4649-922e-6a5df30ffcb0",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 9,
+          "error": null
+        },
+        {
+          "id": "c789bb98-b771-420b-aaaf-eb745bd924ff",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 7,
+          "error": null
+        },
+        {
+          "id": "db79878b-b716-4f71-8be9-ba1c0208ea16",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 5,
+          "error": null
+        },
+        {
+          "id": "36a0d79c-f5dd-4622-98ea-0b0ec5f01de4",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 3,
+          "error": null
+        },
+        {
+          "id": "bc30fe4c-1bac-4fa5-8778-fc8a7358d749",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 1,
+          "error": null
+        },
+        {
+          "id": "671a7c32-0a55-47c1-9dd3-0b7f5484f824",
+          "sourceId": "f3c198ef-2206-45aa-a685-f067e6ad5068",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 25,
+        "pending": 0,
+        "rejected": 18,
+        "duplicates": 0,
+        "approved": 7
+      },
+      "approvedExamples": [
+        {
+          "title": "Embracing Playful Imperfection With The CSS `random()` Function"
+        },
+        {
+          "title": "Stop Treating CSS Container Queries Like Traditional Media Queries"
+        },
+        {
+          "title": "Building A UX ROI Case That Survives The Boardroom"
+        }
+      ]
+    },
+    {
+      "name": "A List Apart",
+      "url": "https://alistapart.com/main/feed/",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 182,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "9c5cea96-ec5c-4c81-b71c-d065abb8ebba",
+          "sourceId": "4cb84994-2c10-4a85-8b24-320cca45d63d",
+          "status": "partial",
+          "received": 20,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 18,
+          "error": null
+        },
+        {
+          "id": "91e9a420-194e-43d5-a09e-8d4b92582a5b",
+          "sourceId": "4cb84994-2c10-4a85-8b24-320cca45d63d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 2,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 16,
+          "error": null
+        },
+        {
+          "id": "38067a2b-4098-4829-8eb2-d83319bce808",
+          "sourceId": "4cb84994-2c10-4a85-8b24-320cca45d63d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 14,
+          "error": null
+        },
+        {
+          "id": "b3a1760d-b266-47fd-b4f7-75ccb487146a",
+          "sourceId": "4cb84994-2c10-4a85-8b24-320cca45d63d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 12,
+          "error": null
+        },
+        {
+          "id": "abf209fc-708a-4768-b9c0-124995523748",
+          "sourceId": "4cb84994-2c10-4a85-8b24-320cca45d63d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 10,
+          "error": null
+        },
+        {
+          "id": "221ade66-f2cb-4098-aed6-f8b90f8dfe74",
+          "sourceId": "4cb84994-2c10-4a85-8b24-320cca45d63d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 8,
+          "error": null
+        },
+        {
+          "id": "700ebc4f-4f7f-479b-9840-c726850d0f85",
+          "sourceId": "4cb84994-2c10-4a85-8b24-320cca45d63d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 6,
+          "error": null
+        },
+        {
+          "id": "3dd8d80f-91e5-4f78-a849-f3869bf5a7c0",
+          "sourceId": "4cb84994-2c10-4a85-8b24-320cca45d63d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 4,
+          "error": null
+        },
+        {
+          "id": "a3e082b2-cff4-43fd-acb3-0ca9892a4126",
+          "sourceId": "4cb84994-2c10-4a85-8b24-320cca45d63d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 2,
+          "error": null
+        },
+        {
+          "id": "8f03714d-288b-4ca9-a705-a3e3b99319f1",
+          "sourceId": "4cb84994-2c10-4a85-8b24-320cca45d63d",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 20,
+        "pending": 8,
+        "rejected": 8,
+        "duplicates": 0,
+        "approved": 4
+      },
+      "approvedExamples": [
+        {
+          "title": "Good designers, bad websites: a proposal"
+        },
+        {
+          "title": "Design for Amiability: Lessons from Vienna"
+        },
+        {
+          "title": "Design Dialects: Breaking the Rules, Not the System"
+        }
+      ]
+    },
+    {
+      "name": "Typographica",
+      "url": "https://typographica.org/feed/",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 907,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "3465507f-bb3d-4867-bbf5-81f7b95ba2f7",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 25,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 23,
+          "error": null
+        },
+        {
+          "id": "24637c8b-a01a-4cb2-be59-c5170fee6646",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 21,
+          "error": null
+        },
+        {
+          "id": "3a143bff-c610-4950-ad77-37fdeb8eba5f",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 19,
+          "error": null
+        },
+        {
+          "id": "cd3a8a12-2bc8-45fa-8a66-d9b56c4d996d",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 17,
+          "error": null
+        },
+        {
+          "id": "0cc2dc91-076b-4a51-ae1b-fe19beeefe25",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 15,
+          "error": null
+        },
+        {
+          "id": "7f7a3da0-f7f0-4971-ac07-90ee1d5aef35",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 13,
+          "error": null
+        },
+        {
+          "id": "660e2f57-f0cd-473f-b98a-7ed887037c9b",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 11,
+          "error": null
+        },
+        {
+          "id": "da633678-5604-4655-a967-3fe4135121f7",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 9,
+          "error": null
+        },
+        {
+          "id": "3aff0418-29bd-45a0-a296-9720f28df715",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 7,
+          "error": null
+        },
+        {
+          "id": "829cd974-58dc-4f48-9d42-756d83b662bf",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 5,
+          "error": null
+        },
+        {
+          "id": "2b2fedc3-aaa9-4943-97b6-8d3e1a8a9735",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 3,
+          "error": null
+        },
+        {
+          "id": "974b0fc3-85da-4def-9693-1b74c0583458",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 1,
+          "error": null
+        },
+        {
+          "id": "b979b83f-f2a5-4fd9-ae57-dd7aca977094",
+          "sourceId": "88f08f7f-8436-452d-bcf3-f68fb2a3e09e",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 25,
+        "pending": 21,
+        "rejected": 4,
+        "duplicates": 0,
+        "approved": 0
+      },
+      "approvedExamples": []
+    },
+    {
+      "name": "Creative Boom",
+      "url": "https://www.creativeboom.com/feed/",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 673,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "e9332331-36aa-46b3-bd1a-4c3d68e1ffa2",
+          "sourceId": "5e2ab9ba-9fde-48fb-8364-99e4274b60df",
+          "status": "partial",
+          "received": 20,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 18,
+          "error": null
+        },
+        {
+          "id": "caa2b5f1-181d-4848-a5d9-d221b68be9d8",
+          "sourceId": "5e2ab9ba-9fde-48fb-8364-99e4274b60df",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 16,
+          "error": null
+        },
+        {
+          "id": "6a3c5d89-be15-4ab6-b666-95ae3045cda4",
+          "sourceId": "5e2ab9ba-9fde-48fb-8364-99e4274b60df",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 14,
+          "error": null
+        },
+        {
+          "id": "240fcb58-2934-40ed-aac1-c5ef78f16ffa",
+          "sourceId": "5e2ab9ba-9fde-48fb-8364-99e4274b60df",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 12,
+          "error": null
+        },
+        {
+          "id": "add74d5a-e2a1-4729-b43c-a08f04631098",
+          "sourceId": "5e2ab9ba-9fde-48fb-8364-99e4274b60df",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 10,
+          "error": null
+        },
+        {
+          "id": "747b512c-5abe-4c3c-adef-b5f1cc1cf94d",
+          "sourceId": "5e2ab9ba-9fde-48fb-8364-99e4274b60df",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 8,
+          "error": null
+        },
+        {
+          "id": "0541f639-f88f-40e0-a7ed-b4b531cf7bec",
+          "sourceId": "5e2ab9ba-9fde-48fb-8364-99e4274b60df",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 6,
+          "error": null
+        },
+        {
+          "id": "1bb3a5dc-8d50-46e4-bf1e-0737055d1d2c",
+          "sourceId": "5e2ab9ba-9fde-48fb-8364-99e4274b60df",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 4,
+          "error": null
+        },
+        {
+          "id": "1098d7d6-d626-4bcd-9392-d2dcfe59aec5",
+          "sourceId": "5e2ab9ba-9fde-48fb-8364-99e4274b60df",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 2,
+          "error": null
+        },
+        {
+          "id": "2271e40b-0385-4dd2-aa8d-fff1a67c9077",
+          "sourceId": "5e2ab9ba-9fde-48fb-8364-99e4274b60df",
+          "status": "completed",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 20,
+        "pending": 3,
+        "rejected": 12,
+        "duplicates": 0,
+        "approved": 5
+      },
+      "approvedExamples": [
+        {
+          "title": "SEA turns 30 with a new anniversary book celebrating design that lasts"
+        },
+        {
+          "title": "How Music founded a football identity on lettering found at London's oldest stadium"
+        },
+        {
+          "title": "Collins centres Remote's new identity on banknote colours and building blocks"
+        }
+      ]
+    },
+    {
+      "name": "It’s Nice That",
+      "url": "https://feeds2.feedburner.com/itsnicethat/SlXC",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 1251,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "373ab06e-0ecd-426b-8775-9780cd068b89",
+          "sourceId": "f48c97a7-339f-489a-9d02-8225f94c8291",
+          "status": "partial",
+          "received": 20,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 18,
+          "error": null
+        },
+        {
+          "id": "e3be1888-48ef-4f7b-8c0e-019d99394399",
+          "sourceId": "f48c97a7-339f-489a-9d02-8225f94c8291",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 16,
+          "error": null
+        },
+        {
+          "id": "df00251f-6442-457c-8f1a-b70a3be8b34b",
+          "sourceId": "f48c97a7-339f-489a-9d02-8225f94c8291",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 14,
+          "error": null
+        },
+        {
+          "id": "ac175537-40ac-42c4-8ffa-4886a16d728d",
+          "sourceId": "f48c97a7-339f-489a-9d02-8225f94c8291",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 12,
+          "error": null
+        },
+        {
+          "id": "336a757d-2601-41db-ac93-58e4fe1e0ccf",
+          "sourceId": "f48c97a7-339f-489a-9d02-8225f94c8291",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 10,
+          "error": null
+        },
+        {
+          "id": "d32efe91-ebb5-4ef3-b86b-6c6cdd1c11d7",
+          "sourceId": "f48c97a7-339f-489a-9d02-8225f94c8291",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 8,
+          "error": null
+        },
+        {
+          "id": "bedead70-4374-4491-85ab-c0d8fe49e5d4",
+          "sourceId": "f48c97a7-339f-489a-9d02-8225f94c8291",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 6,
+          "error": null
+        },
+        {
+          "id": "58912bfb-6401-497c-bd82-1377138cdd71",
+          "sourceId": "f48c97a7-339f-489a-9d02-8225f94c8291",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 4,
+          "error": null
+        },
+        {
+          "id": "99211de6-2cd7-4035-957f-97c343e97f69",
+          "sourceId": "f48c97a7-339f-489a-9d02-8225f94c8291",
+          "status": "partial",
+          "received": 0,
+          "accepted": 2,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 2,
+          "error": null
+        },
+        {
+          "id": "3033fac6-26c3-4755-ae54-e1fb0a31b24d",
+          "sourceId": "f48c97a7-339f-489a-9d02-8225f94c8291",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 20,
+        "pending": 1,
+        "rejected": 15,
+        "duplicates": 0,
+        "approved": 4
+      },
+      "approvedExamples": [
+        {
+          "title": "Foto Foto is the design-focused brand bringing back the physical photo album"
+        },
+        {
+          "title": "The brand for Lance Oppenheim’s production company has chaos built in"
+        },
+        {
+          "title": "Fulham F.C gets a brand refresh built on hand-rendered lettering found on the walls of its stadium"
+        }
+      ]
+    },
+    {
+      "name": "Journal of Vision — via OpenAlex",
+      "url": "https://api.openalex.org/works?filter=primary_location.source.id:S137468011&search=visual%20perception&sort=publication_date:desc",
+      "cycle": "bimonthly UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 1176,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "38b4213d-6094-4b6c-b635-c1f0cd5d6fba",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 25,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 23,
+          "error": null
+        },
+        {
+          "id": "7492971c-84a1-479b-aee2-40bba73b9e64",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 21,
+          "error": null
+        },
+        {
+          "id": "e6966b39-b1c1-4e72-bf6d-95df4cef6777",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 19,
+          "error": null
+        },
+        {
+          "id": "bec7a51b-cde4-42a5-a24b-c26aef914419",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 17,
+          "error": null
+        },
+        {
+          "id": "3fd7fc78-4bb3-4d45-acdd-bb71ecbb600f",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 15,
+          "error": null
+        },
+        {
+          "id": "3cf34087-5e4d-45c4-ad5a-9fb27b34916f",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 13,
+          "error": null
+        },
+        {
+          "id": "a6826b3e-3a42-4a96-bfa6-8ac12291aadd",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 11,
+          "error": null
+        },
+        {
+          "id": "52230682-65eb-42b7-94e2-b6509fe935be",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 9,
+          "error": null
+        },
+        {
+          "id": "3c8a3a12-c702-416b-8e40-d6d2e3d4c617",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 7,
+          "error": null
+        },
+        {
+          "id": "86433ecf-4921-4f46-83fb-8fb26f63c8de",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 5,
+          "error": null
+        },
+        {
+          "id": "1b840152-ae8d-4031-bd14-041c062fb488",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 3,
+          "error": null
+        },
+        {
+          "id": "f95e98e8-ba67-4067-ac25-999ea3ddda64",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 1,
+          "error": null
+        },
+        {
+          "id": "9ea133c7-43de-4a56-b76a-566b1807d2a3",
+          "sourceId": "4cd765b9-bab4-493c-9dc7-845ac80210c4",
+          "status": "completed",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 25,
+        "pending": 18,
+        "rejected": 0,
+        "duplicates": 0,
+        "approved": 7
+      },
+      "approvedExamples": [
+        {
+          "title": "Linking visual span and reading speed in dyslexia"
+        },
+        {
+          "title": "Perceptual stabilization is weaker in older adults and correlates with spatial suppression of motion"
+        },
+        {
+          "title": "Is there a neural common factor for visual illusions?"
+        }
+      ]
+    },
+    {
+      "name": "Design Studies — via OpenAlex",
+      "url": "https://api.openalex.org/works?filter=primary_location.source.id:S152445846&search=design&sort=publication_date:desc",
+      "cycle": "bimonthly UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 849,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "b9d17c63-2882-47cb-9bf1-f1521acb9046",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 25,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 23,
+          "error": null
+        },
+        {
+          "id": "c78b6960-b5eb-41cc-905b-1032679be3c0",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 0,
+          "accepted": 2,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 21,
+          "error": null
+        },
+        {
+          "id": "28a775bd-c815-4bbe-82bf-bad376983f8c",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 0,
+          "accepted": 2,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 19,
+          "error": null
+        },
+        {
+          "id": "0e2098df-37c1-4398-a308-0925e9a07040",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 17,
+          "error": null
+        },
+        {
+          "id": "67cfcfc0-08ac-4c21-8536-3ddd3ddb628b",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 0,
+          "accepted": 2,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 15,
+          "error": null
+        },
+        {
+          "id": "60c8c016-9dee-444b-8ad3-c0d775801c56",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 13,
+          "error": null
+        },
+        {
+          "id": "a57a3bbf-05e1-45ce-a886-553e710db9a9",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 0,
+          "accepted": 2,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 11,
+          "error": null
+        },
+        {
+          "id": "b3f4692e-5141-469b-be39-b67de231cec3",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 9,
+          "error": null
+        },
+        {
+          "id": "7d2f491b-5f25-4803-b183-42c6f8244086",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 0,
+          "accepted": 2,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 7,
+          "error": null
+        },
+        {
+          "id": "08cd3359-3451-42fa-a760-9d682879ba61",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 5,
+          "error": null
+        },
+        {
+          "id": "9e5c0d14-0d95-4893-a919-29890cc340b4",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 3,
+          "error": null
+        },
+        {
+          "id": "38402bb0-b262-4204-9ee9-0ccb60b19e21",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 1,
+          "error": null
+        },
+        {
+          "id": "4931ac2f-5d90-4169-a6ae-1c475dfe2e05",
+          "sourceId": "ab84ed3a-e9ac-48b1-a914-8b037194e842",
+          "status": "completed",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 25,
+        "pending": 8,
+        "rejected": 2,
+        "duplicates": 0,
+        "approved": 15
+      },
+      "approvedExamples": [
+        {
+          "title": "Shifting paradigms in design education: Biodesign with bacterial cellulose as a pathway to sustainable methodologies"
+        },
+        {
+          "title": "Evolving pattern-based approaches for interdisciplinary collaboration in ecology and design"
+        },
+        {
+          "title": "AI-assisted divergent pedagogy: Understanding human-AI co-creativity in design thinking education"
+        }
+      ]
+    },
+    {
+      "name": "Frontiers in Psychology — via OpenAlex",
+      "url": "https://api.openalex.org/works?filter=primary_location.source.id:S9692511&search=visual%20perception&sort=publication_date:desc",
+      "cycle": "bimonthly UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 635,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "b405d3b5-259f-4046-ab99-0c39457d3133",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 25,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 23,
+          "error": null
+        },
+        {
+          "id": "59857a2c-e847-4be1-86b7-85412eb175e0",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 21,
+          "error": null
+        },
+        {
+          "id": "ca9074ab-7673-4697-a755-97670fbaf17c",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 19,
+          "error": null
+        },
+        {
+          "id": "57e9c5ad-5330-4952-8793-8d0315a7cbfa",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 17,
+          "error": null
+        },
+        {
+          "id": "ba42b252-8b35-45ec-b579-03b839b6e80d",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 15,
+          "error": null
+        },
+        {
+          "id": "b36d5366-90c8-43a2-90b3-02a4d052b102",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 13,
+          "error": null
+        },
+        {
+          "id": "c3852de4-9ac9-4493-b5f1-9492b681b0e0",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 11,
+          "error": null
+        },
+        {
+          "id": "fc03c8da-e27c-45d0-967a-d010aad7e08f",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 9,
+          "error": null
+        },
+        {
+          "id": "9cafae9b-16cf-4bce-be34-5432ecc72fac",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 7,
+          "error": null
+        },
+        {
+          "id": "b4ede7a6-9519-44f3-9d69-b9a62123417c",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 5,
+          "error": null
+        },
+        {
+          "id": "712a8411-9ce1-4c77-aa06-f0e274cdd0c7",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 3,
+          "error": null
+        },
+        {
+          "id": "271992ed-a930-4ffa-9f67-ad7e363b4355",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 1,
+          "error": null
+        },
+        {
+          "id": "bf155f8d-68a2-4537-b62a-3d53df6511ee",
+          "sourceId": "d22c5692-6c8f-48a6-8e26-68e4df4c761b",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 25,
+        "pending": 7,
+        "rejected": 16,
+        "duplicates": 0,
+        "approved": 2
+      },
+      "approvedExamples": [
+        {
+          "title": "Effects of digital media technology-driven film and television scene design on audience immersion and narrative cognition: an eye-tracking experiment"
+        },
+        {
+          "title": "From AI labels to trust: cognitive pathways linking authenticity judgments, risk perception, and trust in AI-generated videos"
+        }
+      ]
+    }
+  ]
+}

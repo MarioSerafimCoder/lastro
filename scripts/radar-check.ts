@@ -3,9 +3,10 @@ import { readFile, readdir, writeFile } from "node:fs/promises";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { sourceInputSchema } from "../packages/contracts/index";
 import { ingestSource } from "../src/ingestion";
-import { stmt, id, first } from "../src/db";
+import { stmt, id, first, rows } from "../src/db";
 import type { Env } from "../src/env";
 if (!process.argv.includes("--live")) throw Error("Explicit --live required");
+const automatic = process.argv.includes("--auto");
 const mf = new Miniflare(
   convertV4MiniflareOptions({
     modules: true,
@@ -56,7 +57,7 @@ try {
       config.connector,
       config.url,
       "approved",
-      JSON.stringify({ ...config, autoApprove: false }),
+      JSON.stringify({ ...config, autoApprove: automatic }),
       new Date().toISOString(),
     ).run();
     const fetcher: typeof fetch = async (input, init) => {
@@ -82,10 +83,17 @@ try {
     report.sources.push({
       name: config.name,
       url: config.url,
-      cycle: config.connector === "openalex" ? "monthly UTC" : "daily UTC",
+      cycle: config.connector === "openalex" ? "bimonthly UTC" : "daily UTC",
       requests,
       runs,
       totals,
+      approvedExamples: automatic
+        ? await rows<{ title: string }>(
+            db,
+            "SELECT title FROM contents WHERE source_id=? AND editorial_status='approved' ORDER BY quality_score DESC LIMIT 3",
+            sid,
+          )
+        : [],
     });
     console.log(
       config.name,
@@ -94,7 +102,9 @@ try {
     );
   }
   await writeFile(
-    "docs/examples/stage04-1-source-checks.json",
+    automatic
+      ? "docs/examples/feed-vivo-source-checks.json"
+      : "docs/examples/stage04-1-source-checks.json",
     JSON.stringify(report, null, 2) + "\n",
   );
 } finally {

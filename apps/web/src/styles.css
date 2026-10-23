@@ -1918,6 +1918,13 @@ section[aria-labelledby="feed-title"] > .section-heading {
   background: var(--surface);
   border-color: var(--line);
 }
+.card-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: inherit inherit 0 0;
+}
 .card-copy {
   padding: 20px 18px 14px;
 }

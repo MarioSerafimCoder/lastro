@@ -882,6 +882,7 @@ app.post("/api/admin/candidates/:id/review", async (c) => {
     }),
   );
   if (!source.summaryAllowed) corrected.description = null;
+  if (!source.imageAllowed) corrected.imageUrl = null;
   corrected.topics = [
     ...new Set([...corrected.topics, ...matchedTopics(corrected, source)]),
   ].slice(0, 30);

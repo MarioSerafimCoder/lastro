@@ -13,6 +13,7 @@ export const knowledgeSchema = z.enum([
 ]);
 export const kindSchema = z.enum([
   "news",
+  "opinion",
   "article",
   "paper",
   "case_study",
@@ -39,6 +40,7 @@ export const sourceInputSchema = z
     url: z.string().url().max(2000),
     authority: unit.default(50),
     topics: z.array(label).min(1).max(30),
+    autoTopics: z.array(label).max(30).default([]),
     languages: z
       .array(z.string().regex(/^[a-z]{2}$/))
       .max(10)
@@ -46,6 +48,7 @@ export const sourceInputSchema = z
     maxAgeDays: z.number().int().min(1).max(36500).nullable().default(null),
     metadataAllowed: z.boolean().default(true),
     summaryAllowed: z.boolean().default(false),
+    imageAllowed: z.boolean().default(false),
     rightsNote: z.string().trim().min(5).max(2000),
     autoApprove: z.boolean().default(false),
     intervalMinutes: z.number().int().min(60).max(43200).default(360),
@@ -74,6 +77,7 @@ export const candidateSchema = z
     kind: kindSchema.default("article"),
     language: z.string().max(20).nullable().default(null),
     description: z.string().max(1200).nullable().default(null),
+    imageUrl: z.string().url().max(2000).nullable().default(null),
     identifiers: z.array(identifierSchema).max(10).default([]),
     topics: z.array(label).max(30).default([]),
     access: z
@@ -92,7 +96,7 @@ export type AdminSource = Source & { lastRun?: IngestionRun | null };
 export type RadarSourceStatus = {
   id: string;
   name: string;
-  cycle: "daily" | "monthly";
+  cycle: "daily" | "bimonthly";
   lastCycleKey: string | null;
   lastAttemptAt: string | null;
   lastSuccessAt: string | null;
@@ -170,6 +174,23 @@ export const policySchema = z
     ),
     approvalThreshold: unit,
     minimumQuality: unit,
+    autoApproval: z
+      .object({
+        minimumAuthority: unit,
+        minimumMaterial: unit,
+        minimumRelevance: unit,
+        minimumOriginality: unit,
+        maximumAgeDays: z.number().int().min(1).max(36500),
+        minimumScientificAuthority: unit,
+      })
+      .default({
+        minimumAuthority: 70,
+        minimumMaterial: 60,
+        minimumRelevance: 100,
+        minimumOriginality: 50,
+        maximumAgeDays: 730,
+        minimumScientificAuthority: 70,
+      }),
     ranking: z.object({
       quality: unit,
       interests: unit,
@@ -195,6 +216,14 @@ export const defaultPolicy: Policy = {
   },
   approvalThreshold: 65,
   minimumQuality: 55,
+  autoApproval: {
+    minimumAuthority: 70,
+    minimumMaterial: 60,
+    minimumRelevance: 100,
+    minimumOriginality: 50,
+    maximumAgeDays: 730,
+    minimumScientificAuthority: 70,
+  },
   ranking: {
     quality: 35,
     interests: 25,

@@ -3,7 +3,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createLastroClient } from "../../../packages/contracts/client";
 import {
   sourceInputSchema,
+  policySchema,
   type SourceInput,
+  type Policy,
   type AdminSource,
   type AdminOverview,
   type ReviewCandidate,
@@ -18,10 +20,12 @@ const emptySource: SourceInput = {
   connector: "rss",
   authority: 50,
   topics: ["design"],
+  autoTopics: [],
   languages: ["pt", "en"],
   maxAgeDays: null,
   metadataAllowed: false,
   summaryAllowed: false,
+  imageAllowed: false,
   rightsNote: "",
   autoApprove: false,
   intervalMinutes: 1440,
@@ -42,14 +46,32 @@ const labels: Record<string, string> = {
   failed: "Falhou",
   not_modified: "Sem novidades",
   article: "Artigo",
-  paper: "Pesquisa",
+  paper: "Estudo (metadados)",
   news: "Notícia",
+  opinion: "Opinião",
   case_study: "Estudo de caso",
   visual_reference: "Referência visual",
   post: "Publicação",
   magazine: "Revista",
   other: "Outro",
   manual_review_required: "Revisão humana obrigatória",
+  source_manual_review: "Aprovação automática desativada para a fonte",
+  language_unverified: "Idioma não verificado",
+  possible_title_duplicate: "Título semelhante já cadastrado",
+  secondary_material: "Material secundário",
+  promotional_material: "Conteúdo promocional",
+  too_old_for_automatic_approval: "Fora do período de aprovação automática",
+  authority_below_auto_minimum: "Autoridade abaixo do mínimo automático",
+  material_below_auto_minimum:
+    "Metadados insuficientes para aprovação automática",
+  relevance_below_auto_minimum: "Relevância abaixo do mínimo automático",
+  originality_below_auto_minimum: "Originalidade insuficiente",
+  scientific_authority_below_minimum: "Fonte científica abaixo do mínimo",
+  scientific_provenance_incomplete: "Procedência científica incompleta",
+  scientific_title_off_topic: "Título científico não demonstra relevância",
+  title_off_topic: "Título não demonstra um assunto prioritário",
+  scientific_publication_type_unverified:
+    "Tipo de publicação científica exige revisão",
   below_auto_threshold: "Pontuação abaixo do limiar de aprovação automática",
   duplicate_identifier: "Identificador já cadastrado",
   concurrent_duplicate: "Duplicata detectada",
@@ -97,6 +119,7 @@ function SourceForm({
       : emptySource,
   );
   const [topics, setTopics] = useState(value.topics.join(", ")),
+    [autoTopics, setAutoTopics] = useState(value.autoTopics.join(", ")),
     [languages, setLanguages] = useState(value.languages.join(", "));
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
@@ -113,11 +136,14 @@ function SourceForm({
           .split(",")
           .map((v) => v.trim())
           .filter(Boolean),
+        autoTopics: autoTopics
+          .split(",")
+          .map((v) => v.trim())
+          .filter(Boolean),
         languages: languages
           .split(",")
           .map((v) => v.trim())
           .filter(Boolean),
-        autoApprove: false,
       });
       await api.saveSource(input, source?.id);
       onSaved();
@@ -131,8 +157,9 @@ function SourceForm({
     <form className="curation-form" onSubmit={submit}>
       <h3>{source ? "Editar fonte" : "Cadastrar fonte"}</h3>
       <p>
-        Salvar uma alteração exige nova aprovação. Conteúdos serão revisados
-        manualmente.
+        Salvar uma alteração exige nova aprovação da fonte. A curadoria
+        automática só publica itens que passarem nos critérios editoriais;
+        exceções ficam na fila.
       </p>
       <label>
         Nome
@@ -168,6 +195,14 @@ function SourceForm({
           required
           value={topics}
           onChange={(e) => setTopics(e.target.value)}
+        />
+      </label>
+      <label>
+        Assuntos prioritários no título para aprovação automática (vazio: todos
+        acima)
+        <input
+          value={autoTopics}
+          onChange={(e) => setAutoTopics(e.target.value)}
         />
       </label>
       <label>
@@ -224,6 +259,22 @@ function SourceForm({
           onChange={(e) => field("summaryAllowed", e.target.checked)}
         />{" "}
         Reprodução de resumos autorizada
+      </label>
+      <label className="check-line">
+        <input
+          type="checkbox"
+          checked={value.imageAllowed}
+          onChange={(e) => field("imageAllowed", e.target.checked)}
+        />{" "}
+        Exibição de imagens do feed autorizada
+      </label>
+      <label className="check-line">
+        <input
+          type="checkbox"
+          checked={value.autoApprove}
+          onChange={(e) => field("autoApprove", e.target.checked)}
+        />{" "}
+        Aprovar automaticamente conteúdos que passarem na política editorial
       </label>
       <label>
         Direitos, evidências e limitações
@@ -288,6 +339,9 @@ function SourceCard({
         Ver endereço da fonte ↗
       </a>
       <p>{source.rightsNote}</p>
+      <p>
+        Curadoria automática: {source.autoApprove ? "ativa" : "desativada"}.
+      </p>
       <p>
         Próxima coleta: {date(source.nextFetchAt)}
         <br />
@@ -388,8 +442,8 @@ function CandidateCard({
       </p>
       {m.kind === "paper" && (
         <p className="curation-warning">
-          Pesquisa científica: exige revisão humana de método, resultados e
-          limitações.
+          A indexação bibliográfica não valida método, resultados ou conclusões.
+          Revise o estudo original antes de usar suas afirmações como evidência.
         </p>
       )}
       <p>{item.reasons.map(label).join(" · ")}</p>
@@ -513,6 +567,125 @@ function CandidateCard({
     </article>
   );
 }
+function PolicyEditor() {
+  const [value, setValue] = useState<Policy | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void api
+      .policy()
+      .then(setValue)
+      .catch((e) => setError(message(e)));
+  }, []);
+  const setGate = (key: keyof Policy["autoApproval"], number: number) =>
+    setValue((p) =>
+      p
+        ? {
+            ...p,
+            autoApproval: { ...p.autoApproval, [key]: number },
+          }
+        : p,
+    );
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    if (!value) return;
+    setBusy(true);
+    setError("");
+    try {
+      const next = policySchema.parse({
+        ...value,
+        version: `lastro-${Date.now().toString(36)}`,
+      });
+      setValue(await api.savePolicy(next));
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!value) return <p role="status">Carregando política editorial…</p>;
+  const gates: [keyof Policy["autoApproval"], string][] = [
+    ["minimumAuthority", "Confiabilidade mínima da fonte"],
+    ["minimumMaterial", "Completude mínima dos metadados"],
+    ["minimumRelevance", "Relevância mínima"],
+    ["minimumOriginality", "Originalidade mínima"],
+    ["minimumScientificAuthority", "Confiabilidade mínima para estudos"],
+  ];
+  return (
+    <form className="curation-form" onSubmit={(e) => void save(e)}>
+      <h3>Política editorial</h3>
+      <p>
+        Versão ativa: {value.version}. Alterações criam uma nova versão
+        auditável e passam a valer para novas coletas.
+      </p>
+      <label>
+        Pontuação mínima para aprovação automática
+        <input
+          type="number"
+          min="0"
+          max="100"
+          value={value.approvalThreshold}
+          onChange={(e) =>
+            setValue({ ...value, approvalThreshold: Number(e.target.value) })
+          }
+        />
+      </label>
+      <label>
+        Pontuação mínima no For You
+        <input
+          type="number"
+          min="0"
+          max="100"
+          value={value.minimumQuality}
+          onChange={(e) =>
+            setValue({ ...value, minimumQuality: Number(e.target.value) })
+          }
+        />
+      </label>
+      {gates.map(([key, label]) => (
+        <label key={key}>
+          {label}
+          <input
+            type="number"
+            min="0"
+            max="100"
+            value={value.autoApproval[key]}
+            onChange={(e) => setGate(key, Number(e.target.value))}
+          />
+        </label>
+      ))}
+      <label>
+        Idade máxima para aprovação automática (dias)
+        <input
+          type="number"
+          min="1"
+          max="36500"
+          value={value.autoApproval.maximumAgeDays}
+          onChange={(e) => setGate("maximumAgeDays", Number(e.target.value))}
+        />
+      </label>
+      <label>
+        Peso da diversidade no For You
+        <input
+          type="number"
+          min="0"
+          max="100"
+          value={value.ranking.diversity}
+          onChange={(e) =>
+            setValue({
+              ...value,
+              ranking: { ...value.ranking, diversity: Number(e.target.value) },
+            })
+          }
+        />
+      </label>
+      <button className="primary-button" disabled={busy}>
+        Salvar nova versão
+      </button>
+      {error && <p role="alert">{error}</p>}
+    </form>
+  );
+}
 export default function Curation({
   onOverview,
   onChanged,
@@ -621,6 +794,7 @@ export default function Curation({
         {[
           ["sources", "Fontes"],
           ["queue", "Fila de revisão"],
+          ["policy", "Política"],
           ["history", "Histórico"],
         ].map(([id, label]) => (
           <button
@@ -716,6 +890,7 @@ export default function Curation({
               />
             </>
           )}
+          {tab === "policy" && <PolicyEditor />}
           {tab === "history" && (
             <>
               <h3>Execuções de coleta</h3>

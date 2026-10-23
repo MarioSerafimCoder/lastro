@@ -119,3 +119,70 @@ export function evaluate(
     limitations,
   };
 }
+
+/** Empty reasons mean the metadata can be indexed without an individual review. */
+export function automaticReviewReasons(
+  c: Candidate,
+  s: Source,
+  p: Policy,
+  q: Quality,
+  at = Date.now(),
+  similarTitle = false,
+): string[] {
+  const reasons: string[] = [];
+  const gate = p.autoApproval;
+  if (!s.autoApprove) reasons.push("source_manual_review");
+  if (!c.publishedAt) reasons.push("missing_date");
+  if (
+    !c.authors.length ||
+    c.authors.some(
+      (a) =>
+        /^(by|unknown|anonymous)$/i.test(a.name.trim()) ||
+        folded(a.name).replace(/[’‘]/g, "'") ===
+          folded(s.name).replace(/[’‘]/g, "'"),
+    )
+  )
+    reasons.push("missing_author");
+  if (!c.language && s.languages.length !== 1)
+    reasons.push("language_unverified");
+  if (
+    [...c.authors.map((a) => a.name), ...c.topics].some((v) =>
+      /\b(sponsored|advertorial|paid promotion|partner content)\b/i.test(v),
+    )
+  )
+    reasons.push("promotional_material");
+  if (similarTitle) reasons.push("possible_title_duplicate");
+  if (c.isPrimary === false) reasons.push("secondary_material");
+  const titleTopics = matchedTopics(
+    { ...c, topics: [] },
+    { ...s, topics: s.autoTopics?.length ? s.autoTopics : s.topics },
+  );
+  if (!titleTopics.length) reasons.push("title_off_topic");
+  if (
+    c.publishedAt &&
+    at - Date.parse(c.publishedAt) > gate.maximumAgeDays * 86400000
+  )
+    reasons.push("too_old_for_automatic_approval");
+  if (q.score < p.approvalThreshold) reasons.push("below_auto_threshold");
+  if (q.factors.authority < gate.minimumAuthority)
+    reasons.push("authority_below_auto_minimum");
+  if (q.factors.material < gate.minimumMaterial)
+    reasons.push("material_below_auto_minimum");
+  if (q.factors.relevance < gate.minimumRelevance)
+    reasons.push("relevance_below_auto_minimum");
+  if (q.factors.originality < gate.minimumOriginality)
+    reasons.push("originality_below_auto_minimum");
+  if (c.kind === "paper") {
+    if (
+      /\b(editorial|special issue|correction|erratum|retraction|protocol|review)\b/i.test(
+        c.title,
+      )
+    )
+      reasons.push("scientific_publication_type_unverified");
+    if (q.factors.authority < gate.minimumScientificAuthority)
+      reasons.push("scientific_authority_below_minimum");
+    if (!c.publication || !c.identifiers.some((i) => i.scheme === "doi"))
+      reasons.push("scientific_provenance_incomplete");
+  }
+  return reasons;
+}

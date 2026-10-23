@@ -42,11 +42,40 @@ export function plainText(v: unknown, limit = 1200): string | null {
   if (typeof v === "object" && v !== null)
     v = (v as Record<string, unknown>)["#text"];
   if (typeof v !== "string" && typeof v !== "number") return null;
+  const decode = (text: string) =>
+    text.replace(
+      /&(#(?:x[0-9a-f]+|\d+)|amp|quot|apos|lt|gt|nbsp);/gi,
+      (match, entity: string) => {
+        if (entity[0] === "#") {
+          const code =
+            entity[1]?.toLowerCase() === "x"
+              ? parseInt(entity.slice(2), 16)
+              : parseInt(entity.slice(1), 10);
+          return code > 0 && code <= 0x10ffff
+            ? String.fromCodePoint(code)
+            : match;
+        }
+        return (
+          (
+            {
+              amp: "&",
+              quot: '"',
+              apos: "'",
+              lt: "<",
+              gt: ">",
+              nbsp: " ",
+            } as Record<string, string>
+          )[entity.toLowerCase()] ?? match
+        );
+      },
+    );
   return (
-    String(v)
-      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
-      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
-      .replace(/<[^>]*>/g, " ")
+    decode(
+      String(v)
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/<[^>]*>/g, " "),
+    )
       .replace(/\s+/g, " ")
       .trim()
       .slice(0, limit) || null

@@ -4,6 +4,7 @@
   "url": "https://typographica.org/feed/",
   "authority": 70,
   "topics": ["type", "font", "typography", "letter"],
+  "autoTopics": ["type", "font", "typography", "letter"],
   "languages": ["en"],
   "maxAgeDays": null,
   "metadataAllowed": true,

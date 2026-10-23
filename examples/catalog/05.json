@@ -4,6 +4,7 @@
   "url": "https://feeds2.feedburner.com/itsnicethat/SlXC",
   "authority": 70,
   "topics": ["design", "brand", "typography", "illustration"],
+  "autoTopics": ["design", "brand", "typography", "illustration"],
   "languages": ["en"],
   "maxAgeDays": null,
   "metadataAllowed": true,
