@@ -647,7 +647,9 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     const q = (query.q ?? "").toLowerCase();
     return (
       (!q ||
-        `${item.title} ${item.description ?? ""}`.toLowerCase().includes(q)) &&
+        `${item.title} ${item.synopsis?.text ?? item.description ?? ""}`
+          .toLowerCase()
+          .includes(q)) &&
       (!query.topic || item.topics.includes(query.topic)) &&
       (!query.kind || item.kind === query.kind) &&
       (!query.sourceId || item.sourceId === query.sourceId)
@@ -937,8 +939,8 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                   </span>
                 </div>
                 <p className="metadata-context">
-                  Metadados e links originais. Imagens e descrições aparecem
-                  somente quando autorizadas pela fonte.
+                  Sinopses editoriais do LASTRO, com procedência verificada e
+                  acesso às publicações originais.
                 </p>
                 <div
                   className={`card-grid feed-grid ${!exploring ? "editorial-grid" : ""}`}

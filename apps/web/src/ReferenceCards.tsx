@@ -96,6 +96,7 @@ export function ContentCard({
   fresh = false,
 }: CardProps) {
   const [why, setWhy] = useState(false);
+  const [expandedSynopsis, setExpandedSynopsis] = useState(false);
   const author = item.authors
     .map((a) => a.name.replace(/^.*\((.*)\)$/, "$1"))
     .join(", ");
@@ -131,7 +132,30 @@ export function ContentCard({
           <h3>{presentContent(item).originalTitle}</h3>
           <ExternalLink size={17} aria-hidden="true" />
         </a>
-        {item.description && <p className="description">{item.description}</p>}
+        {item.synopsis?.status === "validated" ? (
+          <div className="editorial-synopsis">
+            <p
+              id={`synopsis-${item.id}`}
+              className={`description ${expandedSynopsis ? "is-expanded" : ""}`}
+            >
+              {item.synopsis.text}
+            </p>
+            <small>Sinopse editorial do LASTRO</small>
+            <button
+              type="button"
+              className="text-button"
+              aria-expanded={expandedSynopsis}
+              aria-controls={`synopsis-${item.id}`}
+              onClick={() => setExpandedSynopsis(!expandedSynopsis)}
+            >
+              {expandedSynopsis ? "Recolher sinopse" : "Ler sinopse completa"}
+            </button>
+          </div>
+        ) : (
+          <p className="description">
+            Sinopse aguardando enriquecimento editorial.
+          </p>
+        )}
         <div className="byline">
           <span>{author || "Autoria não informada"}</span>
           <span>{date(item.publishedAt)}</span>

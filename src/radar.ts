@@ -1,5 +1,6 @@
 import type { Env } from "./env";
 import { first, rows } from "./db";
+import { synopsisGate } from "./synopses";
 import type {
   RadarStatus,
   RadarSourceStatus,
@@ -10,11 +11,12 @@ export async function radarStatus(
   since: string | null = null,
 ): Promise<RadarStatus> {
   const at = new Date().toISOString();
+  const gate = env.SYNOPSIS_REQUIRED === "true" ? synopsisGate : "1=1";
   const data = await rows<any>(
     env.DB,
     `SELECT s.*,
     (SELECT COUNT(*) FROM ingestion_queue q WHERE q.source_id=s.id) queued,
-    (SELECT COUNT(*) FROM contents c WHERE c.source_id=s.id AND editorial_status='approved') approved,
+    (SELECT COUNT(*) FROM contents c WHERE c.source_id=s.id AND editorial_status='approved' AND ${gate}) approved,
     (SELECT COUNT(*) FROM contents c WHERE c.source_id=s.id AND editorial_status='pending') pending,
     (SELECT COUNT(*) FROM ingestion_candidates c WHERE c.source_id=s.id AND outcome='rejected') rejected,
     (SELECT COUNT(*) FROM ingestion_candidates c WHERE c.source_id=s.id AND outcome='duplicate') duplicates,
@@ -66,7 +68,7 @@ export async function radarStatus(
   });
   const count = await first<{ count: number; entries: string }>(
     env.DB,
-    `SELECT COUNT(*) count, json_group_array(json_object('id',c.id,'topics',json_extract(c.metadata_json,'$.topics'))) entries FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND EXISTS(SELECT 1 FROM editorial_decisions e WHERE e.content_id=c.id AND e.decision='approved' AND e.created_at>?)`,
+    `SELECT COUNT(*) count, json_group_array(json_object('id',c.id,'topics',json_extract(c.metadata_json,'$.topics'))) entries FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND ${gate} AND ${env.SYNOPSIS_REQUIRED === "true" ? "EXISTS(SELECT 1 FROM content_synopses sy WHERE sy.content_id=c.id AND sy.validated_at>?)" : "EXISTS(SELECT 1 FROM editorial_decisions e WHERE e.content_id=c.id AND e.decision='approved' AND e.created_at>?)"}`,
     since ?? at,
   );
   const entries: { id: string; topics: string[] }[] = JSON.parse(

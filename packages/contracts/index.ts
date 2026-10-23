@@ -48,6 +48,8 @@ export const sourceInputSchema = z
     maxAgeDays: z.number().int().min(1).max(36500).nullable().default(null),
     metadataAllowed: z.boolean().default(true),
     summaryAllowed: z.boolean().default(false),
+    synopsisAllowed: z.boolean().optional(),
+    synopsisRightsNote: z.string().max(2000).optional(),
     imageAllowed: z.boolean().default(false),
     rightsNote: z.string().trim().min(5).max(2000),
     autoApprove: z.boolean().default(false),
@@ -266,6 +268,13 @@ export type KnowledgeAnnotation = {
   limitations: string | null;
 };
 export type Content = Candidate & {
+  synopsis?: {
+    text: string;
+    status: string;
+    generatorVersion: string;
+    validatedAt: string;
+    evidenceUrl: string;
+  } | null;
   id: string;
   sourceId: string;
   sourceName: string;

@@ -12,4 +12,20 @@ export type Env = {
   OPENALEX_API_KEY?: string;
   INGEST_ENABLED?: string;
   INGEST_BATCH_SIZE?: string;
+  AI?: {
+    run: (
+      model: string,
+      input: {
+        messages: { role: string; content: string }[];
+        max_tokens: number;
+        temperature: number;
+        response_format?: {
+          type: "json_object" | "json_schema";
+          json_schema?: unknown;
+        };
+      },
+    ) => Promise<unknown>;
+  };
+  SYNOPSIS_ENABLED?: string;
+  SYNOPSIS_REQUIRED?: string;
 };

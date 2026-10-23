@@ -1,4 +1,5 @@
 import Select from "./Select";
+import Synopses from "./Synopses";
 import { useEffect, useState, type FormEvent } from "react";
 import { createLastroClient } from "../../../packages/contracts/client";
 import {
@@ -25,6 +26,8 @@ const emptySource: SourceInput = {
   maxAgeDays: null,
   metadataAllowed: false,
   summaryAllowed: false,
+  synopsisAllowed: false,
+  synopsisRightsNote: "",
   imageAllowed: false,
   rightsNote: "",
   autoApprove: false,
@@ -259,6 +262,25 @@ function SourceForm({
           onChange={(e) => field("summaryAllowed", e.target.checked)}
         />{" "}
         Reprodução de resumos autorizada
+      </label>
+      <label className="check-line">
+        <input
+          type="checkbox"
+          checked={value.synopsisAllowed ?? false}
+          onChange={(e) => field("synopsisAllowed", e.target.checked)}
+        />
+        Processamento das descrições para sinopses originais autorizado
+      </label>
+      <label>
+        Permissão de processamento e procedência
+        <textarea
+          value={value.synopsisRightsNote ?? ""}
+          required={value.synopsisAllowed}
+          minLength={20}
+          maxLength={2000}
+          onChange={(e) => field("synopsisRightsNote", e.target.value)}
+          placeholder="Registre a licença ou autorização verificável. Acesso público, sozinho, não comprova permissão."
+        />
       </label>
       <label className="check-line">
         <input
@@ -791,8 +813,8 @@ export default function Curation({
             </div>
           </div>
           <p className="curation-language" role="status">
-            Estoque aprovado para o For You: {overview.portuguese} em português
-            · {overview.international} em outros idiomas ·{" "}
+            Acervo editorial aprovado: {overview.portuguese} em português ·{" "}
+            {overview.international} em outros idiomas ·{" "}
             {overview.unknownLanguage} sem idioma verificado.
             {overview.portuguese < 10 &&
               " O estoque em português ainda limita lotes completos de 20 referências."}
@@ -804,6 +826,7 @@ export default function Curation({
           ["sources", "Fontes"],
           ["queue", "Fila de revisão"],
           ["policy", "Política"],
+          ["synopses", "Sinopses"],
           ["history", "Histórico"],
         ].map(([id, label]) => (
           <button
@@ -900,6 +923,7 @@ export default function Curation({
             </>
           )}
           {tab === "policy" && <PolicyEditor />}
+          {tab === "synopses" && <Synopses />}
           {tab === "history" && (
             <>
               <h3>Execuções de coleta</h3>

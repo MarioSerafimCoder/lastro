@@ -14,6 +14,7 @@
     { "pattern": "lastro.marioserafim.com.br", "custom_domain": true },
   ],
   "preview_urls": false,
+  "ai": { "binding": "AI" },
   "d1_databases": [
     {
       "binding": "DB",
@@ -22,11 +23,13 @@
       "migrations_dir": "migrations",
     },
   ],
-  "triggers": { "crons": ["*/5 * * * *"] },
+  "triggers": { "crons": ["*/5 * * * *", "2-57/5 * * * *"] },
   "vars": {
     "ENVIRONMENT": "production",
     "ALLOWED_ORIGIN": "https://lastro.marioserafim.com.br",
     "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,feeds2.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com,www.creativeboom.com,brasil.uxdesign.cc,plau.substack.com",
     "INGEST_ENABLED": "true",
+    "SYNOPSIS_ENABLED": "true",
+    "SYNOPSIS_REQUIRED": "true",
   },
 }

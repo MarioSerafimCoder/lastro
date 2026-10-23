@@ -106,6 +106,17 @@ export async function saveContent(
   statements.push(
     stmt(
       db,
+      `INSERT INTO content_synopses(content_id,metadata_json,updated_at) VALUES (?,?,?)
+      ON CONFLICT(content_id) DO UPDATE SET metadata_json=excluded.metadata_json,status='pending',text=NULL,evidence_json=NULL,attempts=0,validated_at=NULL,validation_json=NULL,validation_mode=NULL,lease_token=NULL,updated_at=excluded.updated_at,validation_note='Metadados alterados: exige nova revisão'
+      WHERE content_synopses.metadata_json<>excluded.metadata_json`,
+      contentId,
+      JSON.stringify(c),
+      at,
+    ),
+  );
+  statements.push(
+    stmt(
+      db,
       "INSERT INTO content_identifiers SELECT ?,json_extract(value,'$.scheme'),json_extract(value,'$.value') FROM json_each(?)",
       contentId,
       JSON.stringify(

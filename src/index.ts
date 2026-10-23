@@ -41,6 +41,16 @@ import {
   type SourceRow,
 } from "./db";
 import { content, contents, eligible } from "./content";
+import {
+  processSynopsis,
+  scheduledSynopses,
+  enqueueSynopses,
+  synopsisOverview,
+  synopsisGate,
+  evidenceSchema,
+  synopsisReviewSchema,
+  validateSynopsis,
+} from "./synopses";
 import { validateFetchUrl } from "./connectors";
 import {
   ingestSource,
@@ -222,6 +232,8 @@ app.get("/api/feed", async (c) => {
     })
     .parse(c.req.query());
   const p = await policy(c.env.DB);
+  const synopsisFilter =
+    c.env.SYNOPSIS_REQUIRED === "true" ? synopsisGate : "1=1";
   let snapshotId: string,
     offset = 0,
     expiresAt: string,
@@ -253,18 +265,18 @@ app.get("/api/feed", async (c) => {
       preferences.languages.length === 1
         ? await rows<{ id: string }>(
             c.env.DB,
-            "SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 500",
+            `SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE ${synopsisFilter} AND c.editorial_status='approved' AND s.status='approved' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 500`,
             p.minimumQuality,
           )
         : [
             ...(await rows<{ id: string }>(
               c.env.DB,
-              "SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND c.language='pt' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 250",
+              `SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE ${synopsisFilter} AND c.editorial_status='approved' AND s.status='approved' AND c.language='pt' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 250`,
               p.minimumQuality,
             )),
             ...(await rows<{ id: string }>(
               c.env.DB,
-              "SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND c.language IS NOT NULL AND c.language<>'pt' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 250",
+              `SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE ${synopsisFilter} AND c.editorial_status='approved' AND s.status='approved' AND c.language IS NOT NULL AND c.language<>'pt' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 250`,
               p.minimumQuality,
             )),
           ];
@@ -317,6 +329,7 @@ app.get("/api/feed", async (c) => {
       .filter(
         (i) =>
           i.editorialStatus === "approved" &&
+          (c.env.SYNOPSIS_REQUIRED !== "true" || !!i.synopsis?.text) &&
           approvedSources.has(i.sourceId) &&
           i.quality.score >= p.minimumQuality &&
           !i.state.dismissed &&
@@ -378,6 +391,7 @@ async function search(
   db: D1Database,
   raw: Record<string, string>,
   favorites = false,
+  synopsisRequired = false,
 ) {
   const q = searchSchema.parse(raw),
     where: string[] = [],
@@ -386,11 +400,12 @@ async function search(
     where.push("c.id IN (SELECT content_id FROM favorites WHERE user_id=?)");
     args.push(OWNER);
   } else where.push("c.editorial_status='approved'", "s.status='approved'");
+  if (!favorites && synopsisRequired) where.push(synopsisGate);
   if (q.q) {
     where.push(
-      "(instr(lower(c.title),lower(?))>0 OR instr(lower(COALESCE(json_extract(c.metadata_json,'$.description'),'')),lower(?))>0)",
+      "(instr(lower(c.title),lower(?))>0 OR instr(lower(COALESCE(json_extract(c.metadata_json,'$.description'),'')),lower(?))>0 OR EXISTS(SELECT 1 FROM content_synopses sy WHERE sy.content_id=c.id AND sy.status='validated' AND sy.metadata_json=c.metadata_json AND instr(lower(sy.text),lower(?))>0))",
     );
-    args.push(q.q, q.q);
+    args.push(q.q, q.q, q.q);
   }
   for (const [value, column] of [
     [q.sourceId, "c.source_id"],
@@ -437,7 +452,14 @@ async function search(
   };
 }
 app.get("/api/search", async (c) =>
-  c.json(await search(c.env.DB, c.req.query())),
+  c.json(
+    await search(
+      c.env.DB,
+      c.req.query(),
+      false,
+      c.env.SYNOPSIS_REQUIRED === "true",
+    ),
+  ),
 );
 app.get("/api/favorites", async (c) =>
   c.json(await search(c.env.DB, c.req.query(), true)),
@@ -649,6 +671,109 @@ app.delete("/api/collections/:id/items/:contentId", async (c) => {
   return c.body(null, 204);
 });
 
+app.get("/api/admin/synopses", async (c) => {
+  const q = pageQuery.parse(c.req.query());
+  return c.json({
+    ...(await synopsisOverview(c.env.DB)),
+    required: c.env.SYNOPSIS_REQUIRED === "true",
+    enabled: c.env.SYNOPSIS_ENABLED === "true",
+    items: await rows(
+      c.env.DB,
+      "SELECT sy.*,c.title,c.language,c.kind,c.editorial_status,s.name source_name,(SELECT SUM(provider_neurons) FROM synopsis_inferences WHERE content_id=c.id) provider_neurons FROM content_synopses sy JOIN contents c ON c.id=sy.content_id JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' ORDER BY CASE sy.status WHEN 'review' THEN 0 WHEN 'pending' THEN 1 WHEN 'blocked' THEN 2 ELSE 3 END,sy.updated_at,sy.content_id LIMIT ? OFFSET ?",
+      q.limit,
+      q.offset,
+    ),
+  });
+});
+app.post("/api/admin/synopses/process", async (c) =>
+  c.json(await processSynopsis(c.env)),
+);
+app.put("/api/admin/synopses/:id/evidence", async (c) => {
+  const contentId = uuid(c.req.param("id"));
+  await content(c.env.DB, contentId);
+  const input = await json(c, evidenceSchema);
+  await enqueueSynopses(c.env.DB);
+  const previous = await first<any>(
+    c.env.DB,
+    "SELECT evidence_json,status FROM content_synopses WHERE content_id=?",
+    contentId,
+  );
+  if (previous?.evidence_json) {
+    const old = JSON.parse(previous.evidence_json);
+    if (
+      old.text === input.text &&
+      old.url === input.url &&
+      old.rightsNote === input.rightsNote &&
+      old.kind === input.kind
+    )
+      return c.json({ status: previous.status, unchanged: true });
+  }
+  const changed = await stmt(
+    c.env.DB,
+    "UPDATE content_synopses SET evidence_json=?,status='pending',text=NULL,attempts=0,validated_at=NULL,validation_json=NULL,validation_mode=NULL,validation_note='Evidência editorial atualizada',updated_at=? WHERE content_id=? AND status<>'processing'",
+    JSON.stringify(input),
+    now(),
+    contentId,
+  ).run();
+  if (!changed.meta.changes)
+    throw new ApiFault(409, "synopsis_busy", "Aguarde o processamento atual.");
+  await stmt(
+    c.env.DB,
+    "INSERT INTO synopsis_decisions VALUES (?,?,?,?,?,?,?)",
+    id(),
+    contentId,
+    "evidence",
+    input.rightsNote,
+    null,
+    null,
+    now(),
+  ).run();
+  return c.json({ status: "pending" });
+});
+app.post("/api/admin/synopses/:id/validate", async (c) =>
+  c.json(
+    await validateSynopsis(
+      c.env.DB,
+      uuid(c.req.param("id")),
+      await json(c, synopsisReviewSchema),
+    ),
+  ),
+);
+app.post("/api/admin/synopses/:id/reject", async (c) => {
+  const input = await json(
+    c,
+    z.object({ reason: z.string().trim().min(20).max(2000) }).strict(),
+  );
+  const contentId = uuid(c.req.param("id"));
+  const row = must(
+    await first<any>(
+      c.env.DB,
+      "SELECT * FROM content_synopses WHERE content_id=? AND status<>'processing'",
+      contentId,
+    ),
+  );
+  await c.env.DB.batch([
+    stmt(
+      c.env.DB,
+      "UPDATE content_synopses SET status='blocked',validated_at=NULL,validation_json=NULL,validation_mode=NULL,validation_note=?,updated_at=? WHERE content_id=?",
+      input.reason,
+      now(),
+      contentId,
+    ),
+    stmt(
+      c.env.DB,
+      "INSERT INTO synopsis_decisions VALUES (?,?,?,?,?,?,?)",
+      id(),
+      contentId,
+      "rejected",
+      input.reason,
+      row.text,
+      null,
+      now(),
+    ),
+  ]);
+  return c.json({ status: "blocked" });
+});
 app.get("/api/admin/overview", async (c) =>
   c.json({
     ingestEnabled: c.env.INGEST_ENABLED === "true",
@@ -1077,5 +1202,9 @@ export default {
     _event: ScheduledController,
     env: Env,
     _ctx: ExecutionContext,
-  ) => scheduledIngest(env),
+  ) => {
+    // Separate invocation keeps the existing ingestion below D1 Free's query cap.
+    if (_event.cron === "2-57/5 * * * *") return scheduledSynopses(env);
+    return scheduledIngest(env);
+  },
 };

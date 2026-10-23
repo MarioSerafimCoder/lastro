@@ -3150,3 +3150,46 @@ section[aria-labelledby="feed-title"] > .filters {
     padding-block: 12px;
   }
 }
+/* Editorial synopsis: preserve compact cards, expose complete text on demand. */
+.editorial-synopsis .description {
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.editorial-synopsis .description.is-expanded {
+  display: block;
+  overflow: visible;
+}
+.editorial-synopsis small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.editorial-synopsis .text-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--accent);
+  text-align: left;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+}
+.editorial-synopsis .text-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.synopsis-review textarea,
+.synopsis-review input[type="url"] {
+  width: 100%;
+  max-width: 100%;
+}
+.synopsis-review details {
+  margin: 1rem 0;
+  overflow-wrap: anywhere;
+}
+.synopsis-review label {
+  display: block;
+  margin: 0.75rem 0;
+}
