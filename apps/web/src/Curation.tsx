@@ -769,26 +769,35 @@ export default function Curation({
         <button onClick={refresh}>Atualizar</button>
       </div>
       {overview && (
-        <div className="curation-metrics">
-          <div>
-            <span>Agendamento</span>
-            <strong>
-              {overview.ingestEnabled ? "Habilitado" : "Desativado"}
-            </strong>
+        <>
+          <div className="curation-metrics">
+            <div>
+              <span>Agendamento</span>
+              <strong>
+                {overview.ingestEnabled ? "Habilitado" : "Desativado"}
+              </strong>
+            </div>
+            <div>
+              <span>Fontes</span>
+              <strong>{overview.sources}</strong>
+            </div>
+            <div>
+              <span>Aguardando revisão</span>
+              <strong>{overview.pending}</strong>
+            </div>
+            <div>
+              <span>Referências aprovadas</span>
+              <strong>{overview.approved}</strong>
+            </div>
           </div>
-          <div>
-            <span>Fontes</span>
-            <strong>{overview.sources}</strong>
-          </div>
-          <div>
-            <span>Aguardando revisão</span>
-            <strong>{overview.pending}</strong>
-          </div>
-          <div>
-            <span>Referências aprovadas</span>
-            <strong>{overview.approved}</strong>
-          </div>
-        </div>
+          <p className="curation-language" role="status">
+            Estoque aprovado para o For You: {overview.portuguese} em português
+            · {overview.international} em outros idiomas ·{" "}
+            {overview.unknownLanguage} sem idioma verificado.
+            {overview.portuguese < 10 &&
+              " O estoque em português ainda limita lotes completos de 20 referências."}
+          </p>
+        </>
       )}
       <nav className="curation-actions" aria-label="Seções da Curadoria">
         {[

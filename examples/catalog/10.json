@@ -1,0 +1,35 @@
+{
+  "name": "Revista Pesquisa FAPESP",
+  "connector": "rss",
+  "url": "https://revistapesquisa.fapesp.br/feed/",
+  "authority": 85,
+  "topics": [
+    "design",
+    "criatividade",
+    "percepção",
+    "cognição",
+    "comunicação",
+    "arte",
+    "visual",
+    "publicidade",
+    "inovação"
+  ],
+  "autoTopics": [
+    "design",
+    "criatividade",
+    "percepção",
+    "cognição",
+    "comunicação",
+    "arte",
+    "visual",
+    "publicidade"
+  ],
+  "languages": ["pt"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "imageAllowed": false,
+  "rightsNote": "RSS público de jornalismo científico da FAPESP. Apenas metadados e link; a editora oferece licenciamento próprio para reprodução de textos e imagens. Reportagens são notícia, não validação metodológica de estudos.",
+  "autoApprove": false,
+  "intervalMinutes": 1440
+}

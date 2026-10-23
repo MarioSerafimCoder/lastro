@@ -1,0 +1,30 @@
+{
+  "name": "B9",
+  "connector": "rss",
+  "url": "https://www.b9.com.br/rss/",
+  "authority": 70,
+  "topics": [
+    "design",
+    "criatividade",
+    "branding",
+    "identidade",
+    "visual",
+    "publicidade"
+  ],
+  "autoTopics": [
+    "design",
+    "criatividade",
+    "branding",
+    "identidade",
+    "visual",
+    "publicidade"
+  ],
+  "languages": ["pt"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "imageAllowed": false,
+  "rightsNote": "RSS público em português sobre comunicação e criatividade. Apenas metadados e URL; não usar imagens ou resumos. Campanhas de marcas exigem separação editorial antes de aprovação automática.",
+  "autoApprove": false,
+  "intervalMinutes": 1440
+}

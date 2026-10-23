@@ -1,0 +1,1242 @@
+{
+  "checkedAt": "2026-10-23T12:47:48.137Z",
+  "environment": "ephemeral Miniflare, no personal or production data",
+  "sources": [
+    {
+      "name": "Design Culture",
+      "url": "https://designculture.com.br/feed/",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 625,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "9d9f8a30-e22b-4070-ae7d-b3989fe54d99",
+          "sourceId": "2c9bba44-8afc-44ec-98bb-a8ecbbbfcf9d",
+          "status": "partial",
+          "received": 12,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 10,
+          "error": null
+        },
+        {
+          "id": "968b7666-c3ab-437d-b8db-3fb5d2020e0d",
+          "sourceId": "2c9bba44-8afc-44ec-98bb-a8ecbbbfcf9d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 8,
+          "error": null
+        },
+        {
+          "id": "84436a29-49e2-4c0b-90c4-7406c7e1a608",
+          "sourceId": "2c9bba44-8afc-44ec-98bb-a8ecbbbfcf9d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 6,
+          "error": null
+        },
+        {
+          "id": "188fb5fe-2a31-48a3-bd98-156f0b17901c",
+          "sourceId": "2c9bba44-8afc-44ec-98bb-a8ecbbbfcf9d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 4,
+          "error": null
+        },
+        {
+          "id": "05f9e1e6-e3f4-485e-b0de-1ef56d9e8608",
+          "sourceId": "2c9bba44-8afc-44ec-98bb-a8ecbbbfcf9d",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 2,
+          "error": null
+        },
+        {
+          "id": "1f5a308a-59df-4a9a-8c48-b2a7b657da8f",
+          "sourceId": "2c9bba44-8afc-44ec-98bb-a8ecbbbfcf9d",
+          "status": "completed",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 12,
+        "pending": 4,
+        "rejected": 6,
+        "duplicates": 0,
+        "approved": 2
+      },
+      "approvedExamples": [
+        {
+          "title": "10 projetos de design futurista premiados pelo A’ Design Award"
+        },
+        {
+          "title": "A’ Design Awards & Competition: inscrições abertas para designers de todo o mundo"
+        }
+      ]
+    },
+    {
+      "name": "Revista Pesquisa FAPESP",
+      "url": "https://revistapesquisa.fapesp.br/feed/",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 237,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "d7365dab-acd6-44af-a396-76a93b0d1f43",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 25,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 23,
+          "error": null
+        },
+        {
+          "id": "0df64623-d891-43d7-b5d3-317d03f92dda",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 21,
+          "error": null
+        },
+        {
+          "id": "8a8344ed-0dce-4ee4-95ff-d0a94f88cf39",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 19,
+          "error": null
+        },
+        {
+          "id": "08c2c7ac-e81d-47fa-a930-5bdb79c97398",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 17,
+          "error": null
+        },
+        {
+          "id": "c2ab4078-8830-424e-b3f0-3c062ea585f6",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 15,
+          "error": null
+        },
+        {
+          "id": "7391b6aa-29c2-43c0-b5da-02db410095ff",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 13,
+          "error": null
+        },
+        {
+          "id": "569c2c13-e585-4ec4-bd8d-828d27d1e07c",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 11,
+          "error": null
+        },
+        {
+          "id": "7a86b504-3935-4738-884b-78f3318c83be",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 9,
+          "error": null
+        },
+        {
+          "id": "4c6cd5d6-edd6-4323-8046-85b358181246",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 7,
+          "error": null
+        },
+        {
+          "id": "0fb71192-aba9-4f70-810e-ddc34efef017",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 5,
+          "error": null
+        },
+        {
+          "id": "ab314d95-fbcf-44eb-8880-5bf47f7dcb1a",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 3,
+          "error": null
+        },
+        {
+          "id": "d111f98e-cfdf-4eb1-ad56-10863c6de9e1",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 1,
+          "error": null
+        },
+        {
+          "id": "01f8e55f-a520-4a97-a1c9-b29af1f46be5",
+          "sourceId": "4172686c-c86e-4b80-b436-571282189f6f",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 25,
+        "pending": 2,
+        "rejected": 23,
+        "duplicates": 0,
+        "approved": 0
+      },
+      "approvedExamples": []
+    },
+    {
+      "name": "Arcos Design — UERJ",
+      "url": "https://www.e-publicacoes.uerj.br/arcosdesign/gateway/plugin/WebFeedGatewayPlugin/rss2",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 1610,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "6f86129d-1a11-4597-b82d-bb1ee3107085",
+          "sourceId": "7ce9a361-9699-4512-afb1-91be8fdd7843",
+          "status": "partial",
+          "received": 21,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 19,
+          "error": null
+        },
+        {
+          "id": "c8f86b38-49e3-4df1-8adc-7de975247d12",
+          "sourceId": "7ce9a361-9699-4512-afb1-91be8fdd7843",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 17,
+          "error": null
+        },
+        {
+          "id": "6bb7cb81-72bc-4a9d-ad98-8a3dd9710081",
+          "sourceId": "7ce9a361-9699-4512-afb1-91be8fdd7843",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 15,
+          "error": null
+        },
+        {
+          "id": "7986909f-b2bb-47bc-a1da-3d381ac00395",
+          "sourceId": "7ce9a361-9699-4512-afb1-91be8fdd7843",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 13,
+          "error": null
+        },
+        {
+          "id": "eeb3851d-d5c9-4b69-aabd-9bc2020ca07d",
+          "sourceId": "7ce9a361-9699-4512-afb1-91be8fdd7843",
+          "status": "partial",
+          "received": 0,
+          "accepted": 2,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 11,
+          "error": null
+        },
+        {
+          "id": "0f94c40c-91dc-46f9-bdca-d6fa7d53e88b",
+          "sourceId": "7ce9a361-9699-4512-afb1-91be8fdd7843",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 9,
+          "error": null
+        },
+        {
+          "id": "74f72920-c7cd-48aa-9eea-ae782cf250d9",
+          "sourceId": "7ce9a361-9699-4512-afb1-91be8fdd7843",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 7,
+          "error": null
+        },
+        {
+          "id": "a1f84f83-d89f-46a5-af27-92171cb51507",
+          "sourceId": "7ce9a361-9699-4512-afb1-91be8fdd7843",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 5,
+          "error": null
+        },
+        {
+          "id": "e4bb5eec-09f7-45cb-91de-3188169464df",
+          "sourceId": "7ce9a361-9699-4512-afb1-91be8fdd7843",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 3,
+          "error": null
+        },
+        {
+          "id": "ed3ed277-b9c2-478a-a541-3896cb1e92ce",
+          "sourceId": "7ce9a361-9699-4512-afb1-91be8fdd7843",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 1,
+          "error": null
+        },
+        {
+          "id": "86f4f1f0-9f48-4c26-86c4-f62fc8064abf",
+          "sourceId": "7ce9a361-9699-4512-afb1-91be8fdd7843",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 21,
+        "pending": 0,
+        "rejected": 17,
+        "duplicates": 0,
+        "approved": 4
+      },
+      "approvedExamples": [
+        {
+          "title": "Entrelaçamentos entre design e ficção"
+        },
+        {
+          "title": "Projeto de composteira modular open source a partir do design centrado no ser humano"
+        },
+        {
+          "title": "Ilustração científica botânica como mediação entre design, ciência e sociedade"
+        }
+      ]
+    },
+    {
+      "name": "Designerd",
+      "url": "https://www.designerd.com.br/feed",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 282,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "0971cbda-2c92-4cd5-a85d-57f1d795883c",
+          "sourceId": "0020250c-cb98-40da-bc94-f16f97bc3c00",
+          "status": "partial",
+          "received": 20,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 18,
+          "error": null
+        },
+        {
+          "id": "038f99f1-a8b4-4fcb-a6c7-08cf347ba573",
+          "sourceId": "0020250c-cb98-40da-bc94-f16f97bc3c00",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 16,
+          "error": null
+        },
+        {
+          "id": "f67ded25-a95c-4f75-82bb-732865fbbe57",
+          "sourceId": "0020250c-cb98-40da-bc94-f16f97bc3c00",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 14,
+          "error": null
+        },
+        {
+          "id": "3daf7873-53a6-47fd-924c-86dddefb8335",
+          "sourceId": "0020250c-cb98-40da-bc94-f16f97bc3c00",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 12,
+          "error": null
+        },
+        {
+          "id": "91b455f4-9247-49ab-a1a5-336ab34d5082",
+          "sourceId": "0020250c-cb98-40da-bc94-f16f97bc3c00",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 10,
+          "error": null
+        },
+        {
+          "id": "17a61dbd-d492-4cc4-bbda-fb73cb58a521",
+          "sourceId": "0020250c-cb98-40da-bc94-f16f97bc3c00",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 8,
+          "error": null
+        },
+        {
+          "id": "3887b161-3aa8-4f3b-8515-f5c9349d1e84",
+          "sourceId": "0020250c-cb98-40da-bc94-f16f97bc3c00",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 6,
+          "error": null
+        },
+        {
+          "id": "b3ed7a1d-607d-4d10-a64a-07f3bd4e7152",
+          "sourceId": "0020250c-cb98-40da-bc94-f16f97bc3c00",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 4,
+          "error": null
+        },
+        {
+          "id": "527f9cb9-4819-4bf7-9cf3-fc4797189d35",
+          "sourceId": "0020250c-cb98-40da-bc94-f16f97bc3c00",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 2,
+          "error": null
+        },
+        {
+          "id": "939ca48d-3303-4355-b158-8dd5829234ec",
+          "sourceId": "0020250c-cb98-40da-bc94-f16f97bc3c00",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 20,
+        "pending": 2,
+        "rejected": 18,
+        "duplicates": 0,
+        "approved": 0
+      },
+      "approvedExamples": []
+    },
+    {
+      "name": "UX Collective Brasil",
+      "url": "https://brasil.uxdesign.cc/feed",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 227,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "126ed52f-cefa-463e-9c5f-405e96c743ec",
+          "sourceId": "de2b1ab9-3e5a-4b91-a90c-87ee726179b0",
+          "status": "partial",
+          "received": 10,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 8,
+          "error": null
+        },
+        {
+          "id": "a96b601a-eb8a-4dd9-b7a0-c233079981f1",
+          "sourceId": "de2b1ab9-3e5a-4b91-a90c-87ee726179b0",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 6,
+          "error": null
+        },
+        {
+          "id": "4d1df626-f462-449e-9ec6-f9ec503e03fc",
+          "sourceId": "de2b1ab9-3e5a-4b91-a90c-87ee726179b0",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 4,
+          "error": null
+        },
+        {
+          "id": "3d5f1ba9-a594-4d78-96bd-d2ca60b2b25f",
+          "sourceId": "de2b1ab9-3e5a-4b91-a90c-87ee726179b0",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 1,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 2,
+          "error": null
+        },
+        {
+          "id": "9cbec30a-919f-4011-80ea-8ee9c6cbdc29",
+          "sourceId": "de2b1ab9-3e5a-4b91-a90c-87ee726179b0",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 10,
+        "pending": 6,
+        "rejected": 2,
+        "duplicates": 0,
+        "approved": 2
+      },
+      "approvedExamples": [
+        {
+          "title": "Uma IA, um designer e uma regra de ouro: não opinar"
+        },
+        {
+          "title": "Sobre LLM as a Judge, paradoxo do gosto, e não ser mais designer"
+        }
+      ]
+    },
+    {
+      "name": "Plau — Entrelinha",
+      "url": "https://plau.substack.com/feed",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 139,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "d7156a5f-ef24-4b8c-b153-7b82f5b7b0e0",
+          "sourceId": "cde04fe6-2a92-437c-b161-2795316b022f",
+          "status": "partial",
+          "received": 20,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 18,
+          "error": null
+        },
+        {
+          "id": "11c913ab-6cb1-4b5f-a1dd-e6ed08016f06",
+          "sourceId": "cde04fe6-2a92-437c-b161-2795316b022f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 16,
+          "error": null
+        },
+        {
+          "id": "f7aadced-62ae-4cf5-880e-a8fe3955d5c7",
+          "sourceId": "cde04fe6-2a92-437c-b161-2795316b022f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 14,
+          "error": null
+        },
+        {
+          "id": "4b67666f-5952-4745-ada1-edb8c1abe405",
+          "sourceId": "cde04fe6-2a92-437c-b161-2795316b022f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 12,
+          "error": null
+        },
+        {
+          "id": "7e7c0d11-9d20-4e9e-ba35-a0701d3f2e10",
+          "sourceId": "cde04fe6-2a92-437c-b161-2795316b022f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 2,
+          "pending": 0,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 10,
+          "error": null
+        },
+        {
+          "id": "442e4f24-f0ac-433f-8d23-07d9e71a6251",
+          "sourceId": "cde04fe6-2a92-437c-b161-2795316b022f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 8,
+          "error": null
+        },
+        {
+          "id": "f53f2001-03c6-41fe-a7ff-3a956fdd8d9f",
+          "sourceId": "cde04fe6-2a92-437c-b161-2795316b022f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 6,
+          "error": null
+        },
+        {
+          "id": "2e9d78cf-2a8f-497b-a167-d3b4198e846c",
+          "sourceId": "cde04fe6-2a92-437c-b161-2795316b022f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 4,
+          "error": null
+        },
+        {
+          "id": "e53161d5-f838-4b7a-b89f-d7242c36b309",
+          "sourceId": "cde04fe6-2a92-437c-b161-2795316b022f",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 2,
+          "error": null
+        },
+        {
+          "id": "bcc35285-ec29-443a-85f2-be60d13c63be",
+          "sourceId": "cde04fe6-2a92-437c-b161-2795316b022f",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 20,
+        "pending": 0,
+        "rejected": 16,
+        "duplicates": 0,
+        "approved": 4
+      },
+      "approvedExamples": [
+        {
+          "title": "Emojis e tipografia: uma história de ❤️😍"
+        },
+        {
+          "title": "O futuro da tipografia como negócio"
+        },
+        {
+          "title": "Como as fontes trabalham pelo seu dinheiro"
+        }
+      ]
+    },
+    {
+      "name": "Meio & Mensagem",
+      "url": "https://www.meioemensagem.com.br/feed",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 1199,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "dfa8743b-ea18-47e9-94f1-e98c161a915a",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 25,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 23,
+          "error": null
+        },
+        {
+          "id": "c91dcb83-28dd-45ab-b68b-b59509cabe56",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 21,
+          "error": null
+        },
+        {
+          "id": "c66e3035-00f6-4078-8be8-682a5feb9587",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 19,
+          "error": null
+        },
+        {
+          "id": "28df5671-5428-4254-9c1f-01f7966ae5be",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 17,
+          "error": null
+        },
+        {
+          "id": "24592a20-5203-44a4-a29d-34b906a22a9e",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 15,
+          "error": null
+        },
+        {
+          "id": "25b194b5-40fc-42fe-8a97-94528b04ce90",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 13,
+          "error": null
+        },
+        {
+          "id": "33af0e65-ebc8-458f-b62e-81d3e649b7a1",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 11,
+          "error": null
+        },
+        {
+          "id": "8b7f8bbf-576c-4972-8d54-262f1630f5ab",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 9,
+          "error": null
+        },
+        {
+          "id": "cc49ef41-0b30-4302-b881-afd0a3340a93",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 7,
+          "error": null
+        },
+        {
+          "id": "61e8a489-b79d-449a-b800-4366bd6fb364",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 5,
+          "error": null
+        },
+        {
+          "id": "31dde978-1898-4ad0-a1e6-d64ae818b4f4",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 3,
+          "error": null
+        },
+        {
+          "id": "854c1492-6500-44cd-9e18-06fb85e22d22",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 1,
+          "error": null
+        },
+        {
+          "id": "ad49f886-9283-4dc7-b961-b4554f4f516c",
+          "sourceId": "787a8ac2-0dd7-4a0f-96c2-1288cf28f8b8",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 25,
+        "pending": 4,
+        "rejected": 20,
+        "duplicates": 0,
+        "approved": 1
+      },
+      "approvedExamples": [
+        {
+          "title": "Com visual mais sofisticado, Época Cosméticos prepara expansão"
+        }
+      ]
+    },
+    {
+      "name": "Projeto Draft",
+      "url": "https://www.projetodraft.com/feed/",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 747,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "4be6edd8-0c27-458e-8239-09799979078b",
+          "sourceId": "0baa65c0-40d8-4a6f-b91a-d549abc2d7ed",
+          "status": "partial",
+          "received": 10,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 8,
+          "error": null
+        },
+        {
+          "id": "6997bdb7-e4c5-47dc-854a-3fe84c2e99d4",
+          "sourceId": "0baa65c0-40d8-4a6f-b91a-d549abc2d7ed",
+          "status": "partial",
+          "received": 0,
+          "accepted": 1,
+          "pending": 0,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 6,
+          "error": null
+        },
+        {
+          "id": "cb23243f-4ada-4ed1-a37f-7fad8a71e641",
+          "sourceId": "0baa65c0-40d8-4a6f-b91a-d549abc2d7ed",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 4,
+          "error": null
+        },
+        {
+          "id": "cc67dec9-e5a6-477d-a2e3-1cc0cec826b2",
+          "sourceId": "0baa65c0-40d8-4a6f-b91a-d549abc2d7ed",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 2,
+          "error": null
+        },
+        {
+          "id": "24f838a9-b787-452b-acb1-c65a39f64934",
+          "sourceId": "0baa65c0-40d8-4a6f-b91a-d549abc2d7ed",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 10,
+        "pending": 2,
+        "rejected": 7,
+        "duplicates": 0,
+        "approved": 1
+      },
+      "approvedExamples": [
+        {
+          "title": "Simbiose e inovação nas práticas de coexistência multiespécie"
+        }
+      ]
+    },
+    {
+      "name": "B9",
+      "url": "https://www.b9.com.br/rss/",
+      "cycle": "daily UTC",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 226,
+          "redirect": null
+        }
+      ],
+      "runs": [
+        {
+          "id": "113536b3-a40b-4f75-9d26-5aecdab2ac40",
+          "sourceId": "6e6d80ea-7a92-40ee-9222-3ccabaacc500",
+          "status": "partial",
+          "received": 20,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 18,
+          "error": null
+        },
+        {
+          "id": "94738021-151c-4107-b704-e6c9df3a8418",
+          "sourceId": "6e6d80ea-7a92-40ee-9222-3ccabaacc500",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 16,
+          "error": null
+        },
+        {
+          "id": "0cbe2a19-1923-4f5e-ba9d-2a7cf8a5d9a7",
+          "sourceId": "6e6d80ea-7a92-40ee-9222-3ccabaacc500",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 14,
+          "error": null
+        },
+        {
+          "id": "d93f5d87-3017-40fe-90e0-c5956f905ed6",
+          "sourceId": "6e6d80ea-7a92-40ee-9222-3ccabaacc500",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 12,
+          "error": null
+        },
+        {
+          "id": "6bcf81c9-9d69-44da-9439-64c4100d81c7",
+          "sourceId": "6e6d80ea-7a92-40ee-9222-3ccabaacc500",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 2,
+          "rejected": 0,
+          "duplicates": 0,
+          "queuedRemaining": 10,
+          "error": null
+        },
+        {
+          "id": "695b1c3a-031a-4146-a567-c462ef7bad9b",
+          "sourceId": "6e6d80ea-7a92-40ee-9222-3ccabaacc500",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 8,
+          "error": null
+        },
+        {
+          "id": "38e0b374-2f5d-439f-9d67-a4cefda4b4cf",
+          "sourceId": "6e6d80ea-7a92-40ee-9222-3ccabaacc500",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 6,
+          "error": null
+        },
+        {
+          "id": "6c68f98a-377d-472d-95d4-3fbd2cf9eae4",
+          "sourceId": "6e6d80ea-7a92-40ee-9222-3ccabaacc500",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 4,
+          "error": null
+        },
+        {
+          "id": "cb23cded-078b-4c95-8ea4-8761aaa5e944",
+          "sourceId": "6e6d80ea-7a92-40ee-9222-3ccabaacc500",
+          "status": "partial",
+          "received": 0,
+          "accepted": 0,
+          "pending": 0,
+          "rejected": 2,
+          "duplicates": 0,
+          "queuedRemaining": 2,
+          "error": null
+        },
+        {
+          "id": "d0556fc9-cc70-4f18-a14c-f49403e3cea8",
+          "sourceId": "6e6d80ea-7a92-40ee-9222-3ccabaacc500",
+          "status": "completed",
+          "received": 0,
+          "accepted": 0,
+          "pending": 1,
+          "rejected": 1,
+          "duplicates": 0,
+          "queuedRemaining": 0,
+          "error": null
+        }
+      ],
+      "totals": {
+        "candidates": 20,
+        "pending": 6,
+        "rejected": 14,
+        "duplicates": 0,
+        "approved": 0
+      },
+      "approvedExamples": []
+    }
+  ]
+}

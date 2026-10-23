@@ -48,7 +48,7 @@ import {
   duplicate,
   saveContent,
 } from "./ingestion";
-import { rank } from "./ranking";
+import { balanceLanguages, rank } from "./ranking";
 import { radarStatus } from "./radar";
 import { createPackage, generatePrompt } from "./research";
 import { normalizeCandidate, folded } from "./normalize";
@@ -248,25 +248,43 @@ app.get("/api/feed", async (c) => {
     ({ ranking, algorithmVersion } = JSON.parse(snapshot.body_json));
     expiresAt = snapshot.expires_at;
   } else {
-    const ids = await rows<{ id: string }>(
-      c.env.DB,
-      "SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 500",
-      p.minimumQuality,
-    );
+    const preferences = await prefs(c.env.DB);
+    const ids =
+      preferences.languages.length === 1
+        ? await rows<{ id: string }>(
+            c.env.DB,
+            "SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 500",
+            p.minimumQuality,
+          )
+        : [
+            ...(await rows<{ id: string }>(
+              c.env.DB,
+              "SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND c.language='pt' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 250",
+              p.minimumQuality,
+            )),
+            ...(await rows<{ id: string }>(
+              c.env.DB,
+              "SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND c.language IS NOT NULL AND c.language<>'pt' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 250",
+              p.minimumQuality,
+            )),
+          ];
     const affinity = await rows<{ name: string }>(
       c.env.DB,
       `SELECT DISTINCT t.name FROM taxonomies t JOIN content_taxonomies ct ON ct.taxonomy_id=t.id WHERE t.kind='topic' AND (ct.content_id IN (SELECT content_id FROM favorites WHERE user_id=?) OR ct.content_id IN (SELECT content_id FROM output_sources))`,
       OWNER,
     );
-    ranking = rank(
-      await contents(
-        c.env.DB,
-        ids.map((i) => i.id),
+    ranking = balanceLanguages(
+      rank(
+        await contents(
+          c.env.DB,
+          ids.map((i) => i.id),
+        ),
+        preferences,
+        p,
+        Date.now(),
+        affinity.map((a) => a.name),
       ),
-      await prefs(c.env.DB),
-      p,
-      Date.now(),
-      affinity.map((a) => a.name),
+      preferences.languages.length === 1,
     ).map((i) => ({ id: i.content.id, explanation: i.explanation }));
     snapshotId = id();
     expiresAt = new Date(Date.now() + 1800000).toISOString();
@@ -309,11 +327,26 @@ app.get("/api/feed", async (c) => {
   );
   const items: FeedItem[] = [];
   let consumed = 0;
-  for (const r of remaining) {
-    consumed++;
-    const value = byId.get(r.id);
-    if (value) items.push({ content: value, explanation: r.explanation });
-    if (items.length === query.limit) break;
+  if (currentPrefs.languages.length !== 1 && query.limit % 2 === 0) {
+    for (let index = 0; index + 1 < remaining.length; index += 2) {
+      const first = remaining[index],
+        second = remaining[index + 1];
+      consumed += 2;
+      const pt = byId.get(first.id),
+        other = byId.get(second.id);
+      if (pt?.language === "pt" && other?.language && other.language !== "pt") {
+        items.push({ content: pt, explanation: first.explanation });
+        items.push({ content: other, explanation: second.explanation });
+      }
+      if (items.length === query.limit) break;
+    }
+  } else {
+    for (const r of remaining) {
+      consumed++;
+      const value = byId.get(r.id);
+      if (value) items.push({ content: value, explanation: r.explanation });
+      if (items.length === query.limit) break;
+    }
   }
   const result: FeedPage = {
     items,
@@ -620,9 +653,16 @@ app.get("/api/admin/overview", async (c) =>
   c.json({
     ingestEnabled: c.env.INGEST_ENABLED === "true",
     allowedHosts: (c.env.ALLOWED_FETCH_HOSTS ?? "").split(",").filter(Boolean),
-    ...(await first<{ sources: number; pending: number; approved: number }>(
+    ...(await first<{
+      sources: number;
+      pending: number;
+      approved: number;
+      portuguese: number;
+      international: number;
+      unknownLanguage: number;
+    }>(
       c.env.DB,
-      "SELECT (SELECT COUNT(*) FROM sources) sources, (SELECT COUNT(*) FROM ingestion_candidates WHERE outcome='pending') pending, (SELECT COUNT(*) FROM contents WHERE editorial_status='approved') approved",
+      "SELECT (SELECT COUNT(*) FROM sources) sources, (SELECT COUNT(*) FROM ingestion_candidates WHERE outcome='pending') pending, (SELECT COUNT(*) FROM contents WHERE editorial_status='approved') approved, (SELECT COUNT(*) FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND c.language='pt') portuguese, (SELECT COUNT(*) FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND c.language IS NOT NULL AND c.language<>'pt') international, (SELECT COUNT(*) FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved' AND c.language IS NULL) unknownLanguage",
     )),
   }),
 );

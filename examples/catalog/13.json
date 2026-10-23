@@ -1,0 +1,23 @@
+{
+  "name": "UX Collective Brasil",
+  "connector": "rss",
+  "url": "https://brasil.uxdesign.cc/feed",
+  "authority": 70,
+  "topics": [
+    "design",
+    "ux",
+    "interface",
+    "produto",
+    "usabilidade",
+    "criatividade"
+  ],
+  "autoTopics": ["design", "ux", "interface", "produto", "usabilidade"],
+  "languages": ["pt"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "imageAllowed": false,
+  "rightsNote": "Publicação editorial brasileira com RSS público; somente metadados e link. O feed não informa idioma; apenas títulos com marcadores linguísticos fortes são classificados e os demais ficam pendentes.",
+  "autoApprove": true,
+  "intervalMinutes": 1440
+}

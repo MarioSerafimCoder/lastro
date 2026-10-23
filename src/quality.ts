@@ -143,8 +143,7 @@ export function automaticReviewReasons(
     )
   )
     reasons.push("missing_author");
-  if (!c.language && s.languages.length !== 1)
-    reasons.push("language_unverified");
+  if (!c.language) reasons.push("language_unverified");
   if (
     [...c.authors.map((a) => a.name), ...c.topics].some((v) =>
       /\b(sponsored|advertorial|paid promotion|partner content)\b/i.test(v),

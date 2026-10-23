@@ -5,7 +5,7 @@ import {
   type Source,
 } from "../packages/contracts/index";
 import type { Env } from "./env";
-import { plainText } from "./normalize";
+import { inferTitleLanguage, plainText } from "./normalize";
 export type Fetcher = (
   input: string | URL | Request,
   init?: RequestInit,
@@ -84,20 +84,17 @@ export function parseRss(xml: string, s: Source): Candidate[] {
         : categories.some((t) => /\b(news|notícias|noticias)\b/i.test(t))
           ? "news"
           : "article";
+      const title = val(e.title, 500) ?? "";
       return candidateSchema.parse({
-        title: val(e.title, 500) ?? "",
+        title,
         url,
         authors: names.slice(0, 50).map((name: string) => ({ name })),
         publication: val(feed.title, 300) ?? s.name,
         publishedAt: val(e.pubDate ?? e.published ?? e["dc:date"], 100),
-        language: val(
-          e["dc:language"] ??
-            e["@xml:lang"] ??
-            feed.language ??
-            feed["dc:language"] ??
-            feed["@xml:lang"],
-          20,
-        ),
+        language:
+          val(e["dc:language"] ?? e["@xml:lang"], 20) ??
+          inferTitleLanguage(title) ??
+          val(feed.language ?? feed["dc:language"] ?? feed["@xml:lang"], 20),
         kind,
         description: s.summaryAllowed ? val(e.description ?? e.summary) : null,
         imageUrl: s.imageAllowed ? imageFromFeed(e) : null,
@@ -108,7 +105,7 @@ export function parseRss(xml: string, s: Source): Candidate[] {
         topics: categories,
         access: "unknown",
         accessNote:
-          "Somente metadados do feed; página original não foi consultada.",
+          "Somente metadados do feed; página original não foi consultada. Na ausência de idioma declarado, a inferência conservadora usa apenas o título.",
       });
     });
 }

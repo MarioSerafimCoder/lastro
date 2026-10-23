@@ -184,19 +184,19 @@ for (const count of [2, 12, 24, 100])
     const { calls } = await mockApi(page, count);
     await page.goto("/");
     const cards = page.locator(".content-card");
-    await expect(cards).toHaveCount(Math.min(12, count));
-    if (count > 12) {
+    await expect(cards).toHaveCount(Math.min(16, count));
+    if (count > 16) {
       await page
         .getByRole("button", { name: "Carregar mais referências" })
         .click();
-      await expect(cards).toHaveCount(24);
+      await expect(cards).toHaveCount(Math.min(32, count));
     }
     const feedCalls = calls.filter((c) => c === "GET /api/feed").length;
     if (count >= 24)
       await page.locator("#main").evaluate((main) => (main.scrollTop = 400));
     await page.getByRole("button", { name: "Salvos", exact: true }).click();
     await page.getByRole("button", { name: "For You", exact: true }).click();
-    await expect(cards).toHaveCount(count > 12 ? 24 : count);
+    await expect(cards).toHaveCount(Math.min(count > 16 ? 32 : 16, count));
     if (count >= 24) {
       await expect
         .poll(() => page.locator("#main").evaluate((main) => main.scrollTop))
@@ -345,6 +345,12 @@ test("Busca, filtros e estado vazio honestos", async ({ page }) => {
     .getByRole("button", { name: "Radar Diário · artigos", exact: true })
     .click();
   await expect(page.locator(".content-card")).toHaveCount(19);
+  await page.getByRole("button", { name: "Ver lista", exact: true }).click();
+  await page.reload();
+  await expect(page.locator(".content-card")).toHaveCount(19);
+  await expect(
+    page.getByRole("button", { name: "Ver cards", exact: true }),
+  ).toBeVisible();
 });
 
 test("Login e erro recuperável de rede", async ({ page }) => {
@@ -381,6 +387,7 @@ for (const [width, height] of [
   [1366, 768],
   [768, 1024],
   [390, 844],
+  [320, 720],
 ])
   test(`Responsivo ${width}x${height}, teclado e movimento reduzido`, async ({
     page,
@@ -391,7 +398,7 @@ for (const [width, height] of [
     await page.emulateMedia({ reducedMotion: "reduce" });
     await mockApi(page);
     await page.goto("/");
-    await expect(page.locator(".content-card")).toHaveCount(12);
+    await expect(page.locator(".content-card")).toHaveCount(16);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -401,7 +408,7 @@ for (const [width, height] of [
     expect(first!.y).toBeLessThan(height);
     if (width === 1440 || width === 390)
       await page.screenshot({
-        path: `docs/examples/stage04-3-${width}-dark.png`,
+        path: `docs/examples/for-you-2-${width}-dark.png`,
         fullPage: false,
       });
     await page.keyboard.press("Tab");
@@ -418,7 +425,7 @@ for (const [width, height] of [
       .first()
       .click();
     for (const area of ["Salvos", "Oficina", "Curadoria", "Publicações"]) {
-      if (width === 390)
+      if (width <= 390)
         await page.getByRole("button", { name: "Abrir menu" }).click();
       await page.getByRole("button", { name: area, exact: true }).click();
       if (area === "Oficina")
@@ -692,7 +699,7 @@ test.describe("Demonstração animada 04.3", () => {
     await mockApi(page);
     const video = page.video()!;
     await page.goto("http://127.0.0.1:5175/");
-    await expect(page.locator(".content-card")).toHaveCount(12);
+    await expect(page.locator(".content-card")).toHaveCount(16);
     await page.waitForTimeout(1300);
     for (const index of [0, 1]) {
       await page.locator(".content-card").nth(index).hover();

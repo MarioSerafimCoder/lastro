@@ -7,6 +7,10 @@ import { stmt, id, first, rows } from "../src/db";
 import type { Env } from "../src/env";
 if (!process.argv.includes("--live")) throw Error("Explicit --live required");
 const automatic = process.argv.includes("--auto");
+const catalogFilter = process.argv
+  .find((arg) => arg.startsWith("--catalog="))
+  ?.split("=")[1]
+  ?.split(",");
 const mf = new Miniflare(
   convertV4MiniflareOptions({
     modules: true,
@@ -32,6 +36,10 @@ try {
       await db.prepare(sql).run();
   const configs = await Promise.all(
     (await readdir("examples/catalog"))
+      .filter(
+        (file) =>
+          !catalogFilter || catalogFilter.includes(file.replace(/\.json$/, "")),
+      )
       .sort()
       .map(async (file) =>
         sourceInputSchema.parse(
@@ -102,9 +110,11 @@ try {
     );
   }
   await writeFile(
-    automatic
-      ? "docs/examples/feed-vivo-source-checks.json"
-      : "docs/examples/stage04-1-source-checks.json",
+    catalogFilter
+      ? "docs/examples/for-you-2-source-checks.json"
+      : automatic
+        ? "docs/examples/feed-vivo-source-checks.json"
+        : "docs/examples/stage04-1-source-checks.json",
     JSON.stringify(report, null, 2) + "\n",
   );
 } finally {

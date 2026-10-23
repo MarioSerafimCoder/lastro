@@ -5,6 +5,93 @@ export const folded = (v: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+export function inferTitleLanguage(title: string): "pt" | "en" | null {
+  const words = folded(title).match(/[a-z]+/g) ?? [];
+  const portuguese = new Set([
+    "um",
+    "uma",
+    "nao",
+    "voce",
+    "seu",
+    "sua",
+    "nosso",
+    "nossa",
+    "dos",
+    "das",
+    "pela",
+    "pelo",
+    "quando",
+    "porque",
+    "ainda",
+    "sobre",
+    "entre",
+  ]);
+  const commonPt = new Set([
+    "de",
+    "do",
+    "da",
+    "para",
+    "com",
+    "como",
+    "em",
+    "no",
+    "na",
+    "e",
+    "que",
+  ]);
+  const english = new Set([
+    "the",
+    "and",
+    "with",
+    "from",
+    "your",
+    "why",
+    "how",
+    "what",
+    "when",
+    "through",
+    "this",
+    "that",
+    "for",
+    "into",
+  ]);
+  const ptDistinct = words.filter((w) => portuguese.has(w)).length;
+  const ptCommon = words.filter((w) => commonPt.has(w)).length;
+  const enCount = words.filter((w) => english.has(w)).length;
+  if (
+    (ptDistinct > 0 || /[ãõçêôáéíóú]/i.test(title)) &&
+    ptCommon > 0 &&
+    enCount === 0
+  )
+    return "pt";
+  if (enCount >= 2 && ptDistinct === 0 && ptCommon === 0) return "en";
+  return null;
+}
+export function publishedDate(value: string | null): string | null {
+  if (!value) return null;
+  const months: Record<string, string> = {
+    jan: "Jan",
+    fev: "Feb",
+    mar: "Mar",
+    abr: "Apr",
+    mai: "May",
+    jun: "Jun",
+    jul: "Jul",
+    ago: "Aug",
+    set: "Sep",
+    out: "Oct",
+    nov: "Nov",
+    dez: "Dec",
+  };
+  const normalized = value
+    .replace(/^(seg|ter|qua|qui|sex|sáb|sab|dom),?\s*/i, "")
+    .replace(
+      /\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\b/gi,
+      (month) => months[folded(month)] ?? month,
+    );
+  const time = Date.parse(normalized);
+  return Number.isFinite(time) ? new Date(time).toISOString() : null;
+}
 export function safeUrl(value: string): URL {
   const u = new URL(value);
   if (
@@ -109,10 +196,7 @@ export function normalizeCandidate(c: Candidate): Candidate {
       ).values(),
     ],
     language: c.language?.toLowerCase().split(/[-_]/)[0] || null,
-    publishedAt:
-      c.publishedAt && Number.isFinite(Date.parse(c.publishedAt))
-        ? new Date(c.publishedAt).toISOString()
-        : null,
+    publishedAt: publishedDate(c.publishedAt),
     topics: [...new Set(c.topics.map(folded))],
   };
 }

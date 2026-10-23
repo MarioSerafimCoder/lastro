@@ -1,0 +1,16 @@
+{
+  "name": "Arcos Design — UERJ",
+  "connector": "rss",
+  "url": "https://www.e-publicacoes.uerj.br/arcosdesign/gateway/plugin/WebFeedGatewayPlugin/rss2",
+  "authority": 75,
+  "topics": ["design", "tipografia", "visual", "arte", "comunicação"],
+  "autoTopics": ["design", "tipografia", "visual", "arte", "comunicação"],
+  "languages": ["pt", "en", "es"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "imageAllowed": false,
+  "rightsNote": "Periódico acadêmico da UERJ, edição semestral e RSS público. Apenas metadados e links; manter em avaliação até classificar artigos científicos RSS com procedência equivalente ao fluxo OpenAlex e idioma por artigo.",
+  "autoApprove": false,
+  "intervalMinutes": 1440
+}

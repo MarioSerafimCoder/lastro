@@ -266,7 +266,7 @@ test("aprovação automática registra decisão e reavalia pendente sem tocar ap
     url: `https://fixtures.example.test/${id()}`,
     title: `TEST design ${id()}`,
     identifiers: [],
-    language: null,
+    language: "en",
     description: null,
   };
   const firstPass = await processCandidate(env.DB, item, s, runId, at);

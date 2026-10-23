@@ -1,0 +1,32 @@
+{
+  "name": "Meio & Mensagem",
+  "connector": "rss",
+  "url": "https://www.meioemensagem.com.br/feed",
+  "authority": 75,
+  "topics": [
+    "branding",
+    "design",
+    "criatividade",
+    "comunicação",
+    "publicidade",
+    "visual",
+    "marca"
+  ],
+  "autoTopics": [
+    "branding",
+    "design",
+    "criatividade",
+    "comunicação",
+    "publicidade",
+    "visual",
+    "marca"
+  ],
+  "languages": ["pt"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "imageAllowed": false,
+  "rightsNote": "RSS público do veículo de comunicação. Somente metadados e URL; nunca reproduzir imagem, resumo ou texto. Publicações patrocinadas e notícias promocionais devem ficar fora da aprovação automática.",
+  "autoApprove": false,
+  "intervalMinutes": 1440
+}

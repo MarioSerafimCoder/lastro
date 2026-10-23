@@ -1,0 +1,30 @@
+{
+  "name": "Projeto Draft",
+  "connector": "rss",
+  "url": "https://www.projetodraft.com/feed/",
+  "authority": 70,
+  "topics": [
+    "design",
+    "criatividade",
+    "inovação",
+    "produto",
+    "comportamento",
+    "branding"
+  ],
+  "autoTopics": [
+    "design",
+    "criatividade",
+    "inovação",
+    "produto",
+    "comportamento",
+    "branding"
+  ],
+  "languages": ["pt"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "imageAllowed": false,
+  "rightsNote": "RSS público de jornalismo sobre inovação. Somente metadados e URL; anúncios e conteúdo de marca exigem revisão antes de indexação.",
+  "autoApprove": false,
+  "intervalMinutes": 1440
+}

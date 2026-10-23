@@ -101,7 +101,7 @@ export function ContentCard({
     <article
       id={`content-${item.id}`}
       tabIndex={-1}
-      className={`content-card ${item.state.selected ? "is-selected" : ""} ${discovering ? "is-discovering" : ""} ${featured ? "featured" : ""}`}
+      className={`content-card kind-${item.kind} ${item.state.selected ? "is-selected" : ""} ${item.state.favorite ? "is-saved" : ""} ${item.state.read ? "is-read" : ""} ${discovering ? "is-discovering" : ""} ${featured ? "featured" : ""}`}
     >
       {item.imageUrl && (
         <img
@@ -129,8 +129,7 @@ export function ContentCard({
           <ExternalLink size={featured ? 20 : 17} aria-hidden="true" />
         </a>
         <p className="description">
-          {item.description ??
-            "A fonte não forneceu um resumo autorizado. Consulte o conteúdo na origem."}
+          {item.description ?? "Resumo não autorizado · leia na origem"}
         </p>
         <div className="byline">
           <span>{author || "Autoria não informada"}</span>

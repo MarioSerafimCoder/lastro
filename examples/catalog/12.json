@@ -1,0 +1,16 @@
+{
+  "name": "Designerd",
+  "connector": "rss",
+  "url": "https://www.designerd.com.br/feed",
+  "authority": 65,
+  "topics": ["design", "tipografia", "criatividade", "branding", "visual"],
+  "autoTopics": ["design", "tipografia", "criatividade", "branding", "visual"],
+  "languages": ["pt"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "imageAllowed": false,
+  "rightsNote": "RSS público em português; somente metadados e link. Amostra recente inclui guias de compra e títulos promocionais, portanto não habilitar aprovação automática sem auditoria de pertinência.",
+  "autoApprove": false,
+  "intervalMinutes": 1440
+}

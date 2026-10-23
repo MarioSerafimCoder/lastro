@@ -118,3 +118,20 @@ export function rank(
   }
   return output;
 }
+
+// Preserve each pool's editorial ranking; never borrow from the other pool to fill a page.
+export function balanceLanguages(
+  items: FeedItem[],
+  explicitLanguage = false,
+): FeedItem[] {
+  if (explicitLanguage) return items;
+  const portuguese = items.filter((i) => i.content.language === "pt");
+  const international = items.filter(
+    (i) => i.content.language && i.content.language !== "pt",
+  );
+  const pairs = Math.min(portuguese.length, international.length);
+  return Array.from({ length: pairs }, (_, index) => [
+    portuguese[index],
+    international[index],
+  ]).flat();
+}

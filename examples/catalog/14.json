@@ -1,0 +1,30 @@
+{
+  "name": "Plau — Entrelinha",
+  "connector": "rss",
+  "url": "https://plau.substack.com/feed",
+  "authority": 75,
+  "topics": [
+    "tipografia",
+    "design",
+    "branding",
+    "identidade",
+    "visual",
+    "fontes"
+  ],
+  "autoTopics": [
+    "tipografia",
+    "design",
+    "branding",
+    "identidade",
+    "visual",
+    "fontes"
+  ],
+  "languages": ["pt"],
+  "maxAgeDays": null,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "imageAllowed": false,
+  "rightsNote": "Feed oficial da publicação brasileira de tipografia Plau. Somente metadados e URL; não armazenar conteúdo integral, imagem ou resumo do Substack. Entradas de recomendações e promoção ficam em revisão.",
+  "autoApprove": true,
+  "intervalMinutes": 1440
+}

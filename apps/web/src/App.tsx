@@ -113,10 +113,16 @@ function Empty({
     </div>
   );
 }
-function Loading({ count = 3 }: { count?: number }) {
+function Loading({
+  count = 3,
+  feed = false,
+}: {
+  count?: number;
+  feed?: boolean;
+}) {
   return (
     <div
-      className="card-grid"
+      className={`card-grid ${feed ? "feed-grid" : ""}`}
       aria-label="Carregando conteúdos"
       aria-busy="true"
     >
@@ -166,7 +172,15 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     [moreLoading, setMoreLoading] = useState(false),
     [feedError, setFeedError] = useState(""),
     [savedError, setSavedError] = useState("");
-  const [query, setQuery] = useState<SearchQuery>({}),
+  const [query, setQuery] = useState<SearchQuery>(() => {
+      try {
+        return JSON.parse(
+          localStorage.getItem("lastro-feed-filters") ?? "{}",
+        ) as SearchQuery;
+      } catch {
+        return {};
+      }
+    }),
     [sources, setSources] = useState<Source[]>([]),
     [toast, setToast] = useState(""),
     [busyId, setBusyId] = useState<string | null>(null),
@@ -189,7 +203,11 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
   const [discovered, setDiscovered] = useState<string>();
   const [discoveryId, setDiscoveryId] = useState<string>();
   const discoveryTimer = useRef<number | undefined>(undefined);
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setView] = useState<"grid" | "list">(() =>
+    localStorage.getItem("lastro-feed-view") === "list" ? "list" : "grid",
+  );
+  const [newCount, setNewCount] = useState(0);
+  const lastFeedIds = useRef<Set<string> | null>(null);
   const [pending, setPending] = useState<number | null>(null);
   const radarDirty = useRef(false);
   const positions = useRef<Partial<Record<Area, number>>>({});
@@ -203,6 +221,12 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(""), 3500);
   };
+  useEffect(() => {
+    localStorage.setItem("lastro-feed-filters", JSON.stringify(query));
+  }, [query]);
+  useEffect(() => {
+    localStorage.setItem("lastro-feed-view", view);
+  }, [view]);
   const navigate = (to: Area) => {
     if (area !== to) {
       positions.current[area] = document.getElementById("main")?.scrollTop ?? 0;
@@ -277,9 +301,19 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     setFeedLoading(true);
     setFeedError("");
     try {
-      const page = await api.feed({ limit: 12 });
+      const page = await api.feed({ limit: 16 });
+      const ids = new Set(page.items.map((item) => item.content.id));
+      const newItems = lastFeedIds.current
+        ? [...ids].filter((value) => !lastFeedIds.current!.has(value)).length
+        : 0;
+      lastFeedIds.current = ids;
+      setNewCount(newItems);
       setFeed(page);
-      notify(`${page.items.length} referências carregadas no Radar.`);
+      notify(
+        newItems
+          ? `${newItems} novas referências no For You.`
+          : `${page.items.length} referências carregadas no Radar.`,
+      );
     } catch (e) {
       setFeedError(errorText(e));
     } finally {
@@ -401,7 +435,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
         setResults((p) => [...p, ...data.items]);
         setNext(data.nextCursor);
       } else if (feed?.nextCursor) {
-        const data = await api.feed({ limit: 12, cursor: feed.nextCursor });
+        const data = await api.feed({ limit: 16, cursor: feed.nextCursor });
         setFeed((p) =>
           p ? { ...data, items: [...p.items, ...data.items] } : data,
         );
@@ -451,6 +485,10 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
   };
   const favorite = async (item: Content) => {
     setBusyId(item.id);
+    patch({
+      ...item,
+      state: { ...item.state, favorite: !item.state.favorite },
+    });
     try {
       if (item.state.favorite) {
         await api.unfavorite(item.id);
@@ -464,6 +502,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
         notify("Referência guardada nos Salvos.");
       }
     } catch (e) {
+      patch(item);
       notify(errorText(e));
     } finally {
       setBusyId(null);
@@ -526,6 +565,8 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     type: "read" | "dismissed" | "opened",
     active = true,
   ) => {
+    if (type === "read")
+      patch({ ...item, state: { ...item.state, read: active } });
     try {
       const updated = await api.interact(item.id, { type, active });
       patch(updated);
@@ -539,6 +580,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
       } else if (type === "read")
         notify(active ? "Marcado como lido." : "Marcado como não lido.");
     } catch (e) {
+      if (type === "read") patch(item);
       if (type !== "opened") notify(errorText(e));
     }
   };
@@ -844,14 +886,14 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             {feedError ? (
               <ErrorState message={feedError} onRetry={() => void loadFeed()} />
             ) : feedLoading ? (
-              <Loading />
+              <Loading count={16} feed />
             ) : feedItems.length === 0 ? (
               <Empty
                 title="Ainda não há referências por aqui"
                 body={
                   exploring
                     ? "Experimente outra busca ou remova um filtro."
-                    : "O Radar mostra conteúdos após a coleta e a aprovação editorial das fontes."
+                    : "A seleção equilibrada aguarda referências qualificadas em português e em outros idiomas. A Curadoria mostra o estoque disponível."
                 }
                 action={
                   exploring ? (
@@ -875,11 +917,19 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                     {feedItems.length === 1 ? "REFERÊNCIA" : "REFERÊNCIAS"}
                   </span>
                 </div>
-                <div className="card-grid">
-                  {feedItems.map((item) => (
+                {!exploring && newCount > 0 && (
+                  <p className="feed-new-count" role="status">
+                    {newCount}{" "}
+                    {newCount === 1 ? "nova referência" : "novas referências"}{" "}
+                    nesta atualização
+                  </p>
+                )}
+                <div className="card-grid feed-grid">
+                  {feedItems.map((item, index) => (
                     <ContentCard
                       key={item.id}
                       {...cardProps(item)}
+                      featured={!exploring && (index === 0 || index === 9)}
                       discovering={discoveryId === item.id}
                       explanation={
                         !exploring

@@ -158,6 +158,9 @@ export type AdminOverview = {
   sources: number;
   pending: number;
   approved: number;
+  portuguese: number;
+  international: number;
+  unknownLanguage: number;
 };
 export const qualityWeightsSchema = z.object({
   authority: unit,

@@ -4,6 +4,8 @@ import {
   canonicalUrl,
   normalizeDoi,
   normalizeCandidate,
+  inferTitleLanguage,
+  publishedDate,
 } from "../src/normalize";
 import {
   parseRss,
@@ -12,7 +14,7 @@ import {
   validateFetchUrl,
 } from "../src/connectors";
 import { automaticReviewReasons, evaluate, prefilter } from "../src/quality";
-import { rank } from "../src/ranking";
+import { balanceLanguages, rank } from "../src/ranking";
 import { renderPrompt } from "../src/research";
 import { defaultPolicy } from "../packages/contracts/index";
 import {
@@ -24,6 +26,18 @@ import {
   contentFixture,
 } from "./fixtures";
 const at = Date.parse("2026-10-20T00:00:00Z");
+test("idioma conservador e data localizada preservam metadados reais", () => {
+  assert.equal(
+    inferTitleLanguage("Uma IA, um designer e uma regra de ouro: não opinar"),
+    "pt",
+  );
+  assert.equal(inferTitleLanguage("Visual identity for a new world"), null);
+  assert.equal(inferTitleLanguage("Design 2026"), null);
+  assert.equal(
+    publishedDate("qui, 22 out 2026 11:58:39 -0300"),
+    "2026-10-22T14:58:39.000Z",
+  );
+});
 test("normaliza URL canônica, DOI e preserva parâmetros semânticos", () => {
   assert.equal(
     canonicalUrl("https://EXAMPLE.com/path/?b=2&utm_source=x&a=1#part"),
@@ -230,6 +244,53 @@ test("ranking é determinístico, corta qualidade baixa e descartados, reduz rep
     rank([items[0]], p, defaultPolicy, at, ["design"])[0].explanation.factors
       .affinity > 0,
   );
+});
+test("For You intercala idiomas em lotes de 12, 16 e 20 sem preencher falta com itens fracos", () => {
+  const inputs = [
+    ...Array.from({ length: 12 }, (_, i) =>
+      contentFixture({
+        id: `pt-${i}`,
+        language: "pt",
+        sourceId: `br-${i % 3}`,
+      }),
+    ),
+    ...Array.from({ length: 14 }, (_, i) =>
+      contentFixture({
+        id: `en-${i}`,
+        language: "en",
+        sourceId: `world-${i % 4}`,
+      }),
+    ),
+    contentFixture({ id: "unknown", language: null }),
+  ];
+  const ranked = rank(
+    inputs,
+    { interests: ["design"], languages: [] },
+    defaultPolicy,
+    at,
+  );
+  const balanced = balanceLanguages(ranked);
+  for (const limit of [12, 16, 20]) {
+    const page = balanced.slice(0, limit);
+    assert.equal(page.length, limit);
+    assert.equal(
+      page.filter((i) => i.content.language === "pt").length,
+      limit / 2,
+    );
+    assert.equal(new Set(page.map((i) => i.content.id)).size, limit);
+  }
+  assert.equal(balanced.length, 24);
+  assert.equal(
+    balanced.slice(16).filter((i) => i.content.language === "pt").length,
+    4,
+  );
+  const scarce = balanceLanguages(
+    ranked.filter(
+      (i) => i.content.id === "pt-0" || i.content.language === "en",
+    ),
+  );
+  assert.equal(scarce.length, 2);
+  assert.deepEqual(balanceLanguages(ranked, true), ranked);
 });
 test("prompt preserva metadados, notas e incerteza; nenhuma fonte é presumida como lida", () => {
   const text = renderPrompt({
