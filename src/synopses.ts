@@ -5,13 +5,19 @@ import { first, rows, stmt, now, id, sourceView, type SourceRow } from "./db";
 import { collect, type Fetcher } from "./connectors";
 import { canonicalUrl, folded } from "./normalize";
 import { ApiFault, must } from "./errors";
-import { measuredRun, verifySupport, VERIFIER } from "./synopsis-verification";
+import {
+  measuredRun,
+  verifySupport,
+  VERIFIER,
+  VERIFICATION_RESERVATION,
+} from "./synopsis-verification";
 
 export const MODEL = "@cf/meta/llama-3.2-3b-instruct";
 export const VERSION = "lastro-synopsis-2.3";
-// Reserve before inference, including failed calls: 300 per automatic cycle,
-// 150 per review-only draft, within the unchanged 4,500 neuron daily budget.
+// Reserve before inference, including failed calls; never release a historical
+// reservation merely because a call measured below its ceiling.
 export const RESERVATION = 150;
+export const AUTOMATIC_RESERVATION = RESERVATION + VERIFICATION_RESERVATION;
 export const DAILY_BUDGET = 4500;
 export { evidenceSchema, synopsisGate } from "./synopsis-evidence";
 import {
@@ -370,7 +376,13 @@ export async function processSynopsis(
       !!c.publishedAt &&
       c.authors.length > 0 &&
       source.autoApprove;
-    if (!(await reserveBudget(env.DB, at.slice(0, 10), automatic ? 300 : 150)))
+    if (
+      !(await reserveBudget(
+        env.DB,
+        at.slice(0, 10),
+        automatic ? AUTOMATIC_RESERVATION : RESERVATION,
+      ))
+    )
       return finish(
         "pending",
         "Orçamento diário esgotado; retomada em outro dia.",
@@ -441,12 +453,17 @@ export async function processSynopsis(
           ).run();
         return result;
       }
-      if (validation.diagnostic !== "complete_report")
+      if (
+        validation.diagnostic !== "complete_report" &&
+        validation.diagnostic !== "refused"
+      )
         return finish(
           "review",
-          validation.diagnostic === "invalid_json"
-            ? "Verificador retornou formato inválido; não repetir inferência. Revisão técnica/editorial necessária."
-            : "Verificador não cobriu todas as frases; não publicar nem repetir inferência. Revisão técnica/editorial necessária.",
+          validation.diagnostic === "truncated"
+            ? "Resposta do verificador truncada; não publicar nem repetir inferência."
+            : validation.diagnostic === "invalid_json"
+              ? "Verificador retornou formato inválido; não repetir inferência. Revisão técnica/editorial necessária."
+              : "Verificador não cobriu todas as frases; não publicar nem repetir inferência. Revisão técnica/editorial necessária.",
           text,
           evidence,
           "technical",

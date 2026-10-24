@@ -8,6 +8,8 @@ Auditoria de autonomia: [correções e validação de 24/10/2026](AUTONOMIA-SINO
 
 Expansão sustentável: [fontes, medições e limitações da validação real](EXPANSAO-SUSTENTAVEL-2026-10-24.md).
 
+Configuração atual do verificador e auditoria de orçamento: [validação automática de 24/10/2026](VALIDACAO-AUTOMATICA-2026-10-24.md). O verificador 2.2 usa Llama 3.3 70B com JSON Mode documentado; reserva futura de 450 por ciclo, mantendo o teto de 4.500/dia. A primeira validação real dessa configuração aguarda orçamento. Os valores e modelos abaixo descrevem as implantações anteriores.
+
 ## Geração e confiabilidade
 
 - Migração aditiva `0005_editorial_synopses.sql`: texto, procedência, versão do gerador, estado, tentativas, reserva diária e decisões editoriais no D1. Não remove conteúdos.

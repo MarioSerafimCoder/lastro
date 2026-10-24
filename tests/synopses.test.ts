@@ -17,6 +17,7 @@ import {
   checkSynopsis,
   synopsisGate,
   MODEL,
+  AUTOMATIC_RESERVATION,
 } from "../src/synopses";
 import type { Env } from "../src/env";
 import {
@@ -24,9 +25,14 @@ import {
   supportedReport,
   splitSentences,
   neuronUsage,
+  decodeVerification,
+  LEGACY_VERIFIER,
+  VERIFICATION_OUTPUT_TOKENS,
 } from "../src/synopsis-verification";
 import { scheduledSynopses } from "../src/synopses";
 import { captureEvidence, captureStatement } from "../src/synopsis-evidence";
+import { balanceLanguages, rank } from "../src/ranking";
+import { defaultPolicy } from "../packages/contracts";
 import { sourceView, type SourceRow } from "../src/db";
 let mf: Miniflare,
   env: Env,
@@ -131,7 +137,7 @@ test("publicação automática exige verificador independente, cobertura integra
   assert.ok(row.validated_at);
   assert.ok(JSON.parse(row.validation_json).passed);
   const usage: any = await first(env.DB, "SELECT * FROM synopsis_usage");
-  assert.equal(usage.reserved_neurons, 300);
+  assert.equal(usage.reserved_neurons, AUTOMATIC_RESERVATION);
   const measured: any = await first(
     env.DB,
     "SELECT COUNT(*) n,SUM(calculated_neurons) neurons FROM synopsis_inferences WHERE content_id=?",
@@ -249,6 +255,123 @@ test("telemetria distingue tokens observados de reserva e dados ausentes", () =>
     neuronUsage(VERIFIER, { prompt_tokens: 1000, completion_tokens: 100 })!
       .neurons > 0,
   );
+  assert.equal(
+    neuronUsage(LEGACY_VERIFIER, {
+      prompt_tokens: 1000,
+      completion_tokens: 100,
+    })!.neurons,
+    7.6058,
+  );
+  assert.equal(
+    neuronUsage(VERIFIER, { prompt_tokens: 1000, completion_tokens: 100 })!
+      .neurons,
+    47.1485,
+  );
+  assert.equal(
+    neuronUsage("unknown-model", {
+      prompt_tokens: 1000,
+      completion_tokens: 100,
+    }),
+    null,
+  );
+});
+
+test("50/50 preserva pares completos quando um idioma tem sobra ou nenhum conteúdo", () => {
+  for (const pt of [0, 8]) {
+    const items = Array.from({ length: pt + 9 }, (_, i) =>
+      contentFixture({ id: `asymmetric-${i}`, language: i < pt ? "pt" : "en" }),
+    );
+    const feed = balanceLanguages(
+      rank(items, { interests: [], languages: [] }, defaultPolicy),
+    );
+    assert.equal(feed.length, pt * 2);
+    assert.equal(feed.filter((i) => i.content.language === "pt").length, pt);
+    assert.equal(feed.filter((i) => i.content.language === "en").length, pt);
+    assert.equal(new Set(feed.map((i) => i.content.id)).size, feed.length);
+  }
+});
+
+test("respostas de binding objeto/string são aceitas, truncamento e recusas nunca publicam", () => {
+  const report = reportFor();
+  for (const response of [
+    report,
+    JSON.stringify(report),
+    ` \n\u0060\u0060\u0060json\n${JSON.stringify(report)}\n\u0060\u0060\u0060\n `,
+  ])
+    assert.equal(
+      decodeVerification({ response }, synopsis, evidenceText).passed,
+      true,
+    );
+  for (const output of [
+    { response: '{"sentences":[' },
+    { response: null },
+    { response: report, finish_reason: "length" },
+    {
+      response: report,
+      usage: { completion_tokens: VERIFICATION_OUTPUT_TOKENS },
+    },
+    { response: report, refusal: "Cannot verify" },
+    { response: { ...report, uncertain: true } },
+    { response: { ...report, sentences: report.sentences.slice(0, 2) } },
+    {
+      response: {
+        ...report,
+        sentences: report.sentences.map((s) => ({ ...s, index: 0 })),
+      },
+    },
+    {
+      response: {
+        ...report,
+        sentences: report.sentences.map((s) => ({
+          ...s,
+          supported: false,
+          quotes: [],
+        })),
+      },
+    },
+  ])
+    assert.equal(
+      decodeVerification(output, synopsis, evidenceText).passed,
+      false,
+    );
+});
+
+test("concorrência preserva teto de 4.500 com a reserva integral do novo verificador", async () => {
+  const results = await Promise.all(
+    Array.from({ length: 20 }, () =>
+      reserveBudget(env.DB, now().slice(0, 10), AUTOMATIC_RESERVATION),
+    ),
+  );
+  assert.equal(results.filter(Boolean).length, 10);
+  assert.equal(
+    (await first<any>(env.DB, "SELECT reserved_neurons FROM synopsis_usage"))!
+      .reserved_neurons,
+    4500,
+  );
+});
+
+test("entrada excessiva do verificador retém rascunho sem bloquear quota ou repetir geração", async () => {
+  await automaticSource();
+  const cid = await add();
+  await stmt(
+    env.DB,
+    "UPDATE content_synopses SET evidence_json=? WHERE content_id=?",
+    JSON.stringify({
+      ...evidence,
+      text: evidenceText.repeat(6).slice(0, 2900),
+    }),
+    cid,
+  ).run();
+  const before = calls;
+  assert.equal((await processSynopsis(env)).status, "review");
+  assert.equal(calls, before + 1);
+  assert.equal(
+    (await first<any>(env.DB, "SELECT blocked FROM synopsis_usage"))!.blocked,
+    0,
+  );
+  assert.equal(await visible(cid), false);
+  assert.equal((await processSynopsis(env)).status, "idle");
+  assert.equal(calls, before + 1);
 });
 test("ciclo licenciado preserva atribuição, cache e limite de consultas D1", async () => {
   const licenseUrl = "https://creativecommons.org/licenses/by-sa/4.0/";
