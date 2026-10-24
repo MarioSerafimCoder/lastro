@@ -1061,6 +1061,95 @@ test("Menus profissionais: teclado, opções em português, seleção e recorte 
   await subject.press("Escape");
 });
 
+for (const viewport of [
+  { width: 1440, height: 900, theme: "dark" },
+  { width: 390, height: 844, theme: "light" },
+  { width: 568, height: 320, theme: "dark" },
+]) {
+  test(`Acessos rápidos: nova aba e sessão preservada em ${viewport.width}px`, async ({
+    page,
+    context,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(
+      (theme) => localStorage.setItem("lastro:theme", theme),
+      viewport.theme,
+    );
+    const { calls } = await mockApi(page);
+    await context.route(
+      /^https:\/\/(marioserafim\.com\.br|app\.pagescms\.org)\//,
+      (route) =>
+        route.fulfill({
+          contentType: "text/html",
+          body: "<title>Destino externo</title>",
+        }),
+    );
+    await page.goto("/");
+    await expect(page.locator(".content-card")).toHaveCount(16);
+    if (viewport.width <= 620)
+      await page
+        .getByRole("button", { name: "Abrir menu", exact: true })
+        .click();
+    const shortcuts = page.getByRole("group", {
+      name: "Acessos rápidos",
+      exact: true,
+    });
+    await expect(shortcuts).toBeVisible();
+    const initialUrl = page.url();
+    const initialMutations = calls.filter((call) => !call.startsWith("GET "));
+    for (const [name, url] of [
+      ["Portfólio", "https://marioserafim.com.br/"],
+      [
+        "Novo artigo",
+        "https://app.pagescms.org/MarioSerafimCoder/portfolio-oficial/main/collection/posts/new",
+      ],
+    ]) {
+      const link = shortcuts.getByRole("link", {
+        name: `${name} (abre em nova aba)`,
+        exact: true,
+      });
+      await link.scrollIntoViewIfNeeded();
+      await page.keyboard.press("Tab");
+      await link.focus();
+      await expect(link).toBeFocused();
+      await expect(link).toHaveCSS("outline-style", "solid");
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+      const bounds = await link.boundingBox();
+      expect(bounds!.height).toBeGreaterThanOrEqual(44);
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
+      const position = await page
+        .locator("#main")
+        .evaluate((el) => el.scrollTop);
+      const popupPromise = page.waitForEvent("popup");
+      await link.press("Enter");
+      const popup = await popupPromise;
+      await popup.waitForLoadState();
+      expect(popup.url()).toBe(url);
+      expect(await popup.evaluate(() => window.opener === null)).toBe(true);
+      await popup.close();
+      expect(page.url()).toBe(initialUrl);
+      expect(await page.locator("#main").evaluate((el) => el.scrollTop)).toBe(
+        position,
+      );
+      await expect(page.locator(".content-card")).toHaveCount(16);
+    }
+    expect(calls.filter((call) => !call.startsWith("GET "))).toEqual(
+      initialMutations,
+    );
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await mkdir(".wrangler/quick-access", { recursive: true });
+    await page.screenshot({
+      path: `.wrangler/quick-access/${viewport.width}.png`,
+    });
+  });
+}
+
 test.describe("Demonstração animada 04.3", () => {
   test.skip(
     !process.env.LASTRO_RECORD_DEMO,

@@ -29,11 +29,13 @@ import {
   Copy,
   ExternalLink,
   Filter,
+  Globe,
   Layers2,
   Menu,
   Plus,
   Search,
   Sparkles,
+  SquarePen,
   X,
 } from "lucide-react";
 import {
@@ -749,6 +751,45 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
               {a.label}
             </button>
           ))}
+          <div
+            className="quick-access"
+            role="group"
+            aria-labelledby="quick-access-title"
+          >
+            <span className="quick-access-title" id="quick-access-title">
+              Acessos rápidos
+            </span>
+            <a
+              href="https://marioserafim.com.br/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Globe size={18} aria-hidden="true" />
+              <span>
+                Portfólio<span className="sr-only"> (abre em nova aba)</span>
+              </span>
+              <ExternalLink
+                className="quick-access-external"
+                size={13}
+                aria-hidden="true"
+              />
+            </a>
+            <a
+              href="https://app.pagescms.org/MarioSerafimCoder/portfolio-oficial/main/collection/posts/new"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <SquarePen size={18} aria-hidden="true" />
+              <span>
+                Novo artigo<span className="sr-only"> (abre em nova aba)</span>
+              </span>
+              <ExternalLink
+                className="quick-access-external"
+                size={13}
+                aria-hidden="true"
+              />
+            </a>
+          </div>
         </nav>
         <div className="top-right">
           <span className="private-label">Espaço privado</span>

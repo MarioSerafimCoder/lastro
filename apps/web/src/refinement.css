@@ -44,6 +44,60 @@ button:disabled {
   bottom: 14px;
   width: 2px;
 }
+.nav {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.quick-access {
+  display: grid;
+  gap: 4px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.quick-access-title {
+  padding: 0 12px 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.quick-access a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: 3px 5px;
+  padding: 10px 7px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+.quick-access a > svg {
+  flex-shrink: 0;
+}
+.quick-access-external {
+  margin-left: auto;
+}
+.quick-access a:active {
+  background: var(--raised);
+  color: var(--ink);
+}
+:root[data-motion="full"]:not([data-input="keyboard"]) .quick-access a:active {
+  transform: scale(0.98);
+  transition: transform var(--press) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .quick-access a:hover {
+    background: var(--raised);
+    color: var(--ink);
+  }
+}
 .workspace-heading .workspace-feedback,
 main:has(#feed-title) .workspace-heading .workspace-feedback {
   position: fixed;
@@ -473,6 +527,10 @@ section[aria-labelledby="feed-title"] .radar-toolbar {
   }
 }
 @media (max-width: 620px) {
+  .nav {
+    position: absolute;
+    max-height: calc(100dvh - 64px);
+  }
   .topbar {
     padding-top: 0;
     background: var(--paper);
@@ -651,6 +709,7 @@ section[aria-labelledby="feed-title"] .radar-toolbar {
     scroll-behavior: auto !important;
   }
   :root[data-motion] .content-card:hover,
+  .quick-access a:active,
   button:active:not(:disabled) {
     transform: none !important;
   }
