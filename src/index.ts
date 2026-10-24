@@ -771,15 +771,27 @@ app.get("/api/admin/decisions", async (c) => {
 });
 app.get("/api/admin/sources", async (c) => {
   const q = pageQuery.parse(c.req.query());
-  const data = await rows<SourceRow & { last_run_json: string | null }>(
+  const data = await rows<
+    SourceRow & {
+      last_run_json: string | null;
+      last_success_at: string | null;
+      last_reference_at: string | null;
+      queued: number;
+    }
+  >(
     c.env.DB,
-    "SELECT s.*, (SELECT json_object('id',r.id,'sourceId',r.source_id,'startedAt',r.started_at,'finishedAt',r.finished_at,'status',r.status,'received',r.received,'accepted',r.accepted,'pending',r.pending,'rejected',r.rejected,'duplicates',r.duplicates,'queuedRemaining',r.queued_remaining,'error',r.error) FROM ingestion_runs r WHERE r.source_id=s.id ORDER BY r.started_at DESC,r.id DESC LIMIT 1) last_run_json FROM sources s ORDER BY created_at,id LIMIT ? OFFSET ?",
+    `SELECT s.*, (SELECT MAX(c.collected_at) FROM contents c WHERE c.source_id=s.id) last_reference_at,
+    (SELECT COUNT(*) FROM ingestion_queue q WHERE q.source_id=s.id) queued,
+    (SELECT json_object('id',r.id,'sourceId',r.source_id,'startedAt',r.started_at,'finishedAt',r.finished_at,'status',r.status,'received',r.received,'accepted',r.accepted,'pending',r.pending,'rejected',r.rejected,'duplicates',r.duplicates,'queuedRemaining',r.queued_remaining,'error',r.error) FROM ingestion_runs r WHERE r.source_id=s.id ORDER BY r.started_at DESC,r.id DESC LIMIT 1) last_run_json FROM sources s ORDER BY created_at,id LIMIT ? OFFSET ?`,
     q.limit + 1,
     q.offset,
   );
   return c.json({
     items: data.slice(0, q.limit).map((r) => ({
       ...sourceView(r),
+      lastSuccessAt: r.last_success_at,
+      lastReferenceAt: r.last_reference_at,
+      queued: r.queued,
       lastRun: r.last_run_json ? JSON.parse(r.last_run_json) : null,
     })),
     nextCursor: data.length > q.limit ? String(q.offset + q.limit) : null,

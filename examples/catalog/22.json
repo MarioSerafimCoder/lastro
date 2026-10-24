@@ -1,0 +1,39 @@
+{
+  "name": "Creative Commons — Cultura aberta",
+  "connector": "rss",
+  "url": "https://creativecommons.org/feed/",
+  "authority": 75,
+  "topics": [
+    "open heritage",
+    "open culture",
+    "creativity",
+    "creative",
+    "artificial intelligence",
+    "copyright",
+    "design",
+    "art",
+    "artists",
+    "cultural heritage"
+  ],
+  "autoTopics": [
+    "open heritage",
+    "open culture",
+    "creativity",
+    "artificial intelligence",
+    "copyright",
+    "design",
+    "artists",
+    "cultural heritage"
+  ],
+  "languages": ["en"],
+  "maxAgeDays": 365,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "synopsisAllowed": true,
+  "synopsisRightsNote": "Verificado em 24/10/2026: https://creativecommons.org/ declara conteúdo sob CC BY 4.0, exceto indicação específica (https://creativecommons.org/policies/#license). Processar somente trechos textuais do RSS oficial, com atribuição, link original e licença na sinopse identificada como adaptação. Não copiar fotografias, legendas de terceiros, comentários ou artigos integrais; restrições individuais prevalecem. Eventos e campanhas promocionais seguem para revisão.",
+  "synopsisLicenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "imageAllowed": false,
+  "rightsNote": "Blog primário da organização Creative Commons, com artigos assinados sobre cultura visual, patrimônio digital, criação e IA. RSS 200, autoria e atividade em outubro de 2026 conferidas; robots permite o feed. CC BY 4.0 para textos próprios, exceto ressalvas individuais; excluir imagens e conteúdo promocional.",
+  "autoApprove": true,
+  "intervalMinutes": 1440
+}

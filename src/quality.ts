@@ -150,6 +150,19 @@ export function automaticReviewReasons(
     )
   )
     reasons.push("promotional_material");
+  // Calls for registrations, awards and agency promotions are exceptions, even
+  // when their publisher is reputable and their metadata is complete.
+  if (
+    /\b(inscri[cç][oõ]es abertas|inscreva|participe|chamada aberta|microbolsas|projetos finalistas|pr[eê]mio|cadastre|promo[cç][aã]o|sponsored|advertorial|register now|sign up|call for proposals|call for papers|award finalists|brand refresh)\b/i.test(
+      c.title,
+    ) ||
+    c.topics.some((v) =>
+      /^(events?|eventos?|institucional|sponsored|advertorial|paid promotion)$/i.test(
+        v.trim(),
+      ),
+    )
+  )
+    reasons.push("promotional_material");
   if (similarTitle) reasons.push("possible_title_duplicate");
   if (c.isPrimary === false) reasons.push("secondary_material");
   const titleTopics = matchedTopics(
@@ -183,5 +196,5 @@ export function automaticReviewReasons(
     if (!c.publication || !c.identifiers.some((i) => i.scheme === "doi"))
       reasons.push("scientific_provenance_incomplete");
   }
-  return reasons;
+  return [...new Set(reasons)];
 }

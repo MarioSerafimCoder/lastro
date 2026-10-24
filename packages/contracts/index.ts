@@ -102,7 +102,12 @@ export const candidateSchema = z
   .strict();
 export type Candidate = z.infer<typeof candidateSchema>;
 
-export type AdminSource = Source & { lastRun?: IngestionRun | null };
+export type AdminSource = Source & {
+  lastRun?: IngestionRun | null;
+  lastSuccessAt?: string | null;
+  lastReferenceAt?: string | null;
+  queued?: number;
+};
 export type RadarSourceStatus = {
   id: string;
   name: string;

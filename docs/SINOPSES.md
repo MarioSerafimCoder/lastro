@@ -6,6 +6,8 @@ Ampliação posterior: [relatório de 24/10/2026](SINOPSES-AMPLIACAO-2026-10-24.
 
 Auditoria de autonomia: [correções e validação de 24/10/2026](AUTONOMIA-SINOPSES.md).
 
+Expansão sustentável: [fontes, medições e limitações da validação real](EXPANSAO-SUSTENTAVEL-2026-10-24.md).
+
 ## Geração e confiabilidade
 
 - Migração aditiva `0005_editorial_synopses.sql`: texto, procedência, versão do gerador, estado, tentativas, reserva diária e decisões editoriais no D1. Não remove conteúdos.

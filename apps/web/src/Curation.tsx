@@ -370,7 +370,20 @@ function SourceCard({
         <br />
         Última execução: {date(source.lastRun?.startedAt)}{" "}
         {source.lastRun && label(source.lastRun.status)}
+        <br />
+        Última coleta bem-sucedida: {date(source.lastSuccessAt)}
+        <br />
+        Última referência descoberta: {date(source.lastReferenceAt)} ·{" "}
+        {source.queued ?? 0} na fila.
       </p>
+      {source.lastSuccessAt &&
+        Date.now() - Date.parse(source.lastReferenceAt ?? source.createdAt) >=
+          30 * 86400000 && (
+          <p>
+            Sem novas referências indexadas nos últimos 30 dias. A fonte pode
+            ter sido consultada normalmente sem material elegível novo.
+          </p>
+        )}
       {source.lastRun?.error && (
         <p role="alert">Falha na última coleta: {source.lastRun.error}</p>
       )}

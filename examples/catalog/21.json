@@ -1,0 +1,35 @@
+{
+  "name": "Escola de Dados — Cartografia e visualização",
+  "connector": "rss",
+  "url": "https://escoladedados.org/feed/",
+  "authority": 70,
+  "topics": [
+    "visualização de dados",
+    "visualização",
+    "mapear dados",
+    "design",
+    "infografia",
+    "cartografia",
+    "mapas"
+  ],
+  "autoTopics": [
+    "visualização de dados",
+    "visualização",
+    "mapear dados",
+    "design",
+    "infografia",
+    "cartografia",
+    "mapas"
+  ],
+  "languages": ["pt"],
+  "maxAgeDays": 365,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "synopsisAllowed": true,
+  "synopsisRightsNote": "Verificado em 24/10/2026: https://escoladedados.org/ e o artigo Dicas para mapear dados sobre a fé declaram CC BY 4.0 com reutilização em trabalhos derivados mediante crédito. Apenas trechos textuais do RSS oficial, sem imagens, comentários ou textos integrais; respeitar exceções específicas. Sinopse original identificada como adaptação, com autoria, URL e licença. Anúncios de cursos, eventos e prêmios seguem para revisão.",
+  "synopsisLicenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "imageAllowed": false,
+  "rightsNote": "Projeto brasileiro da Open Knowledge Brasil. Rodapé da Escola de Dados declara CC BY 4.0. RSS e autoria Thays Lavor conferidos em 24/10/2026; robots não restringe o feed. Recorte exclusivo de cartografia, visualização e design de informação, sem promoção de cursos/eventos.",
+  "autoApprove": true,
+  "intervalMinutes": 1440
+}

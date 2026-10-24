@@ -270,6 +270,33 @@ export default function Synopses() {
             {data.impact.international ?? 0} em outros idiomas.
           </p>
           <p>
+            {data.impact.publishedLast7Days ?? 0} publicações com sinopse nos
+            últimos sete dias ·{" "}
+            {data.counts
+              .filter((c: any) => ["pending", "processing"].includes(c.status))
+              .reduce((n: number, c: any) => n + c.count, 0)}{" "}
+            aguardando sinopse ·{" "}
+            {data.counts.find((c: any) => c.status === "review")?.count ?? 0} em
+            revisão editorial.
+          </p>
+          <p>
+            Bloqueios:{" "}
+            {data.counts.reduce((n: number, c: any) => n + (c.rights ?? 0), 0)}{" "}
+            por direitos ·{" "}
+            {data.counts.reduce(
+              (n: number, c: any) => n + (c.evidence ?? 0),
+              0,
+            )}{" "}
+            por evidência insuficiente ·{" "}
+            {data.counts.reduce(
+              (n: number, c: any) => n + (c.technical ?? 0),
+              0,
+            )}{" "}
+            técnicos ·{" "}
+            {data.counts.reduce((n: number, c: any) => n + (c.budget ?? 0), 0)}{" "}
+            aguardando orçamento.
+          </p>
+          <p>
             Reserva de IA hoje: {data.usage?.reserved_neurons ?? 0} /{" "}
             {data.dailyBudget} neurônios · {data.usage?.calls ?? 0} gerações
             iniciadas. Reserva conservadora, não medição de cobrança.

@@ -1,0 +1,44 @@
+{
+  "checkedAt": "2026-10-24",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "sourceUrl": "https://escoladedados.org/feed/",
+  "candidate": {
+    "title": "Dicas para mapear dados sobre a fé e cobrir o racismo religioso",
+    "url": "https://escoladedados.org/dicas-para-mapear-dados-sobre-a-fe-e-cobrir-o-racismo-religioso/",
+    "authors": [
+      {
+        "name": "Thays Lavor",
+        "orcid": null,
+        "openalex": null
+      }
+    ],
+    "publication": "Escola de Dados",
+    "publishedAt": "2026-02-02T20:30:56.000Z",
+    "kind": "article",
+    "language": "pt",
+    "description": null,
+    "imageUrl": null,
+    "identifiers": [
+      {
+        "scheme": "source_guid",
+        "value": "https://escoladedados.org/?p=99484"
+      }
+    ],
+    "topics": [
+      "blog",
+      "intolerancia religiosa",
+      "jornalismo de dados",
+      "racismo religioso",
+      "terreiros",
+      "thays lavor",
+      "umbanda"
+    ],
+    "access": "unknown",
+    "license": null,
+    "accessNote": "Somente metadados do feed; página original não foi consultada. Na ausência de idioma declarado, a inferência conservadora usa apenas o título.",
+    "isPrimary": null,
+    "retracted": false,
+    "evergreen": false
+  },
+  "evidence": "Na Bahia, comemora-se o Dia de Iemanjá em 2 de fevereiro. Em Salvador, por exemplo, a festa é uma grande celebração popular, que junta pessoas de diversas raças e regiões. A data é a celebração das tecnologias de terreiro, do sagrado afro-indígena e da delicadeza do feminino. Mas essa fé nem sempre pôde ser vista. Até a década de 1960, o funcionamento dos terreiros era proibido no Brasil, alvo de repressão policial, prisões e tortura institucionalizada. O que chamamos hoje de “invisibilidade de dados” sobre os endereços de terreiros ainda é um reflexo desse medo histórico de retaliação e da impunidade diante do racismo religioso. Mapear a fé, portanto, é um desafio que vai muito além da técnica; é esbarrar no racismo que opera no cenário da fé. Em casos rotineiros, que sequer entram em estatísticas oficiais, as religiões de matriz africana sofrem um preconceito histórico. O medo de denunciar é um reflexo da impunidade e de possíveis retaliações. Isso gera uma invisibilização dupla: tanto dos casos de violência quanto dos próprios terreiros existentes na cidade, que muitas vezes preferem o silêncio e o esconderijo a terem seus endereços públicos expostos."
+}
