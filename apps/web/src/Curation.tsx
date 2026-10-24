@@ -28,6 +28,7 @@ const emptySource: SourceInput = {
   summaryAllowed: false,
   synopsisAllowed: false,
   synopsisRightsNote: "",
+  synopsisLicenseUrl: undefined,
   imageAllowed: false,
   rightsNote: "",
   autoApprove: false,

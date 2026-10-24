@@ -140,7 +140,22 @@ export function ContentCard({
             >
               {item.synopsis.text}
             </p>
-            <small>Sinopse editorial do LASTRO</small>
+            <small>
+              Sinopse editorial do LASTRO
+              {item.synopsis.licenseUrl && (
+                <>
+                  {" "}
+                  ·{" "}
+                  <a
+                    href={item.synopsis.licenseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Adaptação sob licença
+                  </a>
+                </>
+              )}
+            </small>
             <button
               type="button"
               className="text-button"

@@ -36,3 +36,9 @@ As fontes editoriais têm cobertura parcialmente sobreposta; identificadores e U
 | [Nielsen Norman Group](https://www.nngroup.com/)                               | Usabilidade, UX e pesquisa aplicada.             | Página acessível, mas RSS compatível não foi confirmado nesta verificação. Nenhuma configuração criada; pesquisa aplicada não recebe automaticamente rótulo de evidência científica. |
 
 O catálogo tem 11 fontes, das quais 8 tecnicamente verificadas e 3 apenas sugeridas. Em produção, apenas **A List Apart** foi cadastrada e aprovada após autorização do proprietário. As demais permanecem como configurações locais ou sugestões documentadas.
+
+## Ampliação de sinopses — 24/10/2026
+
+O catálogo foi ampliado com Design in government ([18](../examples/catalog/18.json)), BaixaCultura ([19](../examples/catalog/19.json)) e InternetLab ([20](../examples/catalog/20.json)). Estas três configurações usam aprovação automática de metadados e processamento de sinopses habilitados, com licenças de adaptação verificadas, janela de 365 dias e intervalo de 24 horas. Elas foram cadastradas e aprovadas em produção. O estado histórico descrito na Etapa 03 acima não representa o acervo atual.
+
+Os trechos licenciados são processados apenas durante a Curadoria; os resultados passam pelas verificações e casos incertos permanecem em revisão. Evidências, bloqueios e resultados: [relatório da ampliação](SINOPSES-AMPLIACAO-2026-10-24.md).

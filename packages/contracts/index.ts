@@ -50,6 +50,13 @@ export const sourceInputSchema = z
     summaryAllowed: z.boolean().default(false),
     synopsisAllowed: z.boolean().optional(),
     synopsisRightsNote: z.string().max(2000).optional(),
+    synopsisLicenseUrl: z
+      .enum([
+        "https://creativecommons.org/licenses/by-sa/4.0/",
+        "https://creativecommons.org/licenses/by/4.0/",
+        "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+      ])
+      .optional(),
     imageAllowed: z.boolean().default(false),
     rightsNote: z.string().trim().min(5).max(2000),
     autoApprove: z.boolean().default(false),
@@ -274,6 +281,7 @@ export type Content = Candidate & {
     generatorVersion: string;
     validatedAt: string;
     evidenceUrl: string;
+    licenseUrl?: string | null;
   } | null;
   id: string;
   sourceId: string;

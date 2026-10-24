@@ -15,7 +15,7 @@ export async function contents(
   const data = await rows<any>(
     db,
     `SELECT c.*,s.name source_name,
- (SELECT json_object('text',sy.text,'status',sy.status,'generatorVersion',sy.generator_version,'validatedAt',sy.validated_at,'evidenceUrl',json_extract(sy.evidence_json,'$.url')) FROM content_synopses sy WHERE sy.content_id=c.id AND sy.status='validated' AND sy.metadata_json=c.metadata_json) synopsis,
+ (SELECT json_object('text',sy.text,'status',sy.status,'generatorVersion',sy.generator_version,'validatedAt',sy.validated_at,'evidenceUrl',json_extract(sy.evidence_json,'$.url'),'licenseUrl',json_extract(sy.evidence_json,'$.licenseUrl')) FROM content_synopses sy WHERE sy.content_id=c.id AND sy.status='validated' AND sy.metadata_json=c.metadata_json) synopsis,
  EXISTS(SELECT 1 FROM favorites f WHERE f.content_id=c.id AND f.user_id=?) favorite,
  EXISTS(SELECT 1 FROM workshop_selection w WHERE w.content_id=c.id AND w.user_id=?) selected,
  EXISTS(SELECT 1 FROM output_sources o WHERE o.content_id=c.id) used,

@@ -27,7 +27,7 @@
   "vars": {
     "ENVIRONMENT": "production",
     "ALLOWED_ORIGIN": "https://lastro.marioserafim.com.br",
-    "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,feeds2.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com,www.creativeboom.com,brasil.uxdesign.cc,plau.substack.com",
+    "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,feeds2.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com,www.creativeboom.com,brasil.uxdesign.cc,plau.substack.com,designnotes.blog.gov.uk,baixacultura.org,internetlab.org.br",
     "INGEST_ENABLED": "true",
     "SYNOPSIS_ENABLED": "true",
     "SYNOPSIS_REQUIRED": "true",

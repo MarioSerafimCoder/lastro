@@ -1,0 +1,35 @@
+{
+  "name": "Design in government",
+  "connector": "rss",
+  "url": "https://designnotes.blog.gov.uk/feed/",
+  "authority": 70,
+  "topics": [
+    "design",
+    "prototyping",
+    "content",
+    "accessibility",
+    "brand",
+    "designing",
+    "user journey"
+  ],
+  "autoTopics": [
+    "design",
+    "prototyping",
+    "content",
+    "accessibility",
+    "brand",
+    "designing",
+    "user journey"
+  ],
+  "languages": ["en"],
+  "maxAgeDays": 365,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "synopsisAllowed": true,
+  "synopsisRightsNote": "Verificado em 24/10/2026: https://designnotes.blog.gov.uk/ declara OGL v3.0, permitindo adaptação com atribuição. Processar apenas trechos textuais do feed oficial; respeitar restrições específicas e excluir fotos, marcas e comentários. Sinopse identifica a adaptação e mantém link para licença/original.",
+  "synopsisLicenseUrl": "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+  "imageAllowed": false,
+  "rightsNote": "O blog oficial declara Open Government Licence v3.0 no rodapé (https://designnotes.blog.gov.uk/), exceto indicação específica. Somente textos do feed, sem imagens, marcas ou comentários. Fonte/autoria/data/link preservados.",
+  "autoApprove": true,
+  "intervalMinutes": 1440
+}

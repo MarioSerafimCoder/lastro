@@ -23,7 +23,7 @@
   "vars": {
     "ENVIRONMENT": "production",
     "ALLOWED_ORIGIN": "http://127.0.0.1:5173",
-    "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,feeds2.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com,typographica.org,www.creativeboom.com",
+    "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,feeds2.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com,typographica.org,www.creativeboom.com,designnotes.blog.gov.uk,baixacultura.org,internetlab.org.br",
     "INGEST_ENABLED": "false",
     "SYNOPSIS_ENABLED": "false",
     "SYNOPSIS_REQUIRED": "true",

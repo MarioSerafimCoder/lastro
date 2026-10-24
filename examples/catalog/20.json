@@ -1,0 +1,19 @@
+{
+  "name": "InternetLab",
+  "connector": "rss",
+  "url": "https://internetlab.org.br/pt/feed/",
+  "authority": 70,
+  "topics": ["inteligência artificial", "ia", "chatbots"],
+  "autoTopics": ["inteligência artificial", "ia", "chatbots"],
+  "languages": ["pt"],
+  "maxAgeDays": 365,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "synopsisAllowed": true,
+  "synopsisRightsNote": "Verificado em 24/10/2026: o site institucional https://internetlab.org.br/pt/ declara CC BY-SA 4.0. Processar trechos do RSS oficial, sem imagens, preservando crédito e link; a sinopse é adaptação sob a mesma licença. Não confundir com licença CC BY da revista nem validar conclusões científicas por notícia. Restrições específicas prevalecem.",
+  "synopsisLicenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "imageAllowed": false,
+  "rightsNote": "O rodapé atual de https://internetlab.org.br/pt/ declara CC BY-SA 4.0 (a revista acadêmica tem política própria). Somente textos do feed institucional; atribuir autoria, fonte, link e licença. Sem imagens.",
+  "autoApprove": true,
+  "intervalMinutes": 1440
+}

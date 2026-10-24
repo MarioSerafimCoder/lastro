@@ -2,6 +2,8 @@
 
 O For You e a busca do acervo exigem sinopse validada. A aprovação editorial dos metadados continua usando a política existente, mas não basta para publicar no feed. Favoritos, seleção, notas, leitura e decisões anteriores são preservados.
 
+Ampliação posterior: [relatório de 24/10/2026](SINOPSES-AMPLIACAO-2026-10-24.md), com 16 referências e fontes licenciadas.
+
 ## Geração e confiabilidade
 
 - Migração aditiva `0005_editorial_synopses.sql`: texto, procedência, versão do gerador, estado, tentativas, reserva diária e decisões editoriais no D1. Não remove conteúdos.
@@ -17,7 +19,7 @@ O For You e a busca do acervo exigem sinopse validada. A aprovação editorial d
 
 Gerador `@cf/meta/llama-3.2-3b-instruct` e verificador `@cf/meta/llama-3.1-8b-instruct-fp8-fast`, Workers AI via binding `AI`; nenhuma API externa paga. A franquia publicada é de 10.000 neurônios/dia, compartilhada pela conta e reiniciada à meia-noite UTC. No plano Free, exceder a franquia interrompe a operação; não foi feito upgrade.
 
-O LASTRO reserva 300 neurônios antes de um ciclo automático (geração + verificação), ou 150 para um rascunho que já exige revisão. Limite atômico de 4.500/dia: até 15 ciclos completos, com retomada de pendentes no próximo dia UTC. Cada entrada tem até 12 KB; saídas limitadas a 500 tokens para geração e 1.000 para verificação. A reserva é conservadora, não leitura de faturamento. Quota/429 bloqueia novas chamadas pelo restante do dia; falha de verificação preserva o rascunho na Curadoria. Falhas não regeneram silenciosamente o texto. Outros aplicativos podem usar a mesma franquia; a proteção final é o limite do provedor no plano gratuito.
+O LASTRO reserva 300 neurônios antes de um ciclo automático (geração + verificação), ou 150 para um rascunho que já exige revisão. Limite atômico de 4.500/dia: até 15 ciclos completos, com retomada de pendentes no próximo dia UTC. Cada entrada tem até 12 KB; saídas limitadas a 220 tokens para geração e 1.000 para verificação. A reserva é conservadora, não leitura de faturamento. Quota/429 bloqueia novas chamadas pelo restante do dia; falha de verificação preserva o rascunho na Curadoria. Falhas não regeneram silenciosamente o texto. Outros aplicativos podem usar a mesma franquia; a proteção final é o limite do provedor no plano gratuito.
 
 Cada chamada registra tokens e `usage.neurons` retornados pela Cloudflare. O cálculo pelas taxas publicadas é armazenado separadamente como estimativa alternativa. Se o provedor omitir a medição, ela permanece ausente, nunca é inventada. Oito gerações anteriores à instrumentação têm apenas medição agregada no painel da conta.
 

@@ -1,0 +1,31 @@
+{
+  "name": "BaixaCultura",
+  "connector": "rss",
+  "url": "https://baixacultura.org/feed/",
+  "authority": 70,
+  "topics": [
+    "cultura livre",
+    "cultura digital",
+    "inteligência artificial",
+    "criação colaborativa",
+    "ia"
+  ],
+  "autoTopics": [
+    "cultura livre",
+    "cultura digital",
+    "inteligência artificial",
+    "criação colaborativa",
+    "ia"
+  ],
+  "languages": ["pt"],
+  "maxAgeDays": 365,
+  "metadataAllowed": true,
+  "summaryAllowed": false,
+  "synopsisAllowed": true,
+  "synopsisRightsNote": "Verificado em 24/10/2026: site e textos do feed oficial sob CC BY-SA 4.0 (https://baixacultura.org/). Processar trechos textuais com atribuição e link, identificar adaptação e compartilhar sinopse sob CC BY-SA 4.0. Restrições específicas prevalecem. Autoria editorial genérica segue para revisão de metadados.",
+  "synopsisLicenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "imageAllowed": false,
+  "rightsNote": "O rodapé de https://baixacultura.org/ declara todo o site em CC BY-SA 4.0. Atribuição, link original e licença preservados; sinopses adaptadas disponibilizadas sob a mesma licença, sem imagens.",
+  "autoApprove": true,
+  "intervalMinutes": 1440
+}

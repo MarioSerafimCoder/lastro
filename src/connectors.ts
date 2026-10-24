@@ -42,7 +42,11 @@ const imageFromFeed = (entry: any): string | null => {
     return null;
   }
 };
-export function parseRss(xml: string, s: Source): Candidate[] {
+export function parseRss(
+  xml: string,
+  s: Source,
+  forSynopsis = false,
+): Candidate[] {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml) !== true)
     throw new Error("invalid_feed_xml");
   const doc = new XMLParser({
@@ -85,6 +89,20 @@ export function parseRss(xml: string, s: Source): Candidate[] {
           ? "news"
           : "article";
       const title = val(e.title, 500) ?? "";
+      // Full feed text is evidence only with an audited adaptation licence.
+      // Normal ingestion still honours summaryAllowed and never stores the body.
+      const licensedEvidence =
+        forSynopsis &&
+        s.synopsisAllowed &&
+        !!s.synopsisRightsNote &&
+        !!s.synopsisLicenseUrl;
+      const entryRights = val(e.rights ?? e["dc:rights"] ?? e.copyright, 1000);
+      const conflictingRights =
+        entryRights && !entryRights.includes(s.synopsisLicenseUrl ?? "\0");
+      const excerpt =
+        licensedEvidence && !conflictingRights
+          ? val(e["content:encoded"] ?? e.content ?? e.description ?? e.summary)
+          : null;
       return candidateSchema.parse({
         title,
         url,
@@ -96,7 +114,15 @@ export function parseRss(xml: string, s: Source): Candidate[] {
           inferTitleLanguage(title) ??
           val(feed.language ?? feed["dc:language"] ?? feed["@xml:lang"], 20),
         kind,
-        description: s.summaryAllowed ? val(e.description ?? e.summary) : null,
+        description: forSynopsis
+          ? licensedEvidence
+            ? (excerpt?.match(/^[\s\S]*[.!?](?=\s|$)/u)?.[0] ?? null)
+            : s.summaryAllowed
+              ? val(e.description ?? e.summary)
+              : null
+          : s.summaryAllowed
+            ? val(e.description ?? e.summary)
+            : null,
         imageUrl: s.imageAllowed ? imageFromFeed(e) : null,
         identifiers: [
           ...(doi ? [{ scheme: "doi", value: doi }] : []),
@@ -226,6 +252,7 @@ export async function collect(
   conditional: { etag: string | null; last_modified: string | null },
   fetcher: Fetcher = fetch,
   sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms)),
+  forSynopsis = false,
 ): Promise<{
   items: Candidate[];
   notModified: boolean;
@@ -240,7 +267,9 @@ export async function collect(
     url.searchParams.set("sort", "publication_date:desc");
   }
   const headers: Record<string, string> = {
-    "User-Agent": "Lastro/0.1 (metadata-only private research)",
+    "User-Agent": forSynopsis
+      ? "Lastro/0.2 (private editorial research; authorized feed excerpts)"
+      : "Lastro/0.1 (metadata-only private research)",
     Accept:
       s.connector === "rss"
         ? "application/rss+xml, application/atom+xml, application/xml, text/xml"
@@ -292,7 +321,7 @@ export async function collect(
       return {
         items:
           s.connector === "rss"
-            ? parseRss(text, s)
+            ? parseRss(text, s, forSynopsis)
             : parseOpenAlex(JSON.parse(text), s),
         notModified: false,
         etag: response.headers.get("etag"),

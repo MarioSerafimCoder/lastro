@@ -213,6 +213,30 @@ test("estudo nunca recebe validação automática e cron registra execução sem
   assert.equal(schedule.last_status, "review");
   assert.ok(schedule.last_finished_at);
 });
+test("futuro não é inferido de pesquisa já em andamento, mesmo com parecer positivo simulado", async () => {
+  await automaticSource();
+  const cid = await add();
+  const ai = env.AI;
+  const future = synopsis.replace("O artigo examina", "O artigo lançará");
+  env.AI = {
+    run: async (model) => {
+      calls++;
+      return {
+        response: model === MODEL ? future : JSON.stringify(reportFor(future)),
+      };
+    },
+  };
+  assert.equal((await processSynopsis(env)).status, "review");
+  assert.equal(await visible(cid), false);
+  assert.equal(calls, 1);
+  const row: any = await first(
+    env.DB,
+    "SELECT validation_note FROM content_synopses WHERE content_id=?",
+    cid,
+  );
+  assert.match(row.validation_note, /temporalidade/);
+  env.AI = ai;
+});
 test("telemetria distingue tokens observados de reserva e dados ausentes", () => {
   assert.equal(neuronUsage(MODEL, null), null);
   assert.deepEqual(
@@ -223,6 +247,62 @@ test("telemetria distingue tokens observados de reserva e dados ausentes", () =>
     neuronUsage(VERIFIER, { prompt_tokens: 1000, completion_tokens: 100 })!
       .neurons > 0,
   );
+});
+test("ciclo licenciado preserva atribuição, cache e limite de consultas D1", async () => {
+  const licenseUrl = "https://creativecommons.org/licenses/by-sa/4.0/";
+  const cid = await add();
+  await stmt(
+    env.DB,
+    "UPDATE sources SET config_json=? WHERE id=?",
+    JSON.stringify({
+      ...fixtureSource,
+      synopsisAllowed: true,
+      synopsisRightsNote: evidence.rightsNote,
+      synopsisLicenseUrl: licenseUrl,
+    }),
+    fixtureSource.id,
+  ).run();
+  await stmt(
+    env.DB,
+    "UPDATE content_synopses SET evidence_json=? WHERE content_id=?",
+    JSON.stringify({
+      ...evidence,
+      kind: "authorized_feed_description",
+      licenseUrl,
+    }),
+    cid,
+  ).run();
+  let queries = 0;
+  const db = env.DB;
+  const counted = {
+    prepare: (sql: string) => {
+      queries++;
+      return db.prepare(sql);
+    },
+    batch: db.batch.bind(db),
+  } as D1Database;
+  const result = await processSynopsis({
+    ...env,
+    DB: counted,
+    AI: {
+      run: async (model) => {
+        calls++;
+        return {
+          response: model === MODEL ? synopsis : JSON.stringify(reportFor()),
+          usage: { prompt_tokens: 600, completion_tokens: 100, neurons: 7.25 },
+        };
+      },
+    },
+  });
+  assert.equal(result.status, "validated");
+  assert.ok(
+    queries < 50,
+    `${queries} queries exceeds D1 Free invocation budget`,
+  );
+  assert.equal((await content(db, cid)).synopsis?.licenseUrl, licenseUrl);
+  const before = calls;
+  await content(db, cid);
+  assert.equal(calls, before);
 });
 beforeEach(async () => {
   calls = 0;
@@ -261,7 +341,7 @@ test("descrição inglesa autorizada entra no gerador; rascunho factual não gan
   env.AI = {
     run: async (model, input) => {
       calls++;
-      assert.ok(input.messages[1].content.includes(english));
+      assert.ok(input.messages.at(-1)!.content.includes(english));
       return { response: synopsis };
     },
   };
