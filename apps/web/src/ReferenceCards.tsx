@@ -12,6 +12,7 @@ import {
 import type { Content, FeedItem, Source } from "../../../packages/contracts";
 import type { SearchQuery } from "../../../packages/contracts/client";
 import { presentContent } from "./experience";
+import { transitionCards } from "./motion";
 const kindName: Record<Content["kind"], string> = {
   news: "Notícia",
   opinion: "Opinião",
@@ -43,12 +44,14 @@ function IconButton({
   active,
   children,
   disabled = false,
+  action,
 }: {
   label: string;
   onClick: () => void;
   active?: boolean;
   children: ReactNode;
   disabled?: boolean;
+  action?: string;
 }) {
   return (
     <button
@@ -57,6 +60,7 @@ function IconButton({
       title={label}
       aria-label={label}
       aria-pressed={active}
+      data-action={action}
       onClick={onClick}
       disabled={disabled}
     >
@@ -161,7 +165,9 @@ export function ContentCard({
               className="text-button"
               aria-expanded={expandedSynopsis}
               aria-controls={`synopsis-${item.id}`}
-              onClick={() => setExpandedSynopsis(!expandedSynopsis)}
+              onClick={() =>
+                transitionCards(() => setExpandedSynopsis(!expandedSynopsis))
+              }
             >
               {expandedSynopsis ? "Recolher sinopse" : "Ler sinopse completa"}
             </button>
@@ -211,6 +217,7 @@ export function ContentCard({
         <div className="card-bottom">
           <div className="card-actions">
             <IconButton
+              action="save"
               label={
                 item.state.favorite ? "Remover dos salvos" : "Salvar referência"
               }
@@ -224,6 +231,7 @@ export function ContentCard({
               />
             </IconButton>
             <IconButton
+              action="select"
               label={
                 item.state.selected
                   ? "Remover da Oficina"
@@ -239,6 +247,7 @@ export function ContentCard({
               <Plus size={19} />
             </IconButton>
             <IconButton
+              action="read"
               label={
                 item.state.read ? "Marcar como não lido" : "Marcar como lido"
               }
@@ -262,7 +271,7 @@ export function ContentCard({
               <button
                 className="quiet-link"
                 type="button"
-                onClick={() => setWhy((v) => !v)}
+                onClick={() => transitionCards(() => setWhy((v) => !v))}
                 aria-expanded={why}
               >
                 Por que estou vendo? <ChevronDown size={14} />
@@ -324,6 +333,7 @@ export function Filters({
           <span className="sr-only">Assunto</span>
           <Select
             label="Assunto"
+            compactLabel="Assunto"
             value={query.topic ?? ""}
             onValueChange={(nextValue) =>
               setQuery({
@@ -369,6 +379,7 @@ export function Filters({
           <span className="sr-only">Fonte</span>
           <Select
             label="Fonte"
+            compactLabel="Fonte"
             value={query.sourceId ?? ""}
             onValueChange={(nextValue) =>
               setQuery({
@@ -390,6 +401,7 @@ export function Filters({
           <span className="sr-only">Formato</span>
           <Select
             label="Formato"
+            compactLabel="Formato"
             value={query.kind ?? ""}
             onValueChange={(nextValue) =>
               setQuery({

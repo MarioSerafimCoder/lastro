@@ -166,6 +166,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     [selectionOpen, setSelectionOpen] = useState(false);
   const [feed, setFeed] = useState<FeedPage | null>(null),
     [results, setResults] = useState<Content[]>([]),
+    [resultsKey, setResultsKey] = useState<string | null>(null),
     [saved, setSaved] = useState<Content[]>([]),
     [next, setNext] = useState<string | null>(null),
     [feedLoading, setFeedLoading] = useState(true),
@@ -376,29 +377,41 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     query.sourceId ||
     query.kind
   );
+  const queryKey = JSON.stringify([
+    query.q ?? "",
+    query.topic ?? "",
+    query.sourceId ?? "",
+    query.kind ?? "",
+  ]);
+  const searchPending = exploring && resultsKey !== queryKey;
+  const editorialView = !exploring || (searchPending && resultsKey === null);
   useEffect(() => {
     if (area !== "for-you" || !exploring) {
       if (feed) setFeedLoading(false);
       return;
     }
     let active = true;
-    const timeout = window.setTimeout(() => {
-      setFeedLoading(true);
-      setFeedError("");
-      void api
-        .search({ ...query, limit: 20, offset: 0 })
-        .then((r) => {
-          if (!active) return;
-          setResults(r.items);
-          setNext(r.nextCursor);
-        })
-        .catch((e) => {
-          if (active) setFeedError(errorText(e));
-        })
-        .finally(() => {
-          if (active) setFeedLoading(false);
-        });
-    }, 250);
+    setFeedLoading(true);
+    const timeout = window.setTimeout(
+      () => {
+        setFeedError("");
+        void api
+          .search({ ...query, limit: 20, offset: 0 })
+          .then((r) => {
+            if (!active) return;
+            setResults(r.items);
+            setResultsKey(queryKey);
+            setNext(r.nextCursor);
+          })
+          .catch((e) => {
+            if (active) setFeedError(errorText(e));
+          })
+          .finally(() => {
+            if (active) setFeedLoading(false);
+          });
+      },
+      query.q?.trim() ? 180 : 0,
+    );
     return () => {
       active = false;
       window.clearTimeout(timeout);
@@ -641,7 +654,9 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     },
   });
   const feedItems = exploring
-    ? results
+    ? searchPending && resultsKey === null
+      ? (feed?.items.map((i) => i.content) ?? [])
+      : results
     : (feed?.items.map((i) => i.content) ?? []);
   const visibleSaved = saved.filter((item) => {
     const q = (query.q ?? "").toLowerCase();
@@ -798,7 +813,11 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
           </div>
         </div>
         {area === "for-you" && (
-          <section className="page-section" aria-labelledby="feed-title">
+          <section
+            className="page-section"
+            aria-labelledby="feed-title"
+            aria-busy={feedLoading || searchPending || undefined}
+          >
             <EditorialPulse
               onExplore={async (ids) => {
                 setQuery({});
@@ -906,7 +925,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             {ingestionError && <p role="alert">{ingestionError}</p>}
             {feedError ? (
               <ErrorState message={feedError} onRetry={() => void loadFeed()} />
-            ) : feedLoading ? (
+            ) : feedLoading && !feedItems.length ? (
               <Loading count={16} feed />
             ) : feedItems.length === 0 ? (
               <Empty
@@ -930,8 +949,12 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             ) : (
               <>
                 <div className="result-line">
-                  <span>
-                    {exploring ? "RESULTADOS DA BUSCA" : "SELEÇÃO EDITORIAL"}
+                  <span role="status">
+                    {feedLoading || searchPending
+                      ? "ATUALIZANDO SELEÇÃO…"
+                      : exploring
+                        ? "RESULTADOS DA BUSCA"
+                        : "SELEÇÃO EDITORIAL"}
                   </span>
                   <span>
                     {feedItems.length}{" "}
@@ -943,14 +966,14 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                   acesso às publicações originais.
                 </p>
                 <div
-                  className={`card-grid feed-grid ${!exploring ? "editorial-grid" : ""}`}
+                  className={`card-grid feed-grid ${editorialView ? "editorial-grid" : ""}`}
                 >
                   {feedItems.map((item, index) => (
                     <ContentCard
                       key={item.id}
                       {...cardProps(item)}
                       prominence={
-                        !exploring && index < 3
+                        editorialView && index < 3
                           ? index === 0
                             ? "lead"
                             : "secondary"
@@ -959,7 +982,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                       fresh={freshIds.has(item.id)}
                       discovering={discoveryId === item.id}
                       explanation={
-                        !exploring
+                        editorialView
                           ? feed?.items.find((i) => i.content.id === item.id)
                               ?.explanation
                           : undefined

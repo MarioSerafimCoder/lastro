@@ -2477,65 +2477,29 @@ summary:hover,
   animation-direction: reverse;
   animation-duration: 26s;
 }
-:root[data-motion="full"] .jarvis-core {
-  animation: jarvis-breathe 4s ease-in-out infinite;
-}
-:root[data-motion="full"] .jarvis-toggle:hover .jarvis-mark {
-  transform: scale(1.12) rotate(-8deg);
-}
 :root[data-motion="full"] .jarvis-toggle .jarvis-mark {
-  transition: transform 320ms var(--ease);
+  transition: transform 180ms var(--ease);
 }
 :root[data-motion="full"] :is(button, a, .content-card, .format-choice) {
   transition:
     background 200ms,
     border-color 200ms,
     color 200ms,
-    transform 260ms var(--ease),
+    transform 180ms var(--ease),
     box-shadow 220ms;
 }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   :root[data-motion="full"] .content-card:hover {
-    transform: scale(1.025);
+    transform: translateY(-2px);
     z-index: 2;
     box-shadow: 0 8px 22px var(--shadow-color);
   }
 }
-:root[data-motion="full"] .content-card {
-  animation: editorial-enter 420ms var(--ease) backwards;
-}
-:root[data-motion="full"] .content-card:nth-child(2) {
-  animation-delay: 35ms;
-}
-:root[data-motion="full"] .content-card:nth-child(3) {
-  animation-delay: 65ms;
-}
-:root[data-motion="full"] .content-card:nth-child(n + 4) {
-  animation-delay: 90ms;
-}
-:root[data-motion="full"] .card-copy :is(.article-link, .byline) {
-  animation: metadata-reveal 400ms var(--ease) both;
-  animation-delay: 80ms;
-}
-:root[data-motion="full"] .icon-button.is-active svg {
-  animation: favorite-mark 380ms var(--ease);
-}
-:root[data-motion="full"] .content-card.is-selected {
-  animation: selection-affirm 400ms var(--ease);
-}
 :root[data-motion="full"] .content-card.is-discovering {
-  animation: discovery-flash 1700ms var(--ease);
-}
-:root[data-motion="full"] .workspace-heading h1 {
-  animation: title-enter 420ms var(--ease);
-}
-:root[data-motion="full"] .nav button.active::before {
-  animation: nav-indicator 260ms var(--ease);
+  animation: discovery-flash 220ms var(--ease);
 }
 :root[data-motion="full"]
   :is(
-    .jarvis-panel,
-    .jarvis-hint,
     .jarvis-suggestion,
     .work-main,
     .work-refinements[open],
@@ -2543,14 +2507,11 @@ summary:hover,
   ) {
   animation: panel-enter 280ms var(--ease);
 }
-:root[data-motion="full"] :is(.jarvis-panel, .jarvis-hint).is-closing {
-  animation: panel-exit 180ms ease-in both;
-}
 :root[data-motion="full"] .format-choice.chosen {
   transform: translateY(-2px);
 }
 :root[data-motion="full"] .pulso-symbol i {
-  animation: pulse-confirm 600ms var(--ease);
+  animation: pulse-confirm 220ms var(--ease);
 }
 :root[data-motion="full"] .pulso-symbol i:nth-child(2) {
   animation-delay: 80ms;
@@ -2653,14 +2614,8 @@ summary:hover,
   }
 }
 @keyframes discovery-flash {
-  0%,
-  100% {
-    outline-offset: 4px;
-  }
-  40% {
-    outline-offset: 8px;
-    box-shadow: 0 0 0 9px var(--accent-soft);
-  }
+  from {opacity:.65;transform:translateY(3px);}
+  to {opacity:1;transform:translateY(0);}
 }
 @keyframes panel-enter {
   from {
@@ -2821,9 +2776,6 @@ summary:hover,
 }
 .collection-control .select-control {
   margin-top: 6px;
-}
-:root[data-motion="full"] .select-menu {
-  animation: menu-enter 160ms var(--ease);
 }
 @keyframes menu-enter {
   from {

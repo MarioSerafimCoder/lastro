@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { contentFixture, fixtureSource } from "./fixtures";
+import { mkdir } from "node:fs/promises";
 
 async function selectMenu(page: Page, label: string, choice: string) {
   await page.getByRole("combobox", { name: label, exact: true }).click();
@@ -11,6 +12,7 @@ async function mockApi(
   count = 24,
   initialSession = true,
   withImage = false,
+  editorial = false,
 ) {
   const items = Array.from({ length: count }, (_, i) =>
     contentFixture({
@@ -22,6 +24,30 @@ async function mockApi(
         withImage && i === 0
           ? "https://fixtures.example.test/feed-image.svg"
           : null,
+      ...(editorial
+        ? {
+            title: [
+              "Quando a tipografia organiza o cotidiano",
+              "Projetar para quem perdeu a confiança online",
+              "O que sustenta uma cultura de protótipos",
+              "Criatividade na era dos arquivos abertos",
+            ][i % 4],
+            kind: "article" as const,
+            sourceName: [
+              "Entrelinha",
+              "Design in government",
+              "Cultura visual",
+              "Repertório aberto",
+            ][i % 4],
+            synopsis: {
+              text: "O artigo examina escolhas tipográficas em interfaces do cotidiano. Com exemplos de leitura, discute como o desenho das letras e a organização dos espaços participam da experiência. O enfoque está nas decisões de projeto e nas relações entre informação, contexto e legibilidade.",
+              status: "validated" as const,
+              evidenceUrl: "https://fixtures.example.test/evidence",
+              validatedAt: "2026-10-24T00:00:00Z",
+              generatorVersion: "fixture",
+            },
+          }
+        : {}),
     }),
   );
   let authenticated = initialSession;
@@ -132,6 +158,24 @@ async function mockApi(
       };
     else if (p === "/api/admin/sources")
       result = { items: [fixtureSource], nextCursor: null };
+    else if (p === "/api/admin/synopses")
+      result = {
+        items: [],
+        counts: [],
+        impact: {
+          ready: 16,
+          approved: 16,
+          portuguese: 8,
+          international: 8,
+          publishedLast7Days: 0,
+        },
+        usage: { reserved_neurons: 0, calls: 0 },
+        dailyBudget: 4500,
+        measured: { providerNeurons: 0, calls: 0, unmeasured: 0 },
+        scheduler: null,
+        required: true,
+        enabled: false,
+      };
     else if (p.startsWith("/api/admin/"))
       result = { items: [], nextCursor: null };
     else if (p.startsWith("/api/contents/")) {
@@ -146,6 +190,280 @@ async function mockApi(
   });
   return { calls };
 }
+
+test("Comparação premium: desktop/mobile, claro/escuro", async ({ page }) => {
+  const stage = process.env.LASTRO_CAPTURE_STAGE ?? "after";
+  await mkdir(`.wrangler/premium/${stage}`, { recursive: true });
+  await mockApi(page, 16, true, false, true);
+  for (const theme of ["dark", "light"]) {
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({
+        width,
+        height: width === 1440 ? 1000 : 844,
+      });
+      await page.addInitScript((theme) => {
+        localStorage.setItem("lastro:theme", theme);
+        localStorage.setItem("lastro:motion", "full");
+        localStorage.setItem("lastro-editorial-visit", "2026-10-20T00:00:00Z");
+      }, theme);
+      await page.goto("/");
+      await expect(page.locator(".content-card")).toHaveCount(16);
+      await expect(page.locator(".editorial-pulse")).toBeVisible();
+      await page.screenshot({
+        path: `.wrangler/premium/${stage}/${width}-${theme}.png`,
+        animations: "disabled",
+      });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    }
+  }
+});
+
+test("Refinamento: filtro mantém a leitura enquanto aguarda resultados", async ({
+  page,
+}) => {
+  await mockApi(page, 16, true, false, true);
+  let release: (() => void) | undefined;
+  const response = new Promise<void>((r) => {
+    release = r;
+  });
+  await page.route("**/api/search?**", async (route) => {
+    await response;
+    await route.fulfill({ json: { items: [], nextCursor: null } });
+  });
+  await page.goto("/");
+  await expect(page.locator(".content-card")).toHaveCount(16);
+  const firstId = await page
+    .locator(".content-card")
+    .first()
+    .getAttribute("id");
+  await selectMenu(page, "Assunto", "Tipografia");
+  await expect(
+    page.getByText("ATUALIZANDO SELEÇÃO…", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".content-card")).toHaveCount(16);
+  await expect(page.locator(".content-card").first()).toHaveAttribute(
+    "id",
+    firstId!,
+  );
+  await expect(page.locator(".skeleton")).toHaveCount(0);
+  release!();
+  await expect(
+    page.getByText("Ainda não há referências por aqui"),
+  ).toBeVisible();
+});
+
+test("Refinamento: feedback otimista e erro não deslocam os cards", async ({
+  page,
+}) => {
+  await mockApi(page, 16, true, false, true);
+  await page.route("**/api/contents/*/favorite", async (route) => {
+    await new Promise((r) => setTimeout(r, 300));
+    await route.fulfill({
+      status: 503,
+      json: {
+        error: {
+          code: "TEST",
+          message: "TESTE: tente salvar novamente",
+          requestId: "TEST",
+        },
+      },
+    });
+  });
+  await page.goto("/");
+  const card = page.locator(".content-card").first();
+  const y = await card.evaluate((e) => (e as HTMLElement).offsetTop);
+  await card
+    .getByRole("button", { name: "Salvar referência", exact: true })
+    .click();
+  await expect(
+    card.getByRole("button", { name: "Remover dos salvos", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByText("TESTE: tente salvar novamente", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    card.getByRole("button", { name: "Salvar referência", exact: true }),
+  ).toBeEnabled();
+  expect(
+    Math.abs((await card.evaluate((e) => (e as HTMLElement).offsetTop)) - y),
+  ).toBeLessThan(1);
+  expect(
+    await page
+      .locator(".workspace-feedback")
+      .evaluate((e) => getComputedStyle(e).position),
+  ).toBe("fixed");
+});
+
+test("Refinamento: menus interrompíveis, origem e teclado imediato", async ({
+  page,
+}) => {
+  await mockApi(page, 16, true, false, true);
+  await page.goto("/");
+  const combo = page.getByRole("combobox", { name: "Assunto", exact: true });
+  await combo.click();
+  await expect(combo).toHaveAttribute("aria-expanded", "true");
+  const origin = await page
+    .locator(".select-menu")
+    .evaluate((e) => getComputedStyle(e).transformOrigin);
+  expect(origin).not.toBe("0px 0px");
+  const properties = await page.locator(".select-menu").evaluate((e) =>
+    e
+      .getAnimations()
+      .filter((a) => a.id.startsWith("lastro-"))
+      .flatMap((a) => (a.effect as KeyframeEffect).getKeyframes())
+      .flatMap((f) => Object.keys(f))
+      .filter(
+        (k) => !["offset", "computedOffset", "easing", "composite"].includes(k),
+      ),
+  );
+  expect(properties.every((p) => ["transform", "opacity"].includes(p))).toBe(
+    true,
+  );
+  await combo.click();
+  await combo.click();
+  await expect(
+    page.getByRole("listbox", { name: "Assunto", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".select-menu")).toHaveCount(0);
+  await expect(combo).toBeFocused();
+  await combo.press("ArrowDown");
+  await expect(
+    page.getByRole("listbox", { name: "Assunto", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        document
+          .getAnimations()
+          .filter(
+            (a) => a.id.startsWith("lastro-") && a.playState === "running",
+          ).length,
+    ),
+  ).toBe(0);
+  await page.keyboard.press("Escape");
+  const toggle = page.getByRole("button", { name: "Ver lista", exact: true });
+  await toggle.focus();
+  await toggle.press("Enter");
+  await expect(page.locator(".view-list")).toHaveCount(1);
+  expect(
+    await page.evaluate(
+      () =>
+        document
+          .getAnimations()
+          .filter((a) => a.id === "lastro-layout" && a.playState === "running")
+          .length,
+    ),
+  ).toBe(0);
+  await page.locator(".content-card").first().hover();
+  await expect(page.locator("html")).toHaveAttribute("data-input", "pointer");
+});
+
+test("Refinamento: mudança para movimento reduzido interrompe a animação atual", async ({
+  page,
+}) => {
+  await mockApi(page, 16, true, false, true);
+  await page.goto("/");
+  await page.getByRole("combobox", { name: "Assunto", exact: true }).click();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "reduced");
+  await expect(
+    page.getByRole("listbox", { name: "Assunto", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        document.getAnimations().filter((a) => a.playState === "running")
+          .length,
+    ),
+  ).toBe(0);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".select-menu")).toHaveCount(0);
+});
+
+test("Refinamento: toque com alvos de 44px e sem hover de mouse", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  try {
+    await mockApi(page, 16, true, false, true);
+    await page.goto("http://127.0.0.1:5175/");
+    await expect(page.locator(".content-card")).toHaveCount(16);
+    await page.getByRole("combobox", { name: "Assunto", exact: true }).tap();
+    await expect(
+      page.getByRole("listbox", { name: "Assunto", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("option", { name: "Todos os assuntos", exact: true })
+      .tap();
+    const button = page
+      .getByRole("button", { name: "Salvar referência", exact: true })
+      .first();
+    await button.scrollIntoViewIfNeeded();
+    const box = await button.boundingBox();
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+    await button.tap();
+    await expect(
+      page
+        .getByRole("button", { name: "Remover dos salvos", exact: true })
+        .first(),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      await page
+        .locator(".content-card")
+        .first()
+        .evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).a),
+    ).toBe(1);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  } finally {
+    await context.close();
+  }
+});
+
+test("Refinamento: Curadoria conserva controles e estados no tema claro", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await mockApi(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Curadoria", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Critério antes de volume." }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Sinopses", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Sinopses editoriais", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Ativar tema claro", exact: true })
+    .click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(
+    page.getByText("Geração desativada.", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Processar próxima referência",
+      exact: true,
+    }),
+  ).toBeDisabled();
+  expect(errors).toEqual([]);
+});
 
 test("Imagem autorizada, link externo e ações persistentes no celular", async ({
   page,
@@ -641,7 +959,12 @@ test("Descoberta e cards: abertura editorial, ampliação suave e grid/lista", a
     .poll(() =>
       card.evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).a),
     )
-    .toBeCloseTo(1.025, 3);
+    .toBeCloseTo(1, 3);
+  await expect
+    .poll(() =>
+      card.evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).m42),
+    )
+    .toBeCloseTo(-2, 1);
   await page
     .getByRole("button", { name: "Surpreenda-me", exact: true })
     .click();

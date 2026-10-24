@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Minus, X } from "lucide-react";
 import { contextualSuggestion, type JarvisContext } from "./experience";
-import { fullMotion } from "./Appearance";
+import { usePresence } from "./motion";
 const preferenceKey = "lastro:jarvis:proactive";
 function read(store: "localStorage" | "sessionStorage", key: string) {
   try {
@@ -78,56 +78,35 @@ export default function Jarvis({
   context: JarvisContext;
   onAction: (action: string) => void;
 }) {
-  const [open, setOpen] = useState(false),
-    [closing, setClosing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [enabled, setEnabled] = useState(
     () => read("localStorage", "lastro:jarvis:enabled") !== "false",
   );
   const [proactive, setProactive] = useState(
     () => read("localStorage", preferenceKey) !== "false",
   );
-  const [hint, setHint] = useState(false),
-    [hintClosing, setHintClosing] = useState(false);
+  const [hint, setHint] = useState(false);
   const offered = useRef(
     read("sessionStorage", "lastro:jarvis:offered") === "true",
   );
-  const toggleRef = useRef<HTMLButtonElement>(null),
-    panelRef = useRef<HTMLDivElement>(null);
-  const timer = useRef<number | undefined>(undefined),
-    hintTimer = useRef<number | undefined>(undefined);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const { ref: panelRef, visible: panelVisible } = usePresence<HTMLDivElement>(
+    open,
+    "translateY(8px) scale(.98)",
+  );
+  const { ref: hintRef, visible: hintVisible } = usePresence<HTMLDivElement>(
+    hint && !open,
+    "translateY(6px) scale(.98)",
+  );
   const suggestion = contextualSuggestion(context);
   const dismissHint = () => {
-    window.clearTimeout(hintTimer.current);
-    if (!fullMotion()) {
-      setHint(false);
-      return;
-    }
-    setHintClosing(true);
-    hintTimer.current = window.setTimeout(() => {
-      setHint(false);
-      setHintClosing(false);
-    }, 160);
+    setHint(false);
   };
   const close = () => {
-    window.clearTimeout(timer.current);
+    setOpen(false);
     toggleRef.current?.focus({ preventScroll: true });
-    const finish = () => {
-      setOpen(false);
-      setClosing(false);
-      requestAnimationFrame(() =>
-        toggleRef.current?.focus({ preventScroll: true }),
-      );
-    };
-    if (!fullMotion()) {
-      finish();
-      return;
-    }
-    setClosing(true);
-    timer.current = window.setTimeout(finish, 180);
   };
   const show = () => {
-    window.clearTimeout(timer.current);
-    setClosing(false);
     setOpen(true);
     setHint(false);
   };
@@ -148,11 +127,11 @@ export default function Jarvis({
     setHint(true);
   }, [enabled, proactive, context.area, context.available]);
   useEffect(() => {
-    if (open && !closing)
+    if (open)
       panelRef.current
         ?.querySelector<HTMLButtonElement>("button")
         ?.focus({ preventScroll: true });
-  }, [open, closing]);
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -162,13 +141,6 @@ export default function Jarvis({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
-  useEffect(
-    () => () => {
-      window.clearTimeout(timer.current);
-      window.clearTimeout(hintTimer.current);
-    },
-    [],
-  );
   if (!enabled)
     return (
       <aside className="jarvis-dock is-disabled" aria-label="Assistente Jarvis">
@@ -203,8 +175,13 @@ export default function Jarvis({
         <span className="jarvis-signal" aria-hidden="true" />
         {open ? <Minus size={16} /> : <ArrowUpRight size={16} />}
       </button>
-      {hint && !open && (
-        <div className={`jarvis-hint ${hintClosing ? "is-closing" : ""}`}>
+      {hintVisible && (
+        <div
+          ref={hintRef}
+          className="jarvis-hint"
+          inert={!hint || open}
+          aria-hidden={!hint || open || undefined}
+        >
           <p>Quer explorar uma referência diferente?</p>
           <button onClick={show}>Explorar com Jarvis</button>
           <button aria-label="Dispensar sugestão" onClick={dismissHint}>
@@ -212,11 +189,13 @@ export default function Jarvis({
           </button>
         </div>
       )}
-      {open && (
+      {panelVisible && (
         <div
           id="jarvis-panel"
           ref={panelRef}
-          className={`jarvis-panel ${closing ? "is-closing" : ""}`}
+          className="jarvis-panel"
+          aria-hidden={!open || undefined}
+          inert={!open}
           role="region"
           aria-label="Painel Jarvis"
         >

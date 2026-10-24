@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
+import { usePresence } from "./motion";
 type Option = { value: string; label: string; disabled?: boolean };
 function text(node: ReactNode): string {
   return Children.toArray(node)
@@ -29,6 +30,7 @@ export default function Select({
   id,
   name,
   disabled = false,
+  compactLabel,
 }: {
   value: string;
   onValueChange: (value: string) => void;
@@ -38,10 +40,10 @@ export default function Select({
   id?: string;
   name?: string;
   disabled?: boolean;
+  compactLabel?: string;
 }) {
   const uid = useId(),
-    button = useRef<HTMLButtonElement>(null),
-    menu = useRef<HTMLDivElement>(null);
+    button = useRef<HTMLButtonElement>(null);
   const options: Option[] = Children.toArray(children).flatMap((child) =>
     isValidElement<{ value: string; children: ReactNode; disabled?: boolean }>(
       child,
@@ -66,7 +68,13 @@ export default function Select({
     left: 0,
     width: 220,
     maxHeight: 280,
+    flipped: false,
+    origin: 16,
   });
+  const { ref: menu, visible } = usePresence<HTMLDivElement>(
+    open,
+    `translateY(${position.flipped ? -4 : 4}px) scale(.98)`,
+  );
   const typed = useRef(""),
     typeTimer = useRef<number | undefined>(undefined);
   const choose = (index: number) => {
@@ -89,6 +97,13 @@ export default function Select({
         left: Math.max(12, Math.min(r.left, innerWidth - width - 12)),
         width,
         maxHeight,
+        flipped: flip,
+        origin: Math.max(
+          12,
+          r.left -
+            Math.max(12, Math.min(r.left, innerWidth - width - 12)) +
+            r.width / 2,
+        ),
         top: flip
           ? Math.max(
               12,
@@ -199,21 +214,36 @@ export default function Select({
           }
         }}
       >
-        <span>
+        <span
+          className={compactLabel && !value ? "select-full-label" : undefined}
+        >
           {options.find((option) => option.value === value)?.label ??
             options[0]?.label}
         </span>
+        {compactLabel && !value && (
+          <span className="select-short-label" aria-hidden="true">
+            {compactLabel}
+          </span>
+        )}
         <ChevronDown size={15} aria-hidden="true" />
       </button>
-      {open &&
+      {visible &&
         createPortal(
           <div
             ref={menu}
             id={uid}
             role="listbox"
             aria-label={ariaLabel ?? label}
+            aria-hidden={!open || undefined}
+            inert={!open}
             className="select-menu"
-            style={position}
+            style={{
+              top: position.top,
+              left: position.left,
+              width: position.width,
+              maxHeight: position.maxHeight,
+              transformOrigin: `${position.origin}px ${position.flipped ? "bottom" : "top"}`,
+            }}
           >
             {options.map((option, index) => (
               <div

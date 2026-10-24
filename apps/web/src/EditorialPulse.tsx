@@ -82,7 +82,11 @@ export default function EditorialPulse({
     .at(-1);
   const count = status?.newApprovals ?? 0;
   return (
-    <aside className="editorial-pulse" aria-label="Pulso editorial">
+    <aside
+      className={`editorial-pulse ${count ? "has-news" : ""}`}
+      aria-label="Pulso editorial"
+      aria-busy={(!status && !error) || busy || undefined}
+    >
       <div className="pulse-label">
         <span
           className={`activity-dot ${count ? "has-news" : ""}`}

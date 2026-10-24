@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
-import { flushSync } from "react-dom";
 import Select from "./Select";
+import { transitionLayout, stopMotion } from "./motion";
+export { fullMotion, transitionLayout, transitionCards } from "./motion";
 
 export type MotionPreference = "full" | "reduced" | "off";
 const memory = new Map<string, string>();
@@ -33,56 +34,13 @@ export function applyAppearance() {
           matchMedia("(prefers-reduced-motion: reduce)").matches
         ? "reduced"
         : "full";
+  if (root.dataset.motion !== "full") stopMotion();
   document
     .querySelector('meta[name="theme-color"]')
     ?.setAttribute(
       "content",
       root.dataset.theme === "light" ? "#f8f9fa" : "#121212",
     );
-}
-export function fullMotion() {
-  return (
-    document.documentElement.dataset.motion === "full" &&
-    !matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-export function transitionLayout(update: () => void) {
-  if (fullMotion() && document.startViewTransition) {
-    void document
-      .startViewTransition(() => flushSync(update))
-      .finished.catch(() => {});
-  } else update();
-}
-export function transitionCards(update: () => void) {
-  if (!fullMotion()) {
-    update();
-    return;
-  }
-  const cards = [...document.querySelectorAll<HTMLElement>(".content-card")];
-  const before = new Map(
-    cards.map((card) => [card.id, card.getBoundingClientRect()]),
-  );
-  flushSync(update);
-  const viewport = document.getElementById("main")?.getBoundingClientRect();
-  for (const card of cards) {
-    const first = before.get(card.id)!,
-      last = card.getBoundingClientRect();
-    if (
-      viewport &&
-      ((first.bottom > viewport.top && first.top < viewport.bottom) ||
-        (last.bottom > viewport.top && last.top < viewport.bottom))
-    )
-      card.animate(
-        [
-          {
-            transform: `translate(${first.x - last.x}px,${first.y - last.y}px)`,
-            opacity: 0.65,
-          },
-          { transform: "translate(0,0)", opacity: 1 },
-        ],
-        { duration: 280, easing: "cubic-bezier(.22,1,.36,1)" },
-      );
-  }
 }
 export default function AppearanceControls() {
   const [theme, setTheme] = useState(
@@ -92,7 +50,26 @@ export default function AppearanceControls() {
   useEffect(() => {
     const media = matchMedia("(prefers-reduced-motion: reduce)");
     media.addEventListener("change", applyAppearance);
-    return () => media.removeEventListener("change", applyAppearance);
+    const keyboard = () => {
+      document.documentElement.dataset.input = "keyboard";
+      stopMotion();
+    };
+    const pointer = () => {
+      if (document.documentElement.dataset.input !== "pointer")
+        document.documentElement.dataset.input = "pointer";
+    };
+    document.addEventListener("keydown", keyboard, true);
+    document.addEventListener("pointerdown", pointer, true);
+    document.addEventListener("pointermove", pointer, {
+      capture: true,
+      passive: true,
+    });
+    return () => {
+      media.removeEventListener("change", applyAppearance);
+      document.removeEventListener("keydown", keyboard, true);
+      document.removeEventListener("pointerdown", pointer, true);
+      document.removeEventListener("pointermove", pointer, true);
+    };
   }, []);
   return (
     <div className="appearance-controls" aria-label="Aparência e movimento">
