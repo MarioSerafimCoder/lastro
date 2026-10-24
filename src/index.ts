@@ -50,6 +50,7 @@ import {
   evidenceSchema,
   synopsisReviewSchema,
   validateSynopsis,
+  setSynopsisEvidence,
 } from "./synopses";
 import { validateFetchUrl } from "./connectors";
 import {
@@ -692,43 +693,7 @@ app.put("/api/admin/synopses/:id/evidence", async (c) => {
   const contentId = uuid(c.req.param("id"));
   await content(c.env.DB, contentId);
   const input = await json(c, evidenceSchema);
-  await enqueueSynopses(c.env.DB);
-  const previous = await first<any>(
-    c.env.DB,
-    "SELECT evidence_json,status FROM content_synopses WHERE content_id=?",
-    contentId,
-  );
-  if (previous?.evidence_json) {
-    const old = JSON.parse(previous.evidence_json);
-    if (
-      old.text === input.text &&
-      old.url === input.url &&
-      old.rightsNote === input.rightsNote &&
-      old.kind === input.kind
-    )
-      return c.json({ status: previous.status, unchanged: true });
-  }
-  const changed = await stmt(
-    c.env.DB,
-    "UPDATE content_synopses SET evidence_json=?,status='pending',text=NULL,attempts=0,validated_at=NULL,validation_json=NULL,validation_mode=NULL,validation_note='Evidência editorial atualizada',updated_at=? WHERE content_id=? AND status<>'processing'",
-    JSON.stringify(input),
-    now(),
-    contentId,
-  ).run();
-  if (!changed.meta.changes)
-    throw new ApiFault(409, "synopsis_busy", "Aguarde o processamento atual.");
-  await stmt(
-    c.env.DB,
-    "INSERT INTO synopsis_decisions VALUES (?,?,?,?,?,?,?)",
-    id(),
-    contentId,
-    "evidence",
-    input.rightsNote,
-    null,
-    null,
-    now(),
-  ).run();
-  return c.json({ status: "pending" });
+  return c.json(await setSynopsisEvidence(c.env.DB, contentId, input));
 });
 app.post("/api/admin/synopses/:id/validate", async (c) =>
   c.json(
@@ -755,7 +720,7 @@ app.post("/api/admin/synopses/:id/reject", async (c) => {
   await c.env.DB.batch([
     stmt(
       c.env.DB,
-      "UPDATE content_synopses SET status='blocked',validated_at=NULL,validation_json=NULL,validation_mode=NULL,validation_note=?,updated_at=? WHERE content_id=?",
+      "UPDATE content_synopses SET status='blocked',block_code='editorial',lease_token=NULL,lease_until=NULL,validated_at=NULL,validation_json=NULL,validation_mode=NULL,validation_note=?,updated_at=? WHERE content_id=?",
       input.reason,
       now(),
       contentId,

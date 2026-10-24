@@ -1,3 +1,4 @@
+import { migrationStatements } from "./migration-statements";
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
@@ -46,10 +47,7 @@ before(async () => {
       new URL(`../migrations/${file}`, import.meta.url),
       "utf8",
     );
-    for (const command of sql
-      .split(";")
-      .map((s) => s.trim())
-      .filter(Boolean))
+    for (const command of migrationStatements(sql))
       await env.DB.prepare(command).run();
   }
 });

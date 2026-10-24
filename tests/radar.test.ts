@@ -1,3 +1,4 @@
+import { migrationStatements } from "./migration-statements";
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
@@ -38,10 +39,9 @@ before(async () => {
   for (const f of (await readdir("migrations"))
     .filter((f) => f.endsWith(".sql"))
     .sort())
-    for (const sql of (await readFile(`migrations/${f}`, "utf8"))
-      .split(";")
-      .map((s) => s.trim())
-      .filter(Boolean))
+    for (const sql of migrationStatements(
+      await readFile(`migrations/${f}`, "utf8"),
+    ))
       await env.DB.prepare(sql).run();
 });
 after(async () => {
@@ -84,10 +84,9 @@ test("migração aditiva preserva acervo, favoritos e decisões existentes", asy
   try {
     const db = (await isolated.getD1Database("DB")) as unknown as D1Database;
     const apply = async (f: string) => {
-      for (const sql of (await readFile(`migrations/${f}`, "utf8"))
-        .split(";")
-        .map((s) => s.trim())
-        .filter(Boolean))
+      for (const sql of migrationStatements(
+        await readFile(`migrations/${f}`, "utf8"),
+      ))
         await db.prepare(sql).run();
     };
     for (const f of (await readdir("migrations"))

@@ -6,6 +6,12 @@ import {
 } from "../packages/contracts/index";
 import type { Env } from "./env";
 import { inferTitleLanguage, plainText } from "./normalize";
+import {
+  captureEvidence,
+  processingAllowed,
+  itemRightsAllowed,
+  type EvidenceCapture,
+} from "./synopsis-evidence";
 export type Fetcher = (
   input: string | URL | Request,
   init?: RequestInit,
@@ -20,6 +26,25 @@ export class UpstreamError extends Error {
 }
 const list = (v: any): any[] => (v == null ? [] : Array.isArray(v) ? v : [v]);
 const val = (v: any, n = 1200) => plainText(v, n);
+const boundedBodyExcerpt = (value: unknown) => {
+  const body = plainText(value, 1201);
+  if (!body) return null;
+  // Always leave part of the body behind, including for short RSS/Atom posts.
+  return (
+    body
+      .slice(0, Math.min(1200, body.length - 1))
+      .match(/^[\s\S]*[.!?](?=\s|$)/u)?.[0] ?? null
+  );
+};
+const licensedFeedExcerpt = (entry: any) => {
+  const raw = entry["content:encoded"] ?? entry.content;
+  const body = plainText(raw, 1201),
+    summary = val(entry.description ?? entry.summary);
+  return (
+    boundedBodyExcerpt(raw) ??
+    (summary && (!body || !summary.includes(body)) ? summary : null)
+  );
+};
 const imageFromFeed = (entry: any): string | null => {
   const media = [
     ...list(entry["media:content"]),
@@ -46,6 +71,7 @@ export function parseRss(
   xml: string,
   s: Source,
   forSynopsis = false,
+  onCapture?: (capture: EvidenceCapture) => void,
 ): Candidate[] {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml) !== true)
     throw new Error("invalid_feed_xml");
@@ -92,18 +118,25 @@ export function parseRss(
       // Full feed text is evidence only with an audited adaptation licence.
       // Normal ingestion still honours summaryAllowed and never stores the body.
       const licensedEvidence =
-        forSynopsis &&
-        s.synopsisAllowed &&
-        !!s.synopsisRightsNote &&
+        (forSynopsis || !!onCapture) &&
+        processingAllowed(s) &&
         !!s.synopsisLicenseUrl;
-      const entryRights = val(e.rights ?? e["dc:rights"] ?? e.copyright, 1000);
-      const conflictingRights =
-        entryRights && !entryRights.includes(s.synopsisLicenseUrl ?? "\0");
+      const entryRights = val(
+        e.rights ??
+          e["dc:rights"] ??
+          e.copyright ??
+          feed.rights ??
+          feed["dc:rights"] ??
+          feed.copyright,
+        1000,
+      );
+      const conflictingRights = !itemRightsAllowed(
+        entryRights,
+        s.synopsisLicenseUrl,
+      );
       const excerpt =
-        licensedEvidence && !conflictingRights
-          ? val(e["content:encoded"] ?? e.content ?? e.description ?? e.summary)
-          : null;
-      return candidateSchema.parse({
+        licensedEvidence && !conflictingRights ? licensedFeedExcerpt(e) : null;
+      const candidate = candidateSchema.parse({
         title,
         url,
         authors: names.slice(0, 50).map((name: string) => ({ name })),
@@ -117,10 +150,10 @@ export function parseRss(
         description: forSynopsis
           ? licensedEvidence
             ? (excerpt?.match(/^[\s\S]*[.!?](?=\s|$)/u)?.[0] ?? null)
-            : s.summaryAllowed
+            : processingAllowed(s) && !conflictingRights
               ? val(e.description ?? e.summary)
               : null
-          : s.summaryAllowed
+          : s.summaryAllowed && !conflictingRights
             ? val(e.description ?? e.summary)
             : null,
         imageUrl: s.imageAllowed ? imageFromFeed(e) : null,
@@ -133,6 +166,22 @@ export function parseRss(
         accessNote:
           "Somente metadados do feed; página original não foi consultada. Na ausência de idioma declarado, a inferência conservadora usa apenas o título.",
       });
+      if (onCapture) {
+        const text = licensedEvidence
+          ? (excerpt?.match(/^[\s\S]*[.!?](?=\s|$)/u)?.[0] ?? null)
+          : processingAllowed(s) && !conflictingRights
+            ? val(e.description ?? e.summary)
+            : null;
+        const captured = captureEvidence(
+          s,
+          url,
+          text,
+          entryRights,
+          new Date().toISOString(),
+        );
+        if (captured) onCapture(captured);
+      }
+      return candidate;
     });
 }
 export function parseOpenAlex(data: any, s: Source): Candidate[] {
@@ -258,6 +307,7 @@ export async function collect(
   notModified: boolean;
   etag: string | null;
   lastModified: string | null;
+  captures?: EvidenceCapture[];
 }> {
   const url = validateFetchUrl(s.url, env, s.connector);
   if (s.connector === "openalex") {
@@ -318,14 +368,18 @@ export async function collect(
         throw new Error(`upstream_${response.status}`);
       }
       const text = await readBounded(response);
+      const captures: EvidenceCapture[] = [];
       return {
         items:
           s.connector === "rss"
-            ? parseRss(text, s, forSynopsis)
+            ? parseRss(text, s, forSynopsis, (capture) =>
+                captures.push(capture),
+              )
             : parseOpenAlex(JSON.parse(text), s),
         notModified: false,
         etag: response.headers.get("etag"),
         lastModified: response.headers.get("last-modified"),
+        captures,
       };
     } catch (e) {
       if (

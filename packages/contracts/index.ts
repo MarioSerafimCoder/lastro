@@ -71,6 +71,7 @@ export const sourceDecisionSchema = z
   .strict();
 export type SourceInput = z.infer<typeof sourceInputSchema>;
 export type Source = SourceInput & {
+  synopsisPermissionVersion?: number;
   id: string;
   status: z.infer<typeof sourceStatusSchema>;
   createdAt: string;

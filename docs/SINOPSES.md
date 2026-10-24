@@ -4,6 +4,8 @@ O For You e a busca do acervo exigem sinopse validada. A aprovação editorial d
 
 Ampliação posterior: [relatório de 24/10/2026](SINOPSES-AMPLIACAO-2026-10-24.md), com 16 referências e fontes licenciadas.
 
+Auditoria de autonomia: [correções e validação de 24/10/2026](AUTONOMIA-SINOPSES.md).
+
 ## Geração e confiabilidade
 
 - Migração aditiva `0005_editorial_synopses.sql`: texto, procedência, versão do gerador, estado, tentativas, reserva diária e decisões editoriais no D1. Não remove conteúdos.

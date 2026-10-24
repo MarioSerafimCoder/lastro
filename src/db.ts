@@ -53,6 +53,7 @@ export type SourceRow = {
   last_cycle_key: string | null;
   retry_at: string | null;
   consecutive_failures: number;
+  synopsis_permission_version?: number;
 };
 export function sourceView(r: SourceRow): Source {
   return {
@@ -64,5 +65,6 @@ export function sourceView(r: SourceRow): Source {
     status: r.status,
     createdAt: r.created_at,
     nextFetchAt: r.next_fetch_at,
+    synopsisPermissionVersion: r.synopsis_permission_version ?? 1,
   };
 }

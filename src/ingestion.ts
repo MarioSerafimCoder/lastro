@@ -21,6 +21,7 @@ import {
 import { ApiFault, must } from "./errors";
 import type { Env } from "./env";
 import { canonicalUrl, normalizeCandidate, folded } from "./normalize";
+import { captureStatement } from "./synopsis-evidence";
 import {
   automaticReviewReasons,
   evaluate,
@@ -107,7 +108,7 @@ export async function saveContent(
     stmt(
       db,
       `INSERT INTO content_synopses(content_id,metadata_json,updated_at) VALUES (?,?,?)
-      ON CONFLICT(content_id) DO UPDATE SET metadata_json=excluded.metadata_json,status='pending',text=NULL,evidence_json=NULL,attempts=0,validated_at=NULL,validation_json=NULL,validation_mode=NULL,lease_token=NULL,updated_at=excluded.updated_at,validation_note='Metadados alterados: exige nova revisão'
+      ON CONFLICT(content_id) DO UPDATE SET metadata_json=excluded.metadata_json,status='pending',text=NULL,evidence_json=NULL,evidence_key=NULL,observed_evidence_key=NULL,attempts=0,technical_retries=0,retry_at=NULL,inference_started=0,validated_at=NULL,validation_json=NULL,validation_mode=NULL,lease_token=NULL,block_code='metadata_changed',updated_at=excluded.updated_at,validation_note='Metadados alterados: exige nova revisão'
       WHERE content_synopses.metadata_json<>excluded.metadata_json`,
       contentId,
       JSON.stringify(c),
@@ -413,11 +414,24 @@ export async function ingestSource(
       const collected = await collect(source, env, row, fetcher);
       run.received = collected.items.length;
       await env.DB.batch([
+        ...(collected.captures?.length
+          ? [captureStatement(env.DB, source, collected.captures, at)]
+          : []),
         stmt(
           env.DB,
-          "INSERT OR IGNORE INTO ingestion_queue (source_id,payload_json) SELECT ?,value FROM json_each(?)",
+          "INSERT OR IGNORE INTO ingestion_queue (source_id,payload_json,canonical_url) SELECT ?,json_extract(value,'$.candidate'),json_extract(value,'$.canonicalUrl') FROM json_each(?)",
           sourceId,
-          JSON.stringify(collected.items),
+          JSON.stringify(
+            collected.items.map((candidate) => {
+              let canonical: string | null = null;
+              try {
+                canonical = canonicalUrl(candidate.url);
+              } catch {
+                /* Prefilter records invalid URLs. */
+              }
+              return { candidate, canonicalUrl: canonical };
+            }),
+          ),
         ),
         stmt(
           env.DB,
@@ -433,14 +447,27 @@ export async function ingestSource(
       ]);
       if (collected.notModified) run.status = "not_modified";
     }
-    const queued = await rows<{ id: number; payload_json: string }>(
+    const queued = await rows<{
+      id: number;
+      payload_json: string;
+      existing_pending: number;
+    }>(
       env.DB,
-      "SELECT id,payload_json FROM ingestion_queue WHERE source_id=? ORDER BY id LIMIT ?",
+      `SELECT iq.id,iq.payload_json,EXISTS(SELECT 1 FROM contents c WHERE c.source_id=iq.source_id AND c.editorial_status='pending' AND (
+        iq.canonical_url IS NULL OR c.canonical_url=iq.canonical_url OR EXISTS(SELECT 1 FROM content_identifiers ci JOIN json_each(iq.payload_json,'$.identifiers') j
+        ON ci.scheme=json_extract(j.value,'$.scheme') AND ci.value=CASE WHEN ci.scheme='source_guid' THEN iq.source_id||':'||json_extract(j.value,'$.value') ELSE json_extract(j.value,'$.value') END
+        WHERE ci.content_id=c.id))) existing_pending FROM ingestion_queue iq WHERE iq.source_id=? ORDER BY iq.id LIMIT ?`,
       sourceId,
       env.INGEST_BATCH_SIZE === "1" ? 1 : 2,
     );
     const activePolicy = queued.length ? await policy(env.DB) : null;
-    for (const queuedItem of queued) {
+    // Updating an existing reference requires extra relation writes. Limit that
+    // invocation to one item without an additional D1 round trip.
+    const batch =
+      source.autoApprove && queued.some((item) => item.existing_pending)
+        ? queued.slice(0, 1)
+        : queued;
+    for (const queuedItem of batch) {
       const current = await first<{ status: string }>(
         env.DB,
         "SELECT status FROM sources WHERE id=?",

@@ -1,3 +1,4 @@
+import { migrationStatements } from "./migration-statements";
 import test, { before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
@@ -25,6 +26,8 @@ import {
   neuronUsage,
 } from "../src/synopsis-verification";
 import { scheduledSynopses } from "../src/synopses";
+import { captureEvidence, captureStatement } from "../src/synopsis-evidence";
+import { sourceView, type SourceRow } from "../src/db";
 let mf: Miniflare,
   env: Env,
   calls = 0;
@@ -85,10 +88,9 @@ before(async () => {
   for (const f of (await readdir("migrations"))
     .filter((f) => f.endsWith(".sql"))
     .sort())
-    for (const sql of (await readFile(`migrations/${f}`, "utf8"))
-      .split(";")
-      .map((s) => s.trim())
-      .filter(Boolean))
+    for (const sql of migrationStatements(
+      await readFile(`migrations/${f}`, "utf8"),
+    ))
       await env.DB.prepare(sql).run();
   await policy(env.DB);
   await stmt(
@@ -269,6 +271,14 @@ test("ciclo licenciado preserva atribuição, cache e limite de consultas D1", a
       ...evidence,
       kind: "authorized_feed_description",
       licenseUrl,
+      sourceId: fixtureSource.id,
+      originUrl: fixtureSource.url,
+      permissionVersion: (await first<any>(
+        env.DB,
+        "SELECT synopsis_permission_version v FROM sources WHERE id=?",
+        fixtureSource.id,
+      ))!.v,
+      url: (await content(env.DB, cid)).url,
     }),
     cid,
   ).run();
@@ -312,7 +322,10 @@ beforeEach(async () => {
     JSON.stringify({ ...fixtureSource, autoApprove: false }),
     fixtureSource.id,
   ).run();
-  await stmt(env.DB, "UPDATE content_synopses SET status='blocked'").run();
+  await stmt(
+    env.DB,
+    "UPDATE content_synopses SET status='blocked',block_code='editorial'",
+  ).run();
   await stmt(env.DB, "DELETE FROM synopsis_usage").run();
 });
 test("descrição inglesa autorizada entra no gerador; rascunho factual não ganha aprovação automática", async () => {
@@ -338,6 +351,21 @@ test("descrição inglesa autorizada entra no gerador; rascunho factual não gan
     fixtureSource.id,
   ).run();
   const ai = env.AI;
+  const source = sourceView(
+    (await first<SourceRow>(
+      env.DB,
+      "SELECT * FROM sources WHERE id=?",
+      fixtureSource.id,
+    ))!,
+  );
+  const capture = captureEvidence(
+    source,
+    (await content(env.DB, cid)).url,
+    english,
+    null,
+    now(),
+  )!;
+  await captureStatement(env.DB, source, [capture], now()).run();
   env.AI = {
     run: async (model, input) => {
       calls++;

@@ -32,7 +32,7 @@ test("trecho de feed licenciado é usado só na coleta de evidência, sem altera
   assert.equal(
     parseRss(xml, { ...licensed, synopsisLicenseUrl: undefined }, true)[0]
       .description,
-    null,
+    "Resumo de design para teste.",
   );
 });
 
@@ -64,6 +64,14 @@ test("Atom tipado mantém título, autoria, data, idioma e usa content só quand
   assert.equal(item.language, "en");
   assert.equal(item.authors[0].name, "Test Author");
   assert.equal(item.publishedAt, "2026-10-19T00:00:00.000Z");
-  assert.equal(item.description, text);
+  assert.equal(item.description, text.slice(0, text.indexOf(" O foco")));
   assert.equal(parseRss(typed, licensed)[0].description, null);
+});
+
+test("post curto em uma única frase não é arquivado integralmente como evidência", () => {
+  const oneSentence = text.replaceAll(".", "") + ".";
+  const short = rss
+    .replace("Não armazenar texto integral", `<![CDATA[${oneSentence}]]>`)
+    .replace("<p>Resumo de design para teste.</p>", oneSentence);
+  assert.equal(parseRss(short, licensed, true)[0].description, null);
 });

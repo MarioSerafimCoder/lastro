@@ -1,8 +1,9 @@
 import { z } from "zod";
 import type { Env } from "./env";
 import { id, now, stmt } from "./db";
+import { anchorErrors, automaticFactualErrors } from "./synopsis-facts";
 export const VERIFIER = "@cf/meta/llama-3.1-8b-instruct-fp8-fast";
-export const VERIFICATION_VERSION = "lastro-support-1.0";
+export const VERIFICATION_VERSION = "lastro-support-2.0";
 const VERIFIER_SCHEMA = z.toJSONSchema(
   z
     .object({
@@ -50,6 +51,11 @@ const normalized = (text: string) =>
 export function supportedReport(raw: unknown, text: string, evidence: string) {
   const parsed = reportSchema.safeParse(raw);
   if (!parsed.success) return false;
+  if (
+    automaticFactualErrors(text, evidence).length ||
+    anchorErrors(text, evidence).length
+  )
+    return false;
   const sentences = splitSentences(text),
     r = parsed.data;
   if (
@@ -60,7 +66,8 @@ export function supportedReport(raw: unknown, text: string, evidence: string) {
   return r.sentences.every(
     (s) =>
       s.index < sentences.length &&
-      s.quotes.every((q) => normalized(evidence).includes(normalized(q))),
+      s.quotes.every((q) => normalized(evidence).includes(normalized(q))) &&
+      anchorErrors(sentences[s.index], s.quotes.join(" ")).length === 0,
   );
 }
 // Tokens are returned by the provider. Neurons are calculated from published rates,
