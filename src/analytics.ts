@@ -181,6 +181,7 @@ export async function runAnalyticsReports(
   accessToken: string,
   property = "560757639",
   days: 7 | 30 = 7,
+  newsletter = false,
 ): Promise<AnalyticsData> {
   if (property !== "560757639")
     throw new ApiFault(
@@ -204,6 +205,8 @@ export async function runAnalyticsReports(
     "sessionCampaignName",
   ] as const) {
     const dimensions = dimension === "total" ? [] : [{ name: dimension }];
+    if (newsletter && (dimension === "date" || dimension === "pagePath"))
+      dimensions.push({ name: "sessionCampaignName" });
     const response = await fetch(
       `https://analyticsdata.googleapis.com/v1beta/properties/${property}:runReport`,
       {
@@ -215,10 +218,40 @@ export async function runAnalyticsReports(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          ...(newsletter
+            ? {
+                dimensionFilter: {
+                  andGroup: {
+                    expressions: [
+                      {
+                        filter: {
+                          fieldName: "sessionSource",
+                          stringFilter: {
+                            matchType: "EXACT",
+                            value: "mais_um_cafezinho",
+                          },
+                        },
+                      },
+                      {
+                        filter: {
+                          fieldName: "sessionMedium",
+                          stringFilter: { matchType: "EXACT", value: "email" },
+                        },
+                      },
+                    ],
+                  },
+                },
+              }
+            : {}),
           dateRanges: [{ startDate: `${days}daysAgo`, endDate: "yesterday" }],
           dimensions,
           metrics: metrics.map((name) => ({ name })),
-          limit: dimension === "total" ? 1 : dimension === "date" ? days : 100,
+          limit:
+            dimension === "total"
+              ? 1
+              : dimension === "date" && !newsletter
+                ? days
+                : 100,
           orderBys:
             dimension === "total"
               ? []
@@ -234,7 +267,7 @@ export async function runAnalyticsReports(
       !Array.isArray(report.dimensionHeaders ?? []) ||
       !Array.isArray(report.metricHeaders) ||
       (report.dimensionHeaders ?? []).map((d: any) => d.name).join(",") !==
-        (dimension === "total" ? "" : dimension) ||
+        dimensions.map((d) => d.name).join(",") ||
       report.metricHeaders.map((m: any) => m.name).join(",") !==
         metrics.join(",")
     )
@@ -253,6 +286,11 @@ export async function runAnalyticsReports(
     const rows = raw
       .filter((r: any) => {
         const v = r.dimensionValues?.[0]?.value ?? "";
+        if (
+          dimensions.length > 1 &&
+          !/^[a-z0-9-]{1,100}$/.test(r.dimensionValues?.[1]?.value ?? "")
+        )
+          return false;
         return dimension === "total" || dimension === "date"
           ? dimension === "total" || /^\d{8}$/.test(v)
           : dimension === "pagePath"
@@ -267,6 +305,9 @@ export async function runAnalyticsReports(
         ...(dimension === "total"
           ? {}
           : { [dimension]: r.dimensionValues[0].value }),
+        ...(dimensions.length > 1
+          ? { sessionCampaignName: r.dimensionValues[1].value }
+          : {}),
         ...Object.fromEntries(
           metrics.map((m, i) => [m, Number(r.metricValues?.[i]?.value ?? 0)]),
         ),
@@ -289,7 +330,11 @@ export async function runAnalyticsReports(
       rowCount: report.rowCount ?? 0,
       limited:
         (report.rowCount ?? 0) >
-        (dimension === "total" ? 1 : dimension === "date" ? days : 100),
+        (dimension === "total"
+          ? 1
+          : dimension === "date" && !newsletter
+            ? days
+            : 100),
       privacyFiltered: rows.length !== raw.length,
     });
   }
@@ -304,11 +349,12 @@ export async function analyticsOverview(
   env: Env,
   days: 7 | 30 = 7,
   refresh = false,
+  newsletter = false,
 ): Promise<AnalyticsOverview> {
   config(env);
   if (days !== 7 && days !== 30)
     throw new ApiFault(400, "analytics_range_invalid", "Périodo inválido.");
-  const cacheId = `analytics-v2-${days}`;
+  const cacheId = `${newsletter ? "newsletter-v1" : "analytics-v2"}-${days}`;
   await stmt(
     env.DB,
     "INSERT OR IGNORE INTO analytics_cache(id) VALUES (?)",
@@ -394,6 +440,7 @@ export async function analyticsOverview(
       token.access_token,
       env.GA4_PROPERTY_ID,
       days,
+      newsletter,
     );
     await stmt(
       env.DB,

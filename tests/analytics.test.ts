@@ -362,3 +362,52 @@ test("public privacy/info do not expose private reports or credentials", async (
     assert.ok(!body.includes("secret-never-return"));
   }
 });
+
+test("newsletter uses separate cached source-filtered reports with campaign/date/page pairs", async () => {
+  let calls = 0;
+  globalThis.fetch = async (url, init) => {
+    calls++;
+    if (String(url).includes("oauth2"))
+      return Response.json({ access_token: "synthetic" });
+    const b = JSON.parse(String(init?.body));
+    assert.equal(
+      b.dimensionFilter.andGroup.expressions[0].filter.fieldName,
+      "sessionSource",
+    );
+    const dimension = b.dimensions[0]?.name || "total";
+    const r = (await response(dimension).json()) as any;
+    r.dimensionHeaders = b.dimensions;
+    if (dimension !== "total")
+      r.rows[0].dimensionValues[0].value =
+        dimension === "date"
+          ? "20261101"
+          : dimension === "pagePath"
+            ? "/blog/artigo"
+            : dimension === "sessionCampaignName"
+              ? "edicao-um"
+              : "mais_um_cafezinho / email";
+    if (b.dimensions.length > 1)
+      r.rows[0].dimensionValues.push({ value: "edicao-um" });
+    return Response.json(r);
+  };
+  const snapshot = await analyticsOverview(env, 7, false, true);
+  assert.equal(snapshot.status, "available");
+  assert.equal(
+    snapshot.data?.reports.find((r) => r.dimension === "date")?.rows[0]
+      .sessionCampaignName,
+    "edicao-um",
+  );
+  assert.equal(
+    snapshot.data?.reports.find((r) => r.dimension === "pagePath")?.rows[0]
+      .sessionCampaignName,
+    "edicao-um",
+  );
+  await analyticsOverview(env, 7, false, true);
+  assert.equal(calls, 6);
+  assert.equal(
+    await env.DB.prepare(
+      "SELECT id FROM analytics_cache WHERE id='analytics-v2-7'",
+    ).first(),
+    null,
+  );
+});

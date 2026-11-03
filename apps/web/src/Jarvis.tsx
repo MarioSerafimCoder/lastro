@@ -1,3 +1,4 @@
+import { commercialApi } from "./Opportunities";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Minus, X } from "lucide-react";
 import { contextualSuggestion, type JarvisContext } from "./experience";
@@ -98,7 +99,23 @@ export default function Jarvis({
     hint && !open,
     "translateY(6px) scale(.98)",
   );
-  const suggestion = contextualSuggestion(context);
+  const [commercial, setCommercial] =
+    useState<JarvisContext["commercial"]>(null);
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    commercialApi("commercial/recommendations")
+      .then((d) => {
+        if (live) setCommercial(d);
+      })
+      .catch(() => {
+        if (live) setCommercial(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [open, context.area]);
+  const suggestion = contextualSuggestion({ ...context, commercial });
   const dismissHint = () => {
     setHint(false);
   };

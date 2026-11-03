@@ -1,3 +1,5 @@
+import Opportunities from "./Opportunities";
+import Newsletters from "./Newsletters";
 import Analytics from "./Analytics";
 import Ecosystem, { useEcosystem, StudioDraftAction } from "./Ecosystem";
 import Select from "./Select";
@@ -56,7 +58,14 @@ import type {
 
 const api = createLastroClient();
 type Area =
-  "for-you" | "salvos" | "oficina" | "publicacoes" | "curadoria" | "analytics";
+  | "for-you"
+  | "salvos"
+  | "oficina"
+  | "publicacoes"
+  | "curadoria"
+  | "analytics"
+  | "oportunidades"
+  | "newsletters";
 const areas: { id: Area; label: string; index: string }[] = [
   { id: "for-you", label: "For You", index: "01" },
   { id: "salvos", label: "Salvos", index: "02" },
@@ -64,6 +73,8 @@ const areas: { id: Area; label: string; index: string }[] = [
   { id: "publicacoes", label: "Publicações", index: "04" },
   { id: "curadoria", label: "Curadoria", index: "05" },
   { id: "analytics", label: "Analytics", index: "06" },
+  { id: "oportunidades", label: "Oportunidades", index: "07" },
+  { id: "newsletters", label: "Newsletters", index: "08" },
 ];
 const navArea = (): Area => {
   const path = location.pathname.slice(1);
@@ -698,7 +709,9 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     notify(`Descoberta entre as referências carregadas: ${item.title}`);
   };
   const jarvisAction = (action: string) => {
-    if (action === "publications") navigate("publicacoes");
+    if (action === "opportunities") navigate("oportunidades");
+    else if (action === "newsletters") navigate("newsletters");
+    else if (action === "publications") navigate("publicacoes");
     else if (action === "studio") {
       navigate("oficina");
       setTimeout(
@@ -851,7 +864,11 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                       ? "Curadoria editorial"
                       : area === "analytics"
                         ? "Analytics do portfólio"
-                        : "Publicações"}
+                        : area === "oportunidades"
+                          ? "Oportunidades"
+                          : area === "newsletters"
+                            ? "Newsletters"
+                            : "Publicações"}
             </h1>
             <p>
               {area === "for-you"
@@ -864,7 +881,11 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                       ? "A origem importa. O critério também."
                       : area === "analytics"
                         ? "Dados reais para acompanhar a leitura do seu trabalho."
-                        : "O próximo destino das suas ideias."}
+                        : area === "oportunidades"
+                          ? "Acompanhe conversas e próximos passos de cada projeto."
+                          : area === "newsletters"
+                            ? "Acompanhe os leitores que chegam pelas suas edições."
+                            : "O próximo destino das suas ideias."}
             </p>
           </div>
           <AppearanceControls />
@@ -1511,6 +1532,8 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
         )}
         {area === "publicacoes" && <Ecosystem ecosystem={ecosystem} />}
         {area === "analytics" && <Analytics />}
+        {area === "oportunidades" && <Opportunities />}
+        {area === "newsletters" && <Newsletters />}
       </main>
       <Jarvis
         context={{

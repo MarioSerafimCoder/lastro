@@ -1,3 +1,9 @@
+import { newsletterSummary, commercialRecommendations } from "./newsletters";
+import {
+  receiveOpportunity,
+  listOpportunities,
+  opportunityUpdate,
+} from "./opportunities";
 import {
   requestStudio,
   reconcile,
@@ -152,6 +158,11 @@ app.post("/api/auth/logout", (c) => {
 app.get(ANALYTICS_CALLBACK, async (c) =>
   finishAnalyticsOAuth(c.env, c.req.raw),
 );
+app.post(
+  "/integration/v1/opportunities",
+  bodyLimit({ maxSize: 8192 }),
+  async (c) => c.json(await receiveOpportunity(c.req.raw, c.env)),
+);
 app.get("/api/analytics/info", () => analyticsInfo());
 app.get("/api/analytics/privacy", () => analyticsPrivacy());
 app.use("/api/*", async (c, next) => {
@@ -191,6 +202,42 @@ app.use("/api/*", async (c, next) => {
     );
   }
   await next();
+});
+app.get("/api/commercial/recommendations", async (c) =>
+  c.json(await commercialRecommendations(c.env)),
+);
+app.get("/api/newsletters", async (c) => {
+  const days = c.req.query("days") === "30" ? 30 : 7;
+  const analytics = await analyticsOverview(c.env, days, false, true);
+  const crm = await newsletterSummary(c.env);
+  return c.json({ analytics, crm });
+});
+app.use("/api/opportunities/*", bodyLimit({ maxSize: 16384 }));
+app.get("/api/opportunities", async (c) =>
+  c.json({ items: await listOpportunities(c.env) }),
+);
+app.patch("/api/opportunities/:id", async (c) => {
+  const input = await json(c, opportunityUpdate);
+  const result = await stmt(
+    c.env.DB,
+    "UPDATE opportunities SET status=?, notes=?, next_contact=?, updated_at=? WHERE id=?",
+    input.status,
+    input.notes,
+    input.next_contact,
+    now(),
+    c.req.param("id"),
+  ).run();
+  if (!result.meta.changes)
+    throw new ApiFault(404, "not_found", "Oportunidade não encontrada.");
+  return c.json({ updated: true });
+});
+app.delete("/api/opportunities/:id", async (c) => {
+  await stmt(
+    c.env.DB,
+    "DELETE FROM opportunities WHERE id=?",
+    c.req.param("id"),
+  ).run();
+  return c.json({ deleted: true });
 });
 app.get("/api/analytics/overview", async (c) =>
   c.json(

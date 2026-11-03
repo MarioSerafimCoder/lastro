@@ -1,5 +1,7 @@
 export type Env = {
   DB: D1Database;
+  PORTFOLIO_INTEGRATION_SECRET?: string;
+  OPPORTUNITIES_RETENTION_DAYS?: string;
   ANALYTICS_ENABLED?: string;
   GA4_PROPERTY_ID?: string;
   GOOGLE_OAUTH_CLIENT_ID?: string;

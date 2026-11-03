@@ -3270,3 +3270,39 @@ section[aria-labelledby="feed-title"] > .filters {
     min-width: 0;
   }
 }
+
+.commercial-stats,
+.commercial-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+.commercial-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 20px 0;
+}
+.commercial-detail {
+  margin-top: 24px;
+  max-width: 760px;
+}
+.commercial-detail label,
+.commercial-controls label {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+.commercial-detail textarea {
+  width: 100%;
+  min-height: 120px;
+}
+.commercial-detail p {
+  overflow-wrap: anywhere;
+}
+.commercial-detail input,
+.commercial-detail select,
+.commercial-detail textarea {
+  max-width: 100%;
+}

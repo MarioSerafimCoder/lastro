@@ -1405,3 +1405,98 @@ test("Ecossistema: rascunho assíncrono preserva prompt e reutiliza vínculo", a
     page.getByRole("link", { name: "Abrir no Studio" }),
   ).toHaveAttribute("href", "https://studio.marioserafim.com.br/editor/draft");
 });
+
+for (const width of [1280, 390])
+  test(`commercial panels remain private, editable and responsive at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockApi(page, 0);
+    let item = {
+      id: "12345678-1234-4234-8234-123456789012",
+      name: "Contato sintético",
+      email: "synthetic@example.invalid",
+      whatsapp: "5511999999999",
+      project_type: "Branding",
+      area: "Design",
+      budget: "A combinar",
+      description: "Solicitação sintética para homologação privada.",
+      received_at: "2026-11-01T12:00:00Z",
+      status: "novo",
+      notes: "",
+      next_contact: null as string | null,
+    };
+    await page.route("**/api/opportunities**", async (route) => {
+      const req = route.request();
+      if (req.method() === "PATCH") {
+        item = { ...item, ...req.postDataJSON() };
+        await route.fulfill({ json: { updated: true } });
+      } else if (req.method() === "DELETE") {
+        await route.fulfill({ json: { deleted: true } });
+      } else await route.fulfill({ json: { items: [item] } });
+    });
+    await page.route("**/api/newsletters?*", (route) =>
+      route.fulfill({
+        json: {
+          analytics: {
+            status: "available",
+            freshness: { fetchedAt: "2026-11-03T12:00:00Z", stale: false },
+            error: null,
+            data: {
+              reports: [
+                {
+                  dimension: "sessionCampaignName",
+                  rows: [
+                    {
+                      sessionCampaignName: "edicao-sintetica",
+                      sessions: 2,
+                      screenPageViews: 3,
+                      engagementRate: 0.5,
+                    },
+                  ],
+                },
+                { dimension: "pagePath", rows: [] },
+                { dimension: "date", rows: [] },
+              ],
+            },
+          },
+          crm: null,
+        },
+      }),
+    );
+    await page.goto("/oportunidades");
+    await expect(
+      page.getByRole("heading", { name: "Oportunidades", exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Abrir detalhes" }).click();
+    await page
+      .getByLabel("Observações privadas")
+      .fill("Acompanhar proposta sintética");
+    await page
+      .getByLabel("Status da oportunidade", { exact: true })
+      .last()
+      .selectOption("em_conversa");
+    await page.getByRole("button", { name: "Salvar", exact: true }).click();
+    await expect(page.getByText("Branding · Em conversa")).toBeVisible();
+    expect(item.notes).toBe("Acompanhar proposta sintética");
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await page.goto("/newsletters");
+    await expect(
+      page.getByRole("heading", { name: "Comparar campanhas" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("rowheader", { name: "edicao-sintetica" }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Informações do CRM indisponíveis."),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  });

@@ -1,7 +1,14 @@
 import type { Content } from "../../../packages/contracts";
 
 export type Area =
-  "for-you" | "salvos" | "oficina" | "publicacoes" | "curadoria" | "analytics";
+  | "for-you"
+  | "salvos"
+  | "oficina"
+  | "publicacoes"
+  | "curadoria"
+  | "analytics"
+  | "oportunidades"
+  | "newsletters";
 export type Suggestion = {
   title: string;
   body: string;
@@ -9,6 +16,12 @@ export type Suggestion = {
   label: string;
 };
 export type JarvisContext = {
+  commercial?: {
+    newCount: number;
+    overdue: number;
+    newsletterVisits: boolean;
+    campaignAvailable: boolean;
+  } | null;
   area: Area;
   selected: number;
   available: number;
@@ -21,6 +34,35 @@ export type JarvisContext = {
 };
 // Future intelligence providers can return this same Suggestion type.
 export function contextualSuggestion(c: JarvisContext): Suggestion {
+  const commercial = c.commercial;
+  if (commercial?.overdue)
+    return {
+      title: "Um acompanhamento está atrasado.",
+      body: `${commercial.overdue} oportunidades ativas têm próximo contato vencido.`,
+      action: "opportunities",
+      label: "Revisar acompanhamentos",
+    };
+  if (commercial?.newCount)
+    return {
+      title: "Novo pedido de orçamento recebido.",
+      body: `${commercial.newCount} contatos estão no status Novo, aguardando sua resposta.`,
+      action: "opportunities",
+      label: "Ver oportunidades",
+    };
+  if (commercial?.newsletterVisits)
+    return {
+      title: "Sua newsletter levou leitores ao site.",
+      body: "O snapshot GA4 recente registra visualizações atribuídas a newsletters.",
+      action: "newsletters",
+      label: "Ver artigos e campanhas",
+    };
+  if (commercial?.campaignAvailable)
+    return {
+      title: "Há campanhas disponíveis para consulta.",
+      body: "O último snapshot do CRM contém envios confirmados.",
+      action: "newsletters",
+      label: "Consultar newsletters",
+    };
   const e = c.ecosystem;
   if (e?.recommendations.integrationAttention.length)
     return {

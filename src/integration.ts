@@ -41,7 +41,7 @@ export function event(
     now(),
   );
 }
-async function remote(
+export async function remote(
   env: Env,
   target: "studio" | "crm",
   path: string,
