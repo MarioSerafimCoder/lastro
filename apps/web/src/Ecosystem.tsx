@@ -46,9 +46,17 @@ export function AdminLink({
     const u = new URL(href);
     valid =
       u.protocol === "https:" &&
-      ["studio.marioserafim.com.br", "crm.marioserafim.com.br"].includes(
-        u.hostname,
-      ) &&
+      [
+        "studio.marioserafim.com.br",
+        "crm.marioserafim.com.br",
+        ...(window.location.hostname ===
+        "lastro-ecosystem-staging.marioserafim-da.workers.dev"
+          ? [
+              "studio-ecosystem-staging.marioserafim-da.workers.dev",
+              "crm-ecosystem-staging.pages.dev",
+            ]
+          : []),
+      ].includes(u.hostname) &&
       !u.username &&
       !u.password;
   } catch {

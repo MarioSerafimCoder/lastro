@@ -590,3 +590,30 @@ test("invalid and expired service signatures are rejected without outgoing calls
     );
   }
 });
+
+test("staging destinations require explicit staging flag and exact Lastro origin", async () => {
+  const staged = {
+    ...env,
+    ENVIRONMENT: "production",
+    ALLOWED_ORIGIN:
+      "https://lastro-ecosystem-staging.marioserafim-da.workers.dev",
+    STUDIO_ORIGIN:
+      "https://studio-ecosystem-staging.marioserafim-da.workers.dev",
+    CRM_ORIGIN: "https://crm-ecosystem-staging.pages.dev",
+  };
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    return Response.json({
+      ...studioResult,
+      adminUrl: staged.STUDIO_ORIGIN + "/editor/test",
+    });
+  }) as typeof fetch;
+  const t = (await requestStudio(staged, packageId, input)) as any;
+  await processTask(staged, t.id);
+  assert.equal(calls, 0);
+  await retryTask(staged, t.id);
+  await processTask({ ...staged, ECOSYSTEM_STAGING: "true" }, t.id);
+  assert.equal(calls, 1);
+  assert.equal((await task()).state, "completed");
+});

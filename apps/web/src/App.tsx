@@ -710,7 +710,12 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
       const draft = ecosystem.data?.studioDrafts.find((d) => d.id === id);
       if (
         draft &&
-        /^https:\/\/studio\.marioserafim\.com\.br\//.test(draft.admin_url)
+        (/^https:\/\/studio\.marioserafim\.com\.br\//.test(draft.admin_url) ||
+          (location.hostname ===
+            "lastro-ecosystem-staging.marioserafim-da.workers.dev" &&
+            draft.admin_url.startsWith(
+              "https://studio-ecosystem-staging.marioserafim-da.workers.dev/editor/",
+            )))
       )
         window.open(draft.admin_url, "_blank", "noopener,noreferrer");
     } else if (action === "surprise") surprise();
