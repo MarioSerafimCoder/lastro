@@ -62,7 +62,19 @@ async function remote(
     target === "studio"
       ? "https://studio.marioserafim.com.br"
       : "https://crm.marioserafim.com.br";
-  if (origin !== allowed && env.ENVIRONMENT !== "development")
+  if (
+    origin !== allowed &&
+    env.ENVIRONMENT !== "development" &&
+    !(
+      env.ECOSYSTEM_STAGING === "true" &&
+      env.ALLOWED_ORIGIN ===
+        "https://lastro-ecosystem-staging.marioserafim-da.workers.dev" &&
+      origin ===
+        (target === "studio"
+          ? "https://studio-ecosystem-staging.marioserafim-da.workers.dev"
+          : "https://crm-ecosystem-staging.pages.dev")
+    )
+  )
     throw new ApiFault(
       503,
       "integration_not_configured",

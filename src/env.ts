@@ -1,6 +1,7 @@
 export type Env = {
   DB: D1Database;
   INTEGRATION_ENABLED?: string;
+  ECOSYSTEM_STAGING?: string;
   STUDIO?: Fetcher;
   STUDIO_ORIGIN?: string;
   CRM_ORIGIN?: string;
