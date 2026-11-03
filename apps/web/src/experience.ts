@@ -14,9 +14,50 @@ export type JarvisContext = {
   available: number;
   saved: number;
   pending: number | null;
+  ecosystem?:
+    | import("../../../packages/contracts/integration").IntegrationOverview
+    | null;
+  packageReady?: boolean;
 };
 // Future intelligence providers can return this same Suggestion type.
 export function contextualSuggestion(c: JarvisContext): Suggestion {
+  const e = c.ecosystem;
+  if (e?.recommendations.integrationAttention.length)
+    return {
+      title: "Uma integração precisa de atenção.",
+      body: "Revise erros e artigos históricos antes de continuar.",
+      action: "publications",
+      label: "Revisar pendências",
+    };
+  if (e?.recommendations.articleWithoutNewsletter.length)
+    return {
+      title: "Um artigo aguarda distribuição.",
+      body: "Revise as publicações sem newsletter vinculada.",
+      action: "publications",
+      label: "Ver publicações",
+    };
+  const draft = e?.recommendations.continueDraft[0];
+  if (draft)
+    return {
+      title: "Continue seu rascunho.",
+      body: "Há um texto vinculado aguardando sua revisão no Studio.",
+      action: "open-studio:" + draft.id,
+      label: "Abrir no Studio",
+    };
+  if (c.packageReady)
+    return {
+      title: "Seu pacote está pronto.",
+      body: "Revise o título e encaminhe o pacote ao Studio.",
+      action: "studio",
+      label: "Revisar pacote na Oficina",
+    };
+  if (e?.recommendations.unusedReferences.length)
+    return {
+      title: "Referências aguardam uma direção.",
+      body: "Continue a seleção de referências na Oficina.",
+      action: "workshop",
+      label: "Abrir Oficina",
+    };
   if (c.area === "curadoria" && c.pending !== null && c.pending > 0)
     return {
       title: "Um olhar faz diferença.",

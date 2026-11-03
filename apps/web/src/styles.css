@@ -2499,12 +2499,7 @@ summary:hover,
   animation: discovery-flash 220ms var(--ease);
 }
 :root[data-motion="full"]
-  :is(
-    .jarvis-suggestion,
-    .work-main,
-    .work-refinements[open],
-    .notice
-  ) {
+  :is(.jarvis-suggestion, .work-main, .work-refinements[open], .notice) {
   animation: panel-enter 280ms var(--ease);
 }
 :root[data-motion="full"] .format-choice.chosen {
@@ -2614,8 +2609,14 @@ summary:hover,
   }
 }
 @keyframes discovery-flash {
-  from {opacity:.65;transform:translateY(3px);}
-  to {opacity:1;transform:translateY(0);}
+  from {
+    opacity: 0.65;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @keyframes panel-enter {
   from {
@@ -3144,4 +3145,65 @@ section[aria-labelledby="feed-title"] > .filters {
 .synopsis-review label {
   display: block;
   margin: 0.75rem 0;
+}
+
+/* Editorial ecosystem uses the existing cards and button palette. */
+.ecosystem-action {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid var(--line, #ccc);
+  border-radius: 12px;
+  display: grid;
+  gap: 0.8rem;
+}
+.ecosystem-action label {
+  display: grid;
+  gap: 0.5rem;
+}
+.ecosystem-action input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem;
+  font: inherit;
+}
+.ecosystem .pub-card {
+  min-width: 0;
+  margin-bottom: 1rem;
+}
+.editorial-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.editorial-list li {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--line, #ccc);
+  overflow-wrap: anywhere;
+}
+.editorial-list p {
+  margin: 0.5rem 0;
+}
+.editorial-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+.editorial-metrics dd {
+  margin: 0;
+  font-size: 1.6rem;
+}
+.ecosystem .section-heading {
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+@media (max-width: 700px) {
+  .ecosystem .pub-grid {
+    grid-template-columns: 1fr;
+  }
+  .ecosystem .pub-card {
+    padding: 1.25rem;
+  }
+  .ecosystem-action button {
+    white-space: normal;
+  }
 }

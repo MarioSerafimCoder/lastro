@@ -98,6 +98,25 @@ export function createLastroClient(
     return new URLSearchParams(values).toString();
   };
   return {
+    integrationOverview: () =>
+      request<import("./integration").IntegrationOverview>(
+        "/integrations/overview",
+      ),
+    integrationWeekly: () =>
+      request<import("./integration").IntegrationWeekly>(
+        "/integrations/weekly",
+      ),
+    studioDraft: (
+      id: string,
+      input: import("./integration").IntegrationRequest,
+    ) =>
+      request<import("./integration").IntegrationTicket>(
+        `/research-packages/${id}/studio-draft`,
+        "POST",
+        input,
+      ),
+    retryIntegration: (id: string) =>
+      request(`/integrations/tasks/${id}/retry`, "POST"),
     radarStatus: (since?: string) =>
       request<import("./index").RadarStatus>(
         `/radar/status?${query({ since })}`,

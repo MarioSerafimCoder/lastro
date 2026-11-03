@@ -42,3 +42,48 @@ test("Jarvis usa contagem verificada e apresentação não inventa tradução", 
     "unavailable",
   );
 });
+
+test("Jarvis prioritizes editorial attention, distribution, drafts and ready packages", () => {
+  const c = {
+    area: "for-you" as const,
+    selected: 0,
+    saved: 0,
+    available: 0,
+    pending: null,
+    packageReady: true,
+  };
+  const recommendations = {
+    integrationAttention: [{ id: "t" }],
+    articleWithoutNewsletter: [{ slug: "article" }],
+    continueDraft: [
+      {
+        id: "draft",
+        admin_url: "https://studio.marioserafim.com.br/editor/draft",
+      },
+    ],
+    unusedReferences: [{ content_id: "r" }],
+  };
+  const ecosystem = {
+    recommendations,
+  } as unknown as import("../packages/contracts/integration").IntegrationOverview;
+  assert.equal(
+    contextualSuggestion({ ...c, ecosystem }).action,
+    "publications",
+  );
+  recommendations.integrationAttention = [];
+  assert.equal(
+    contextualSuggestion({ ...c, ecosystem }).label,
+    "Ver publicações",
+  );
+  recommendations.articleWithoutNewsletter = [];
+  assert.equal(
+    contextualSuggestion({ ...c, ecosystem }).action,
+    "open-studio:draft",
+  );
+  recommendations.continueDraft = [];
+  assert.equal(contextualSuggestion({ ...c, ecosystem }).action, "studio");
+  assert.equal(
+    contextualSuggestion({ ...c, packageReady: false, ecosystem }).action,
+    "workshop",
+  );
+});
