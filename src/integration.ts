@@ -71,8 +71,17 @@ async function remote(
   const request = await sign(
     new Request(origin + path, {
       method: input === undefined ? "GET" : "POST",
-      headers:
-        input === undefined ? {} : { "Content-Type": "application/json" },
+      headers: {
+        ...(input === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(target === "crm" &&
+        env.CRM_ACCESS_CLIENT_ID &&
+        env.CRM_ACCESS_CLIENT_SECRET
+          ? {
+              "CF-Access-Client-Id": env.CRM_ACCESS_CLIENT_ID,
+              "CF-Access-Client-Secret": env.CRM_ACCESS_CLIENT_SECRET,
+            }
+          : {}),
+      },
       body: input === undefined ? undefined : JSON.stringify(input),
       redirect: "manual",
       signal: AbortSignal.timeout(15000),

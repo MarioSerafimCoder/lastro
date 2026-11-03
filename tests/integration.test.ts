@@ -13,7 +13,12 @@ import {
   integrationOverview,
   weeklySummary,
 } from "../src/integration";
-import { VERSION, verify, sign } from "../packages/contracts/ecosystem";
+import {
+  VERSION,
+  verify,
+  sign,
+  signature,
+} from "../packages/contracts/ecosystem";
 import { contentFixture } from "./fixtures";
 import { first, rows, stmt, now } from "../src/db";
 import type { Env } from "../src/env";
@@ -527,4 +532,61 @@ test("historical publication waits for explicit individual approval before CRM c
   await processTask(env, "article-task");
   assert.equal(crmCalls, 1);
   assert.equal((await task()).state, "completed");
+});
+
+test("CRM Service Auth credentials stay on CRM requests and never enter the response", async () => {
+  await articleTask();
+  const isolated = {
+    ...env,
+    CRM_ACCESS_CLIENT_ID: "isolated-access-client",
+    CRM_ACCESS_CLIENT_SECRET: "isolated-access-secret",
+  };
+  let calls = 0;
+  mock((r) => {
+    if (r.url.startsWith(env.STUDIO_ORIGIN!)) {
+      assert.equal(r.headers.get("CF-Access-Client-Secret"), null);
+      return Response.json({ version: VERSION, state: "available", article });
+    }
+    calls++;
+    assert.equal(
+      r.headers.get("CF-Access-Client-Id"),
+      isolated.CRM_ACCESS_CLIENT_ID,
+    );
+    assert.equal(
+      r.headers.get("CF-Access-Client-Secret"),
+      isolated.CRM_ACCESS_CLIENT_SECRET,
+    );
+    return Response.json({
+      version: VERSION,
+      id: "scoped-access-draft",
+      adminUrl: env.CRM_ORIGIN + "/editor/scoped-access-draft",
+    });
+  });
+  await processTask(isolated, "article-task");
+  assert.equal(calls, 1);
+  assert.equal((await task()).state, "completed");
+  assert.ok(
+    !JSON.stringify(await integrationOverview(isolated)).includes(
+      isolated.CRM_ACCESS_CLIENT_SECRET!,
+    ),
+  );
+});
+
+test("invalid and expired service signatures are rejected without outgoing calls", async () => {
+  const secret = env.STUDIO_INTEGRATION_SECRET!;
+  const time = String(Date.now() - 600000);
+  const url = "https://studio.marioserafim.com.br/integration/v1/catalogue";
+  const expired = await signature(
+    secret,
+    `${time}\nGET\n/integration/v1/catalogue\n`,
+  );
+  for (const sig of ["0".repeat(64), expired]) {
+    const request = new Request(url, {
+      headers: { "X-Ecosystem-Time": time, "X-Ecosystem-Signature": sig },
+    });
+    await assert.rejects(
+      () => verify(request, secret),
+      (e) => e instanceof Response && e.status === 401,
+    );
+  }
 });
