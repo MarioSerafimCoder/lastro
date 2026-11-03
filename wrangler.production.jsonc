@@ -15,6 +15,7 @@
   ],
   "preview_urls": false,
   "ai": { "binding": "AI" },
+  "services": [{ "binding": "STUDIO", "service": "studio-editorial" }],
   "d1_databases": [
     {
       "binding": "DB",
@@ -31,5 +32,8 @@
     "INGEST_ENABLED": "true",
     "SYNOPSIS_ENABLED": "true",
     "SYNOPSIS_REQUIRED": "true",
+    "INTEGRATION_ENABLED": "false",
+    "STUDIO_ORIGIN": "https://studio.marioserafim.com.br",
+    "CRM_ORIGIN": "https://crm.marioserafim.com.br",
   },
 }
