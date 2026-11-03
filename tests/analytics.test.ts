@@ -1,0 +1,263 @@
+import test, { before, after, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
+import { Miniflare, convertV4MiniflareOptions } from "miniflare";
+import { readFile, readdir } from "node:fs/promises";
+import { migrationStatements } from "./migration-statements";
+import {
+  analyticsOverview,
+  beginAnalyticsOAuth,
+  finishAnalyticsOAuth,
+  runAnalyticsReports,
+  ANALYTICS_SCOPE,
+  ANALYTICS_CALLBACK,
+} from "../src/analytics";
+import { app } from "../src/index";
+import type { Env } from "../src/env";
+let mf: Miniflare, env: Env;
+const realFetch = globalThis.fetch;
+before(async () => {
+  mf = new Miniflare(
+    convertV4MiniflareOptions({
+      modules: true,
+      script: 'export default {fetch(){return new Response("test")}}',
+      compatibilityDate: "2026-10-01",
+      d1Databases: ["DB"],
+    }),
+  );
+  env = {
+    DB: (await mf.getD1Database("DB")) as unknown as D1Database,
+    ENVIRONMENT: "development",
+    DEV_TOKEN: "test-token-".repeat(5),
+    ALLOWED_ORIGIN: "https://lastro.marioserafim.com.br",
+    ANALYTICS_ENABLED: "true",
+    GA4_PROPERTY_ID: "560757639",
+    GOOGLE_OAUTH_CLIENT_ID: "client",
+    GOOGLE_OAUTH_CLIENT_SECRET: "secret-never-return",
+    GA4_REFRESH_TOKEN: "refresh-never-return",
+  };
+  for (const file of (await readdir(new URL("../migrations/", import.meta.url)))
+    .filter((f) => f.endsWith(".sql"))
+    .sort())
+    for (const sql of migrationStatements(
+      await readFile(new URL("../migrations/" + file, import.meta.url), "utf8"),
+    ))
+      await env.DB.prepare(sql).run();
+});
+after(async () => mf.dispose());
+beforeEach(async () => {
+  await env.DB.prepare("DELETE FROM analytics_cache").run();
+  await env.DB.prepare("DELETE FROM analytics_oauth_states").run();
+});
+afterEach(() => {
+  globalThis.fetch = realFetch;
+});
+const response = (dim: string, empty = false) =>
+  Response.json({
+    dimensionHeaders: [{ name: dim }],
+    metricHeaders: ["activeUsers", "sessions", "screenPageViews"].map(
+      (name) => ({ name }),
+    ),
+    rows: empty
+      ? []
+      : [
+          {
+            dimensionValues: [
+              { value: dim === "date" ? "20261101" : "/blog/artigo" },
+            ],
+            metricValues: [{ value: "2" }, { value: "3" }, { value: "4" }],
+          },
+        ],
+    rowCount: empty ? 0 : 1,
+  });
+test("OAuth requires owner authentication and exact origin", async () => {
+  assert.equal(
+    (
+      await app.request(
+        "https://lastro.marioserafim.com.br/api/analytics/oauth/start",
+        { method: "POST" },
+        {
+          ...env,
+          ENVIRONMENT: "production",
+          OWNER_PASSWORD_SHA256: "0".repeat(64),
+          SESSION_SIGNING_KEY: "a".repeat(43),
+        },
+      )
+    ).status,
+    401,
+  );
+  assert.equal(
+    (
+      await app.request(
+        "https://lastro.marioserafim.com.br/api/analytics/overview",
+        {},
+        {
+          ...env,
+          ENVIRONMENT: "production",
+          OWNER_PASSWORD_SHA256: "0".repeat(64),
+          SESSION_SIGNING_KEY: "a".repeat(43),
+        },
+      )
+    ).status,
+    401,
+  );
+  await assert.rejects(
+    () =>
+      beginAnalyticsOAuth(
+        env,
+        new Request(env.ALLOWED_ORIGIN + "/api/analytics/oauth/start", {
+          method: "POST",
+          headers: { Origin: "https://evil.example" },
+        }),
+      ),
+    { code: "origin_forbidden" },
+  );
+});
+test("OAuth uses readonly, PKCE, nonce, expiration and single use callback", async () => {
+  const result = await beginAnalyticsOAuth(
+    env,
+    new Request(env.ALLOWED_ORIGIN + "/api/analytics/oauth/start", {
+      headers: { Origin: env.ALLOWED_ORIGIN! },
+    }),
+  );
+  const url = new URL(result.url);
+  assert.equal(url.searchParams.get("scope"), ANALYTICS_SCOPE);
+  assert.equal(url.searchParams.get("code_challenge_method"), "S256");
+  const callback =
+    env.ALLOWED_ORIGIN +
+    ANALYTICS_CALLBACK +
+    "?state=" +
+    url.searchParams.get("state") +
+    "&code=one-time-code";
+  await assert.rejects(() => finishAnalyticsOAuth(env, new Request(callback)), {
+    code: "oauth_state_invalid",
+  });
+  const req = new Request(callback, {
+    headers: { Cookie: result.cookie.split(";")[0] },
+  });
+  const finished = await finishAnalyticsOAuth(env, req);
+  const body = (await finished.json()) as any;
+  assert.equal(body.code, "one-time-code");
+  assert.equal(body.verifier.length, 43);
+  assert.ok(!JSON.stringify(body).includes("refresh"));
+  await assert.rejects(() => finishAnalyticsOAuth(env, req), {
+    code: "oauth_state_invalid",
+  });
+  const expired = await beginAnalyticsOAuth(
+    env,
+    new Request(env.ALLOWED_ORIGIN!, {
+      headers: { Origin: env.ALLOWED_ORIGIN! },
+    }),
+  );
+  await env.DB.prepare("UPDATE analytics_oauth_states SET expires_at=0").run();
+  await assert.rejects(
+    () =>
+      finishAnalyticsOAuth(
+        env,
+        new Request(
+          env.ALLOWED_ORIGIN +
+            ANALYTICS_CALLBACK +
+            "?state=" +
+            new URL(expired.url).searchParams.get("state") +
+            "&code=x",
+          { headers: { Cookie: expired.cookie.split(";")[0] } },
+        ),
+      ),
+    { code: "oauth_state_invalid" },
+  );
+});
+test("reports renew access once, persist aggregates only, cache for twelve hours", async () => {
+  let calls = 0;
+  globalThis.fetch = async (input, init) => {
+    assert.equal(
+      init?.redirect,
+      "manual",
+      "workerd supports manual redirect only; never forward credentials",
+    );
+    calls++;
+    if (String(input).includes("oauth2"))
+      return Response.json({ access_token: "transient-access" });
+    const body = JSON.parse(init!.body as string);
+    assert.equal(body.dateRanges[0].endDate, "yesterday");
+    return response(body.dimensions[0].name);
+  };
+  const a = await analyticsOverview(env);
+  assert.equal(a.status, "available");
+  assert.equal(calls, 3);
+  assert.equal((await analyticsOverview(env)).status, "available");
+  assert.equal(calls, 3);
+  const stored = JSON.stringify(
+    await env.DB.prepare("SELECT * FROM analytics_cache").all(),
+  );
+  for (const value of [
+    "transient-access",
+    "secret-never-return",
+    "refresh-never-return",
+  ])
+    assert.ok(!stored.includes(value));
+});
+for (const status of [401, 403, 429])
+  test(
+    "sanitized " + status + " and one-hour backoff retains prior snapshot",
+    async () => {
+      await env.DB.prepare(
+        "INSERT INTO analytics_cache(id,body_json,fetched_at) VALUES ('weekly','{}',1)",
+      ).run();
+      let calls = 0;
+      globalThis.fetch = async (input) => {
+        calls++;
+        return String(input).includes("oauth2")
+          ? Response.json({ access_token: "transient" })
+          : new Response("sensitive upstream message", { status });
+      };
+      const result = await analyticsOverview(env);
+      assert.equal(result.status, "unavailable");
+      assert.ok(result.data);
+      assert.ok(!JSON.stringify(result).includes("sensitive"));
+      const count = calls;
+      await analyticsOverview(env);
+      assert.equal(calls, count);
+      assert.equal(
+        result.error,
+        status === 401
+          ? "analytics_unauthorized"
+          : status === 403
+            ? "analytics_forbidden"
+            : "analytics_quota",
+      );
+    },
+  );
+test("revoked refresh credential requires reauthorization; disabled does no fetch", async () => {
+  globalThis.fetch = async () => new Response("invalid_grant", { status: 400 });
+  assert.equal(
+    (await analyticsOverview(env)).error,
+    "analytics_reauthorization_required",
+  );
+  globalThis.fetch = async () => {
+    throw Error("must not call");
+  };
+  await assert.rejects(
+    () => analyticsOverview({ ...env, ANALYTICS_ENABLED: "false" }),
+    { code: "analytics_disabled" },
+  );
+});
+test("empty response succeeds; non editorial paths excluded from stored page paths", async () => {
+  globalThis.fetch = async () => response("date", true);
+  let calls = 0;
+  globalThis.fetch = async () =>
+    response(calls++ === 0 ? "date" : "pagePath", true);
+  const result = await runAnalyticsReports("test");
+  assert.deepEqual(
+    result.reports.map((r) => r.rows),
+    [[], []],
+  );
+  calls = 0;
+  globalThis.fetch = async () => {
+    const r = (await response(
+      calls++ === 0 ? "date" : "pagePath",
+    ).json()) as any;
+    if (calls === 2)
+      r.rows[0].dimensionValues[0].value = "/people/private@example.com";
+    return Response.json(r);
+  };
+  assert.equal((await runAnalyticsReports("test")).reports[1].rows.length, 0);
+});

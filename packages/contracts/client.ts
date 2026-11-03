@@ -19,6 +19,7 @@ import type {
   Policy,
 } from "./index";
 
+import type { AnalyticsOverview } from "./analytics";
 export class LastroApiError extends Error {
   constructor(
     public status: number,
@@ -221,6 +222,7 @@ export function createLastroClient(
         `/research-packages/${encodeURIComponent(id)}/prompt`,
         "POST",
       ),
+    analyticsOverview: () => request<AnalyticsOverview>("/analytics/overview"),
     preferences: () => request<Preferences>("/preferences"),
     setPreferences: (input: Preferences) =>
       request<Preferences>("/preferences", "PUT", input),

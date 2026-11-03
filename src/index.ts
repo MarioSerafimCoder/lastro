@@ -8,6 +8,12 @@ import {
 } from "./integration";
 import { integrationRequestSchema } from "../packages/contracts/integration";
 import { Hono } from "hono";
+import {
+  analyticsOverview,
+  beginAnalyticsOAuth,
+  finishAnalyticsOAuth,
+  ANALYTICS_CALLBACK,
+} from "./analytics";
 import { bodyLimit } from "hono/body-limit";
 import { z, ZodError } from "zod";
 import {
@@ -140,6 +146,11 @@ app.post("/api/auth/logout", (c) => {
   c.header("Set-Cookie", clearSession());
   return c.json({ authenticated: false });
 });
+// Callback is authorized by the single-use state and HttpOnly nonce established
+// by the authenticated owner. Strict Lastro session cookies do not cross sites.
+app.get(ANALYTICS_CALLBACK, async (c) =>
+  finishAnalyticsOAuth(c.env, c.req.raw),
+);
 app.use("/api/*", async (c, next) => {
   if (c.req.path.startsWith("/api/auth/")) return next();
   const origin = c.req.header("Origin"),
@@ -177,6 +188,25 @@ app.use("/api/*", async (c, next) => {
     );
   }
   await next();
+});
+app.get("/api/analytics/overview", async (c) =>
+  c.json(await analyticsOverview(c.env)),
+);
+app.get("/api/analytics/oauth/connect", (c) =>
+  c.html(
+    '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="referrer" content="same-origin"><title>Lastro Analytics</title><h1>Conectar Analytics</h1><p>Autorize somente a leitura do Google Analytics. O consentimento será solicitado pelo Google.</p><form method="post"><button type="submit">Autorizar leitura do Analytics</button></form></html>',
+  ),
+);
+app.post("/api/analytics/oauth/connect", async (c) => {
+  const started = await beginAnalyticsOAuth(c.env, c.req.raw);
+  c.header("Set-Cookie", started.cookie);
+  c.header("Referrer-Policy", "no-referrer");
+  return c.redirect(started.url, 303);
+});
+app.post("/api/analytics/oauth/start", async (c) => {
+  const started = await beginAnalyticsOAuth(c.env, c.req.raw);
+  c.header("Set-Cookie", started.cookie);
+  return c.json({ authorizationUrl: started.url });
 });
 app.use(
   "/api/*",

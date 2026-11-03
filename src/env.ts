@@ -1,5 +1,10 @@
 export type Env = {
   DB: D1Database;
+  ANALYTICS_ENABLED?: string;
+  GA4_PROPERTY_ID?: string;
+  GOOGLE_OAUTH_CLIENT_ID?: string;
+  GOOGLE_OAUTH_CLIENT_SECRET?: string;
+  GA4_REFRESH_TOKEN?: string;
   INTEGRATION_ENABLED?: string;
   ECOSYSTEM_STAGING?: string;
   STUDIO?: Fetcher;
