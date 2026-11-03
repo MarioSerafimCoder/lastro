@@ -70,3 +70,68 @@ export type IntegrationTask = {
   created_at: string;
   updated_at: string;
 };
+
+export type IntegrationTicket = {
+  id: string;
+  state: IntegrationState;
+  attempts: number;
+};
+export type IntegrationOverview = {
+  version: "ecosystem-1.0";
+  enabled: boolean;
+  freshness: { last_success: string | null; error: string | null } | null;
+  tasks: {
+    id: string;
+    kind: string;
+    source_id: string;
+    version: string;
+    state: IntegrationState;
+    error: string | null;
+    updated_at: string;
+    created_at: string;
+    next_at: number;
+  }[];
+  studioDrafts: {
+    id: string;
+    package_id: string;
+    slug: string;
+    admin_url: string;
+    updated_at: string;
+  }[];
+  articles: {
+    slug: string;
+    sha: string;
+    state: string;
+    title: string | null;
+    canonical_url: string | null;
+    publish_at: string | null;
+    checked_at: string;
+  }[];
+  newsletters: {
+    source_id: string;
+    target_id: string;
+    admin_url: string;
+    created_at: string;
+  }[];
+  withoutNewsletter: { slug: string; title: string | null }[];
+  recommendations: {
+    integrationAttention: { id: string }[];
+    articleWithoutNewsletter: { slug: string }[];
+    continueDraft: { id: string; admin_url: string }[];
+    unusedReferences: { content_id: string }[];
+  };
+};
+export type IntegrationWeekly = {
+  from: string;
+  to: string;
+  lastSync: string | null;
+  metrics: Record<
+    | "approvedReferences"
+    | "researchPackages"
+    | "publishedArticles"
+    | "pendingDrafts"
+    | "preparedNewsletters"
+    | "integrationFailures",
+    number | null
+  >;
+};

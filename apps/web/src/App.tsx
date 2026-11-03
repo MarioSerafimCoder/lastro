@@ -1,3 +1,4 @@
+import Ecosystem, { useEcosystem, StudioDraftAction } from "./Ecosystem";
 import Select from "./Select";
 import {
   useCallback,
@@ -161,6 +162,7 @@ function ErrorState({
 }
 
 function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
+  const ecosystem = useEcosystem();
   const [ingestionError, setIngestionError] = useState("");
   const [area, setArea] = useState<Area>(navArea),
     [mobileMenu, setMobileMenu] = useState(false),
@@ -693,7 +695,25 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     notify(`Descoberta entre as referências carregadas: ${item.title}`);
   };
   const jarvisAction = (action: string) => {
-    if (action === "surprise") surprise();
+    if (action === "publications") navigate("publicacoes");
+    else if (action === "studio") {
+      navigate("oficina");
+      setTimeout(
+        () =>
+          document
+            .querySelector<HTMLElement>(".ecosystem-action input")
+            ?.focus(),
+        0,
+      );
+    } else if (action.startsWith("open-studio:")) {
+      const id = action.slice(12);
+      const draft = ecosystem.data?.studioDrafts.find((d) => d.id === id);
+      if (
+        draft &&
+        /^https:\/\/studio\.marioserafim\.com\.br\//.test(draft.admin_url)
+      )
+        window.open(draft.admin_url, "_blank", "noopener,noreferrer");
+    } else if (action === "surprise") surprise();
     else if (action === "workshop") navigate("oficina");
     else if (action === "radar") navigate("for-you");
     else if (action === "collection")
@@ -1251,6 +1271,13 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                       preferência. Os links não garantem acesso à fonte
                       original.
                     </p>
+                    <StudioDraftAction
+                      key={prompt.packageId}
+                      packageId={prompt.packageId}
+                      objective={objective}
+                      argument={argument}
+                      ecosystem={ecosystem}
+                    />
                     <div className="prompt-actions">
                       <button
                         className="primary-button"
@@ -1470,49 +1497,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             }}
           />
         )}
-        {area === "publicacoes" && (
-          <section className="page-section publications">
-            <div className="section-heading">
-              <div>
-                <span className="kicker">PUBLICAÇÕES / EM PREPARAÇÃO</span>
-                <h2>
-                  Onde as ideias chegam<span className="asterisk">✳</span>
-                </h2>
-              </div>
-            </div>
-            <p className="pub-intro">
-              O espaço editorial vai reunir textos revisados e edições futuras.
-              A publicação integrada ainda não está disponível nesta etapa.
-            </p>
-            <div className="pub-grid">
-              <div className="pub-card">
-                <span>01 / BLOG</span>
-                <h3>Artigos que permanecem.</h3>
-                <p>
-                  Rascunhos, edição e publicação no portfólio serão integrados
-                  em uma próxima etapa.
-                </p>
-                <div className="coming">
-                  EM DESENVOLVIMENTO <ArrowRight size={16} />
-                </div>
-              </div>
-              <div className="pub-card">
-                <span>02 / NEWSLETTER</span>
-                <h3>Uma edição para compartilhar.</h3>
-                <p>
-                  Versão web e exportação em HTML serão desenvolvidas junto à
-                  área editorial.
-                </p>
-                <div className="coming">
-                  EM DESENVOLVIMENTO <ArrowRight size={16} />
-                </div>
-              </div>
-            </div>
-            <button className="text-button" onClick={() => navigate("oficina")}>
-              Preparar um prompt na Oficina <ArrowRight size={17} />
-            </button>
-          </section>
-        )}
+        {area === "publicacoes" && <Ecosystem ecosystem={ecosystem} />}
       </main>
       <Jarvis
         context={{
@@ -1521,6 +1506,15 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
           available: discoveryPool(feedItems).length,
           saved: saved.length,
           pending,
+          ecosystem: ecosystem.error ? null : ecosystem.data,
+          packageReady:
+            !!prompt &&
+            !ecosystem.data?.studioDrafts.some(
+              (d) => d.package_id === prompt.packageId,
+            ) &&
+            !ecosystem.data?.tasks.some(
+              (t) => t.kind === "studio" && t.source_id === prompt.packageId,
+            ),
         }}
         onAction={jarvisAction}
       />

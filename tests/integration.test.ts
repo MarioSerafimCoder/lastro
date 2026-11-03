@@ -500,3 +500,31 @@ test(
     );
   },
 );
+
+test("historical publication waits for explicit individual approval before CRM creation", async () => {
+  await stmt(
+    env.DB,
+    "INSERT OR REPLACE INTO integration_control(id,next_at) VALUES ('activation',?)",
+    Date.now(),
+  ).run();
+  await articleTask();
+  let crmCalls = 0;
+  mock((r) => {
+    if (r.url.startsWith(env.STUDIO_ORIGIN!))
+      return Response.json({ version: VERSION, state: "available", article });
+    crmCalls++;
+    return Response.json({
+      version: VERSION,
+      id: "historical-newsletter",
+      adminUrl: env.CRM_ORIGIN + "/editor/historical-newsletter",
+    });
+  });
+  await processTask(env, "article-task");
+  assert.equal(crmCalls, 0);
+  assert.equal((await task()).error, "backlog_review");
+  assert.equal((await task()).state, "intervention");
+  await retryTask(env, "article-task");
+  await processTask(env, "article-task");
+  assert.equal(crmCalls, 1);
+  assert.equal((await task()).state, "completed");
+});

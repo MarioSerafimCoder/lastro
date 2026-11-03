@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: ".",
@@ -10,7 +11,9 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npm run web:dev -- --port 5175",
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    command:
+      "node node_modules/vite/bin/vite.js --config apps/web/vite.config.ts --port 5175",
     url: "http://127.0.0.1:5175",
     reuseExistingServer: false,
   },

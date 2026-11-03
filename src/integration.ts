@@ -373,6 +373,24 @@ export async function processTask(env: Env, taskId: string) {
           t.id,
         ),
       ]);
+      const activation = await first<{ next_at: number }>(
+        env.DB,
+        "SELECT next_at FROM integration_control WHERE id='activation'",
+      );
+      if (
+        activation &&
+        Date.parse(article.publishAt) < activation.next_at &&
+        JSON.parse(t.payload).backlogApproved !== true
+      ) {
+        await stmt(
+          env.DB,
+          "UPDATE integration_tasks SET state='intervention',lease_until=0,error='backlog_review',updated_at=? WHERE id=? AND lease_token=?",
+          now(),
+          t.id,
+          token,
+        ).run();
+        return;
+      }
       target = "crm";
       response = await remote(
         env,
@@ -480,6 +498,11 @@ export async function processTask(env: Env, taskId: string) {
 }
 export async function reconcile(env: Env) {
   if (env.INTEGRATION_ENABLED !== "true") return { enabled: false };
+  await stmt(
+    env.DB,
+    "INSERT OR IGNORE INTO integration_control(id,next_at) VALUES ('activation',?)",
+    Date.now(),
+  ).run();
   await discover(env);
   // A crashed final attempt must not stay processing forever.
   await stmt(
@@ -500,7 +523,7 @@ export async function reconcile(env: Env) {
 export async function retryTask(env: Env, taskId: string) {
   const result = await first(
     env.DB,
-    "UPDATE integration_tasks SET state='pending',cycle_attempts=0,next_at=0,error=NULL,updated_at=? WHERE id=? AND state IN ('error','intervention') RETURNING id,state",
+    "UPDATE integration_tasks SET payload=CASE WHEN error='backlog_review' THEN json_set(payload,'$.backlogApproved',json('true')) ELSE payload END,state='pending',cycle_attempts=0,next_at=0,error=NULL,updated_at=? WHERE id=? AND state IN ('error','intervention') RETURNING id,state",
     now(),
     taskId,
   );

@@ -176,6 +176,32 @@ async function mockApi(
         required: true,
         enabled: false,
       };
+    else if (p === "/api/integrations/overview")
+      result = {
+        ...ecosystemFixture(),
+        freshness: { last_success: null, error: null },
+        tasks: [],
+        articles: [],
+        recommendations: {
+          integrationAttention: [],
+          articleWithoutNewsletter: [],
+          continueDraft: [],
+          unusedReferences: [],
+        },
+      };
+    else if (p === "/api/integrations/weekly")
+      result = {
+        from: "2026-10-27T12:00:00Z",
+        to: "2026-11-03T12:00:00Z",
+        metrics: {
+          approvedReferences: 0,
+          researchPackages: 0,
+          publishedArticles: null,
+          pendingDrafts: null,
+          preparedNewsletters: null,
+          integrationFailures: 0,
+        },
+      };
     else if (p.startsWith("/api/admin/"))
       result = { items: [], nextCursor: null };
     else if (p.startsWith("/api/contents/")) {
@@ -1223,4 +1249,159 @@ test.describe("Demonstração animada 04.3", () => {
     await context.close();
     await video.saveAs("docs/examples/stage04-3-motion.webm");
   });
+});
+
+const ecosystemFixture = () => ({
+  version: "ecosystem-1.0",
+  enabled: false,
+  freshness: { last_success: "2026-11-03T12:00:00Z", error: null },
+  tasks: [
+    {
+      id: "historical",
+      kind: "article",
+      source_id: "artigo-historico",
+      version: "sha",
+      state: "intervention",
+      error: "backlog_review",
+      created_at: "2026-11-03T12:00:00Z",
+      updated_at: "2026-11-03T12:00:00Z",
+      next_at: 0,
+    },
+  ],
+  studioDrafts: [],
+  articles: [
+    {
+      slug: "agendado",
+      title: "Artigo agendado",
+      state: "scheduled",
+      publish_at: "2026-11-04T13:00:00Z",
+    },
+  ],
+  newsletters: [],
+  withoutNewsletter: [],
+  recommendations: {
+    integrationAttention: [{ id: "historical" }],
+    articleWithoutNewsletter: [],
+    continueDraft: [],
+    unusedReferences: [],
+  },
+});
+for (const width of [1280, 390])
+  test(`Ecossistema: snapshot, histórico, calendário e resumo em ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 850 });
+    await mockApi(page, 2);
+    const overview = ecosystemFixture();
+    let approvals = 0;
+    await page.route("**/api/integrations/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith("/weekly"))
+        return route.fulfill({
+          json: {
+            from: "2026-10-27T12:00:00Z",
+            to: "2026-11-03T12:00:00Z",
+            metrics: {
+              approvedReferences: 0,
+              researchPackages: 2,
+              publishedArticles: null,
+              pendingDrafts: null,
+              preparedNewsletters: 0,
+              integrationFailures: 0,
+            },
+          },
+        });
+      if (path.endsWith("/retry")) {
+        approvals++;
+        return route.fulfill({ json: { id: "historical", state: "pending" } });
+      }
+      return route.fulfill({ json: overview });
+    });
+    await page.goto("/publicacoes");
+    await expect(
+      page.getByRole("heading", { name: "Calendário editorial" }),
+    ).toBeVisible();
+    await expect(page.getByText("04/11/2026, 10:00").first()).toBeVisible();
+    await expect(page.getByText("Indisponível", { exact: true })).toHaveCount(
+      2,
+    );
+    expect(approvals).toBe(0);
+    await page
+      .getByRole("button", { name: "Aprovar rascunho para este artigo" })
+      .click();
+    expect(approvals).toBe(1);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page
+      .getByRole("button", { name: "Jarvis", exact: false })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("button", { name: "Revisar pendências" }),
+    ).toBeVisible();
+    await page.route("**/api/integrations/overview", (route) =>
+      route.fulfill({ status: 503, json: { error: { message: "Offline" } } }),
+    );
+    await page.getByRole("button", { name: "Atualizar consulta" }).click();
+    await expect(
+      page.getByText("Integração indisponível.", { exact: false }),
+    ).toBeVisible();
+  });
+test("Ecossistema: rascunho assíncrono preserva prompt e reutiliza vínculo", async ({
+  page,
+}) => {
+  await mockApi(page, 2);
+  const overview = ecosystemFixture();
+  overview.tasks = [];
+  let requests = 0;
+  await page.route("**/api/integrations/overview", (route) =>
+    route.fulfill({ json: overview }),
+  );
+  await page.route("**/api/research-packages/*/studio-draft", async (route) => {
+    requests++;
+    await route.fulfill({
+      status: 202,
+      json: { id: "draft-task", state: "pending", attempts: 0 },
+    });
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Selecionar para a Oficina", exact: true })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Oficina", exact: true }).click();
+  await page
+    .getByLabel("Objetivo da publicação", { exact: false })
+    .fill("Título editorial");
+  await page.getByRole("button", { name: "Gerar prompt com 1 fonte" }).click();
+  await page
+    .getByRole("button", { name: "Criar rascunho no Studio", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Criar rascunho no Studio", exact: true }),
+  ).toBeDisabled();
+  expect(requests).toBe(1);
+  await expect(page.getByLabel("Prompt gerado")).toHaveValue(/TESTE/);
+  await page.route("**/api/integrations/overview", (route) =>
+    route.fulfill({
+      json: {
+        ...overview,
+        studioDrafts: [
+          {
+            id: "draft",
+            package_id: "TEST-PACKAGE",
+            slug: "titulo",
+            admin_url: "https://studio.marioserafim.com.br/editor/draft",
+          },
+        ],
+      },
+    }),
+  );
+  await page.getByRole("button", { name: "Consultar estado" }).click();
+  await expect(
+    page.getByRole("link", { name: "Abrir no Studio" }),
+  ).toHaveAttribute("href", "https://studio.marioserafim.com.br/editor/draft");
 });
