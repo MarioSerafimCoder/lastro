@@ -1,3 +1,4 @@
+import { event } from "./integration";
 import type {
   ResearchPackage,
   ResearchInput,
@@ -38,6 +39,14 @@ export async function createPackage(
     ],
   };
   await db.batch([
+    event(
+      db,
+      "research.package.created",
+      "lastro",
+      "lastro",
+      pack.id,
+      pack.version,
+    ),
     stmt(
       db,
       "INSERT INTO research_packages VALUES (?,?,?,?)",

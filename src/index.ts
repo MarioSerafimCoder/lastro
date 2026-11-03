@@ -1,3 +1,12 @@
+import {
+  requestStudio,
+  reconcile,
+  retryTask,
+  integrationOverview,
+  weeklySummary,
+  INTEGRATION_CRON,
+} from "./integration";
+import { integrationRequestSchema } from "../packages/contracts/integration";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z, ZodError } from "zod";
@@ -565,6 +574,29 @@ app.put("/api/workshop/selection", async (c) => {
   ]);
   return c.json({ items: await contents(c.env.DB, contentIds) });
 });
+app.post("/api/research-packages/:id/studio-draft", async (c) =>
+  c.json(
+    await requestStudio(
+      c.env,
+      z.uuid().parse(c.req.param("id")),
+      await json(c, integrationRequestSchema),
+    ),
+    202,
+  ),
+);
+app.get("/api/integrations/overview", async (c) =>
+  c.json(await integrationOverview(c.env)),
+);
+app.get("/api/integrations/weekly", async (c) =>
+  c.json(await weeklySummary(c.env)),
+);
+app.post("/api/integrations/reconcile", async (c) =>
+  c.json(await reconcile(c.env)),
+);
+app.post("/api/integrations/tasks/:id/retry", async (c) =>
+  c.json(await retryTask(c.env, z.uuid().parse(c.req.param("id")))),
+);
+
 app.post("/api/research-packages", async (c) =>
   c.json(
     await createPackage(c.env.DB, await json(c, researchInputSchema)),
@@ -1180,6 +1212,7 @@ export default {
     env: Env,
     _ctx: ExecutionContext,
   ) => {
+    if (_event.cron === INTEGRATION_CRON) return reconcile(env);
     // Separate invocation keeps the existing ingestion below D1 Free's query cap.
     if (_event.cron === "2-57/5 * * * *") return scheduledSynopses(env);
     return scheduledIngest(env);

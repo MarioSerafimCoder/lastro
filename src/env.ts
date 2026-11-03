@@ -1,5 +1,13 @@
 export type Env = {
   DB: D1Database;
+  INTEGRATION_ENABLED?: string;
+  STUDIO?: Fetcher;
+  STUDIO_ORIGIN?: string;
+  CRM_ORIGIN?: string;
+  STUDIO_INTEGRATION_SECRET?: string;
+  CRM_INTEGRATION_SECRET?: string;
+  CRM_ACCESS_CLIENT_ID?: string;
+  CRM_ACCESS_CLIENT_SECRET?: string;
   ENVIRONMENT?: string;
   DEV_TOKEN?: string;
   ALLOWED_ORIGIN?: string;
