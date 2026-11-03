@@ -1,7 +1,7 @@
 import type { Content } from "../../../packages/contracts";
 
 export type Area =
-  "for-you" | "salvos" | "oficina" | "publicacoes" | "curadoria";
+  "for-you" | "salvos" | "oficina" | "publicacoes" | "curadoria" | "analytics";
 export type Suggestion = {
   title: string;
   body: string;

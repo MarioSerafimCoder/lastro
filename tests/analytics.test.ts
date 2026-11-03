@@ -53,18 +53,38 @@ afterEach(() => {
 });
 const response = (dim: string, empty = false) =>
   Response.json({
-    dimensionHeaders: [{ name: dim }],
-    metricHeaders: ["activeUsers", "sessions", "screenPageViews"].map(
-      (name) => ({ name }),
-    ),
+    dimensionHeaders: dim === "total" ? [] : [{ name: dim }],
+    metricHeaders: [
+      "activeUsers",
+      "sessions",
+      "screenPageViews",
+      "engagementRate",
+      "userEngagementDuration",
+    ].map((name) => ({ name })),
     rows: empty
       ? []
       : [
           {
-            dimensionValues: [
-              { value: dim === "date" ? "20261101" : "/blog/artigo" },
+            dimensionValues:
+              dim === "total"
+                ? []
+                : [
+                    {
+                      value:
+                        dim === "date"
+                          ? "20261101"
+                          : dim === "pagePath"
+                            ? "/blog/artigo"
+                            : "newsletter / email",
+                    },
+                  ],
+            metricValues: [
+              { value: "2" },
+              { value: "3" },
+              { value: "4" },
+              { value: "0.5" },
+              { value: "120" },
             ],
-            metricValues: [{ value: "2" }, { value: "3" }, { value: "4" }],
           },
         ],
     rowCount: empty ? 0 : 1,
@@ -178,13 +198,13 @@ test("reports renew access once, persist aggregates only, cache for twelve hours
       return Response.json({ access_token: "transient-access" });
     const body = JSON.parse(init!.body as string);
     assert.equal(body.dateRanges[0].endDate, "yesterday");
-    return response(body.dimensions[0].name);
+    return response(body.dimensions[0]?.name ?? "total");
   };
   const a = await analyticsOverview(env);
   assert.equal(a.status, "available");
-  assert.equal(calls, 3);
+  assert.equal(calls, 6);
   assert.equal((await analyticsOverview(env)).status, "available");
-  assert.equal(calls, 3);
+  assert.equal(calls, 6);
   const stored = JSON.stringify(
     await env.DB.prepare("SELECT * FROM analytics_cache").all(),
   );
@@ -200,7 +220,7 @@ for (const status of [401, 403, 429])
     "sanitized " + status + " and one-hour backoff retains prior snapshot",
     async () => {
       await env.DB.prepare(
-        "INSERT INTO analytics_cache(id,body_json,fetched_at) VALUES ('weekly','{}',1)",
+        "INSERT INTO analytics_cache(id,body_json,fetched_at) VALUES ('analytics-v2-7','{}',1)",
       ).run();
       let calls = 0;
       globalThis.fetch = async (input) => {
@@ -240,24 +260,105 @@ test("revoked refresh credential requires reauthorization; disabled does no fetc
     { code: "analytics_disabled" },
   );
 });
-test("empty response succeeds; non editorial paths excluded from stored page paths", async () => {
-  globalThis.fetch = async () => response("date", true);
-  let calls = 0;
-  globalThis.fetch = async () =>
-    response(calls++ === 0 ? "date" : "pagePath", true);
-  const result = await runAnalyticsReports("test");
-  assert.deepEqual(
-    result.reports.map((r) => r.rows),
-    [[], []],
+test("empty response succeeds and private paths are excluded", async () => {
+  globalThis.fetch = async (_input, init) => {
+    const b = JSON.parse(init!.body as string);
+    return response(b.dimensions[0]?.name ?? "total", true);
+  };
+  assert.ok(
+    (await runAnalyticsReports("test")).reports.every(
+      (r) => r.rows.length === 0,
+    ),
   );
-  calls = 0;
-  globalThis.fetch = async () => {
-    const r = (await response(
-      calls++ === 0 ? "date" : "pagePath",
-    ).json()) as any;
-    if (calls === 2)
+  globalThis.fetch = async (_input, init) => {
+    const b = JSON.parse(init!.body as string),
+      dim = b.dimensions[0]?.name ?? "total";
+    const r = (await response(dim).json()) as any;
+    if (dim === "pagePath")
       r.rows[0].dimensionValues[0].value = "/people/private@example.com";
     return Response.json(r);
   };
-  assert.equal((await runAnalyticsReports("test")).reports[1].rows.length, 0);
+  assert.equal(
+    (await runAnalyticsReports("test")).reports.find(
+      (r) => r.dimension === "pagePath",
+    )!.rows.length,
+    0,
+  );
+});
+test("totals accept omitted dimension headers and empty rows for both periods", async () => {
+  for (const days of [7, 30] as const) {
+    for (const empty of [false, true]) {
+      globalThis.fetch = async (_input, init) => {
+        const body = JSON.parse(init!.body as string);
+        const dimension = body.dimensions[0]?.name ?? "total";
+        const report = (await response(dimension, empty).json()) as any;
+        if (dimension === "total") {
+          delete report.dimensionHeaders;
+          if (empty) delete report.rows;
+          else delete report.rows[0].dimensionValues;
+        }
+        return Response.json(report);
+      };
+      const data = await runAnalyticsReports("test", "560757639", days);
+      const total = data.reports.find(
+        (report) => report.dimension === "total",
+      )!;
+      assert.equal(total.rows.length, empty ? 0 : 1);
+      if (!empty) assert.equal(total.rows[0].activeUsers, 2);
+    }
+  }
+});
+
+test("dimensioned reports still require matching dimension headers", async () => {
+  globalThis.fetch = async (_input, init) => {
+    const body = JSON.parse(init!.body as string);
+    const report = (await response(
+      body.dimensions[0]?.name ?? "total",
+    ).json()) as any;
+    delete report.dimensionHeaders;
+    return Response.json(report);
+  };
+  await assert.rejects(() => runAnalyticsReports("test"), {
+    code: "analytics_invalid_response",
+  });
+});
+
+test("7/30-day caches are separate; manual refresh is bounded and concurrent refresh uses lease", async () => {
+  let calls = 0;
+  globalThis.fetch = async (input, init) => {
+    calls++;
+    if (String(input).includes("oauth2"))
+      return Response.json({ access_token: "test" });
+    const b = JSON.parse(init!.body as string);
+    assert.ok(["7daysAgo", "30daysAgo"].includes(b.dateRanges[0].startDate));
+    return response(b.dimensions[0]?.name ?? "total");
+  };
+  await analyticsOverview(env, 7);
+  await analyticsOverview(env, 30);
+  assert.equal(calls, 12);
+  await analyticsOverview(env, 7, true);
+  assert.equal(calls, 12);
+  await env.DB.prepare("UPDATE analytics_cache SET fetched_at=? WHERE id=?")
+    .bind(Date.now() - 3601000, "analytics-v2-7")
+    .run();
+  await Promise.all([
+    analyticsOverview(env, 7, true),
+    analyticsOverview(env, 7, true),
+  ]);
+  assert.equal(calls, 18);
+  await assert.rejects(() => analyticsOverview(env, 14 as any), {
+    code: "analytics_range_invalid",
+  });
+});
+test("public privacy/info do not expose private reports or credentials", async () => {
+  for (const path of ["info", "privacy"]) {
+    const r = await app.request(
+      "https://lastro.marioserafim.com.br/api/analytics/" + path,
+      {},
+      env,
+    );
+    assert.equal(r.status, 200);
+    const body = await r.text();
+    assert.ok(!body.includes("secret-never-return"));
+  }
 });

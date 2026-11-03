@@ -35,7 +35,8 @@
     "INTEGRATION_ENABLED": "true",
     "STUDIO_ORIGIN": "https://studio.marioserafim.com.br",
     "CRM_ORIGIN": "https://crm.marioserafim.com.br",
+    "ANALYTICS_ENABLED": "true",
+    "GA4_PROPERTY_ID": "560757639",
+    "GOOGLE_OAUTH_CLIENT_ID": "111592653976-ant88deecg3ucvpof8e2d2h062lfsv1k.apps.googleusercontent.com",
   },
 }
-
-

@@ -222,7 +222,10 @@ export function createLastroClient(
         `/research-packages/${encodeURIComponent(id)}/prompt`,
         "POST",
       ),
-    analyticsOverview: () => request<AnalyticsOverview>("/analytics/overview"),
+    analyticsOverview: (days: 7 | 30 = 7) =>
+      request<AnalyticsOverview>(`/analytics/overview?days=${days}`),
+    refreshAnalytics: (days: 7 | 30 = 7) =>
+      request<AnalyticsOverview>(`/analytics/refresh?days=${days}`, "POST"),
     preferences: () => request<Preferences>("/preferences"),
     setPreferences: (input: Preferences) =>
       request<Preferences>("/preferences", "PUT", input),

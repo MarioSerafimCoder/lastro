@@ -180,6 +180,7 @@ async function jsonResponse(response: Response) {
 export async function runAnalyticsReports(
   accessToken: string,
   property = "560757639",
+  days: 7 | 30 = 7,
 ): Promise<AnalyticsData> {
   if (property !== "560757639")
     throw new ApiFault(
@@ -187,8 +188,22 @@ export async function runAnalyticsReports(
       "analytics_property_invalid",
       "Propriedade inválida.",
     );
+  const metrics = [
+    "activeUsers",
+    "sessions",
+    "screenPageViews",
+    "engagementRate",
+    "userEngagementDuration",
+  ];
   const reports: AnalyticsData["reports"] = [];
-  for (const dimension of ["date", "pagePath"] as const) {
+  for (const dimension of [
+    "total",
+    "date",
+    "pagePath",
+    "sessionSourceMedium",
+    "sessionCampaignName",
+  ] as const) {
+    const dimensions = dimension === "total" ? [] : [{ name: dimension }];
     const response = await fetch(
       `https://analyticsdata.googleapis.com/v1beta/properties/${property}:runReport`,
       {
@@ -200,56 +215,67 @@ export async function runAnalyticsReports(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          dateRanges: [{ startDate: "7daysAgo", endDate: "yesterday" }],
-          dimensions: [{ name: dimension }],
-          metrics: [
-            { name: "activeUsers" },
-            { name: "sessions" },
-            { name: "screenPageViews" },
-          ],
-          limit: dimension === "date" ? 7 : 100,
-          orderBys: [
-            dimension === "date"
-              ? { dimension: { dimensionName: "date" } }
-              : { metric: { metricName: "screenPageViews" }, desc: true },
-          ],
+          dateRanges: [{ startDate: `${days}daysAgo`, endDate: "yesterday" }],
+          dimensions,
+          metrics: metrics.map((name) => ({ name })),
+          limit: dimension === "total" ? 1 : dimension === "date" ? days : 100,
+          orderBys:
+            dimension === "total"
+              ? []
+              : dimension === "date"
+                ? [{ dimension: { dimensionName: "date" } }]
+                : [{ metric: { metricName: "screenPageViews" }, desc: true }],
           returnPropertyQuota: true,
         }),
       },
     );
     const report = await jsonResponse(response);
     if (
-      !report ||
-      !Array.isArray(report.dimensionHeaders) ||
+      !Array.isArray(report.dimensionHeaders ?? []) ||
       !Array.isArray(report.metricHeaders) ||
-      report.dimensionHeaders[0]?.name !== dimension ||
+      (report.dimensionHeaders ?? []).map((d: any) => d.name).join(",") !==
+        (dimension === "total" ? "" : dimension) ||
       report.metricHeaders.map((m: any) => m.name).join(",") !==
-        "activeUsers,sessions,screenPageViews"
+        metrics.join(",")
     )
       throw new ApiFault(
         503,
         "analytics_invalid_response",
         "Resposta Analytics inválida.",
       );
-    const rows = (report.rows ?? [])
-      .filter((r: any) =>
-        dimension === "date"
-          ? /^\d{8}$/.test(r.dimensionValues?.[0]?.value ?? "")
-          : /^\/(?:|blog\/?|blog\/[a-z0-9-]+\/?|(?:en|pt)(?:\/|\/blog\/?|\/blog\/[a-z0-9-]+\/?)?)$/.test(
-              r.dimensionValues?.[0]?.value ?? "",
-            ),
-      )
+    const raw = report.rows ?? [];
+    if (!Array.isArray(raw))
+      throw new ApiFault(
+        503,
+        "analytics_invalid_response",
+        "Resposta Analytics inválida.",
+      );
+    const rows = raw
+      .filter((r: any) => {
+        const v = r.dimensionValues?.[0]?.value ?? "";
+        return dimension === "total" || dimension === "date"
+          ? dimension === "total" || /^\d{8}$/.test(v)
+          : dimension === "pagePath"
+            ? /^\/(?:|blog\/?|blog\/[a-z0-9-]+\/?|(?:en|pt)(?:\/|\/blog\/?|\/blog\/[a-z0-9-]+\/?)?)$/.test(
+                v,
+              )
+            : typeof v === "string" &&
+              v.length <= 160 &&
+              !/[@?=#\\]|https?:/i.test(v);
+      })
       .map((r: any) => ({
-        [dimension]: r.dimensionValues[0].value,
-        activeUsers: Number(r.metricValues?.[0]?.value ?? 0),
-        sessions: Number(r.metricValues?.[1]?.value ?? 0),
-        screenPageViews: Number(r.metricValues?.[2]?.value ?? 0),
+        ...(dimension === "total"
+          ? {}
+          : { [dimension]: r.dimensionValues[0].value }),
+        ...Object.fromEntries(
+          metrics.map((m, i) => [m, Number(r.metricValues?.[i]?.value ?? 0)]),
+        ),
       }));
     if (
-      rows.some((r: any) =>
-        [r.activeUsers, r.sessions, r.screenPageViews].some(
-          (n) => !Number.isFinite(n) || n < 0,
-        ),
+      rows.some(
+        (r: any) =>
+          metrics.some((m) => !Number.isFinite(r[m]) || r[m] < 0) ||
+          r.engagementRate > 1,
       )
     )
       throw new ApiFault(
@@ -259,32 +285,41 @@ export async function runAnalyticsReports(
       );
     reports.push({
       dimension,
-      rows,
+      rows: rows as AnalyticsData["reports"][number]["rows"],
       rowCount: report.rowCount ?? 0,
-      limited: dimension === "pagePath" && (report.rowCount ?? 0) > 100,
-      privacyFiltered:
-        dimension === "pagePath" && rows.length !== (report.rows ?? []).length,
+      limited:
+        (report.rowCount ?? 0) >
+        (dimension === "total" ? 1 : dimension === "date" ? days : 100),
+      privacyFiltered: rows.length !== raw.length,
     });
   }
   return {
     version: "analytics-1.0",
     propertyId: property,
-    range: { start: "7daysAgo", end: "yesterday" },
+    range: { start: `${days}daysAgo`, end: "yesterday" },
     reports,
   };
 }
-export async function analyticsOverview(env: Env): Promise<AnalyticsOverview> {
+export async function analyticsOverview(
+  env: Env,
+  days: 7 | 30 = 7,
+  refresh = false,
+): Promise<AnalyticsOverview> {
   config(env);
+  if (days !== 7 && days !== 30)
+    throw new ApiFault(400, "analytics_range_invalid", "Périodo inválido.");
+  const cacheId = `analytics-v2-${days}`;
   await stmt(
     env.DB,
-    "INSERT OR IGNORE INTO analytics_cache(id) VALUES ('weekly')",
+    "INSERT OR IGNORE INTO analytics_cache(id) VALUES (?)",
+    cacheId,
   ).run();
   const cached = await first<{
     body_json: string | null;
     fetched_at: number;
     next_at: number;
     error: string | null;
-  }>(env.DB, "SELECT * FROM analytics_cache WHERE id='weekly'");
+  }>(env.DB, "SELECT * FROM analytics_cache WHERE id=?", cacheId);
   const view = (row: typeof cached): AnalyticsOverview => ({
     version: "analytics-1.0",
     propertyId: env.GA4_PROPERTY_ID!,
@@ -303,13 +338,21 @@ export async function analyticsOverview(env: Env): Promise<AnalyticsOverview> {
     error: row?.error ?? null,
     data: row?.body_json ? JSON.parse(row.body_json) : null,
   });
-  if (cached && cached.next_at > Date.now()) return view(cached);
+  if (
+    cached &&
+    cached.next_at > Date.now() &&
+    (!refresh || cached.error || Date.now() - cached.fetched_at < 3600000)
+  )
+    return view(cached);
   const lock = await stmt(
     env.DB,
-    "UPDATE analytics_cache SET lease_until=? WHERE id='weekly' AND lease_until<? AND next_at<=?",
-    Date.now() + 60000,
+    "UPDATE analytics_cache SET lease_until=? WHERE id=? AND lease_until<? AND (next_at<=? OR (?=1 AND error IS NULL AND fetched_at<=?))",
+    Date.now() + 90000,
+    cacheId,
     Date.now(),
     Date.now(),
+    refresh ? 1 : 0,
+    Date.now() - 3600000,
   ).run();
   if (lock.meta.changes !== 1) return view(cached);
   try {
@@ -350,25 +393,28 @@ export async function analyticsOverview(env: Env): Promise<AnalyticsOverview> {
     const data = await runAnalyticsReports(
       token.access_token,
       env.GA4_PROPERTY_ID,
+      days,
     );
     await stmt(
       env.DB,
-      "UPDATE analytics_cache SET body_json=?,fetched_at=?,next_at=?,lease_until=0,error=NULL WHERE id='weekly'",
+      "UPDATE analytics_cache SET body_json=?,fetched_at=?,next_at=?,lease_until=0,error=NULL WHERE id=?",
       JSON.stringify(data),
       Date.now(),
       Date.now() + TTL,
+      cacheId,
     ).run();
   } catch (error) {
     const code =
       error instanceof ApiFault ? error.code : "analytics_unavailable";
     await stmt(
       env.DB,
-      "UPDATE analytics_cache SET next_at=?,lease_until=0,error=? WHERE id='weekly'",
+      "UPDATE analytics_cache SET next_at=?,lease_until=0,error=? WHERE id=?",
       Date.now() + 3600000,
       code,
+      cacheId,
     ).run();
   }
   return view(
-    await first(env.DB, "SELECT * FROM analytics_cache WHERE id='weekly'"),
+    await first(env.DB, "SELECT * FROM analytics_cache WHERE id=?", cacheId),
   );
 }

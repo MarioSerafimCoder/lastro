@@ -1,3 +1,4 @@
+import Analytics from "./Analytics";
 import Ecosystem, { useEcosystem, StudioDraftAction } from "./Ecosystem";
 import Select from "./Select";
 import {
@@ -54,13 +55,15 @@ import type {
 } from "../../../packages/contracts";
 
 const api = createLastroClient();
-type Area = "for-you" | "salvos" | "oficina" | "publicacoes" | "curadoria";
+type Area =
+  "for-you" | "salvos" | "oficina" | "publicacoes" | "curadoria" | "analytics";
 const areas: { id: Area; label: string; index: string }[] = [
   { id: "for-you", label: "For You", index: "01" },
   { id: "salvos", label: "Salvos", index: "02" },
   { id: "oficina", label: "Oficina", index: "03" },
   { id: "publicacoes", label: "Publicações", index: "04" },
   { id: "curadoria", label: "Curadoria", index: "05" },
+  { id: "analytics", label: "Analytics", index: "06" },
 ];
 const navArea = (): Area => {
   const path = location.pathname.slice(1);
@@ -846,7 +849,9 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                     ? "Oficina de ideias"
                     : area === "curadoria"
                       ? "Curadoria editorial"
-                      : "Publicações"}
+                      : area === "analytics"
+                        ? "Analytics do portfólio"
+                        : "Publicações"}
             </h1>
             <p>
               {area === "for-you"
@@ -857,7 +862,9 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                     ? "Das referências a uma proposta com direção."
                     : area === "curadoria"
                       ? "A origem importa. O critério também."
-                      : "O próximo destino das suas ideias."}
+                      : area === "analytics"
+                        ? "Dados reais para acompanhar a leitura do seu trabalho."
+                        : "O próximo destino das suas ideias."}
             </p>
           </div>
           <AppearanceControls />
@@ -1503,6 +1510,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
           />
         )}
         {area === "publicacoes" && <Ecosystem ecosystem={ecosystem} />}
+        {area === "analytics" && <Analytics />}
       </main>
       <Jarvis
         context={{

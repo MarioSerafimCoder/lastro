@@ -2,16 +2,25 @@
 export type AnalyticsRow = {
   date?: string;
   pagePath?: string;
+  sessionSourceMedium?: string;
+  sessionCampaignName?: string;
   activeUsers: number;
   sessions: number;
   screenPageViews: number;
+  engagementRate: number;
+  userEngagementDuration: number;
 };
 export type AnalyticsData = {
   version: "analytics-1.0";
   propertyId: string;
   range: { start: string; end: string };
   reports: Array<{
-    dimension: "date" | "pagePath";
+    dimension:
+      | "total"
+      | "date"
+      | "pagePath"
+      | "sessionSourceMedium"
+      | "sessionCampaignName";
     rows: AnalyticsRow[];
     rowCount: number;
     limited: boolean;

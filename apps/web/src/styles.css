@@ -3207,3 +3207,66 @@ section[aria-labelledby="feed-title"] > .filters {
     white-space: normal;
   }
 }
+
+.analytics-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.analytics-controls select {
+  margin-left: 0.5rem;
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: inherit;
+}
+.analytics-value {
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+  margin: 0.5rem 0;
+}
+.analytics-table {
+  max-width: 100%;
+  overflow: auto;
+}
+.analytics-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.analytics-table th,
+.analytics-table td {
+  padding: 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.analytics-table th:first-child {
+  max-width: 26rem;
+}
+.analytics meter {
+  width: 100%;
+  min-width: 4rem;
+  accent-color: var(--accent);
+}
+@media (max-width: 650px) {
+  .analytics .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .analytics-controls {
+    width: 100%;
+  }
+  .analytics-table {
+    font-size: 0.85rem;
+  }
+  .analytics-table th,
+  .analytics-table td {
+    padding: 0.5rem;
+  }
+  .analytics .pub-card {
+    min-width: 0;
+  }
+}

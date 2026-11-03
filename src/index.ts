@@ -8,6 +8,7 @@ import {
 } from "./integration";
 import { integrationRequestSchema } from "../packages/contracts/integration";
 import { Hono } from "hono";
+import { analyticsInfo, analyticsPrivacy } from "./analytics-public";
 import {
   analyticsOverview,
   beginAnalyticsOAuth,
@@ -151,6 +152,8 @@ app.post("/api/auth/logout", (c) => {
 app.get(ANALYTICS_CALLBACK, async (c) =>
   finishAnalyticsOAuth(c.env, c.req.raw),
 );
+app.get("/api/analytics/info", () => analyticsInfo());
+app.get("/api/analytics/privacy", () => analyticsPrivacy());
 app.use("/api/*", async (c, next) => {
   if (c.req.path.startsWith("/api/auth/")) return next();
   const origin = c.req.header("Origin"),
@@ -190,8 +193,21 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 app.get("/api/analytics/overview", async (c) =>
-  c.json(await analyticsOverview(c.env)),
+  c.json(
+    await analyticsOverview(
+      c.env,
+      z.enum(["7", "30"]).default("7").parse(c.req.query("days")) === "30"
+        ? 30
+        : 7,
+    ),
+  ),
 );
+app.post("/api/analytics/refresh", async (c) => {
+  if (c.req.header("Origin") !== c.env.ALLOWED_ORIGIN)
+    throw new ApiFault(403, "origin_forbidden", "Origem não autorizada.");
+  const days = z.enum(["7", "30"]).default("7").parse(c.req.query("days"));
+  return c.json(await analyticsOverview(c.env, days === "30" ? 30 : 7, true));
+});
 app.get("/api/analytics/oauth/connect", (c) =>
   c.html(
     '<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="referrer" content="same-origin"><title>Lastro Analytics</title><h1>Conectar Analytics</h1><p>Autorize somente a leitura do Google Analytics. O consentimento será solicitado pelo Google.</p><form method="post"><button type="submit">Autorizar leitura do Analytics</button></form></html>',
