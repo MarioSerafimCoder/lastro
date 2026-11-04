@@ -156,8 +156,21 @@ export async function answerJarvis(
       ...base,
       text: interpreted.unsupportedTime
         ? "Esse período ainda não está disponível. Use hoje, semana ou últimos 7/30 dias."
-        : "A pergunta admite mais de uma leitura. Escolha uma consulta.",
-      choices: interpreted.choices,
+        : interpreted.prohibitedWrite
+          ? "Não executo envios, publicações ou exclusões pela conversa. Posso consultar os dados e ajudar você a revisar o próximo passo."
+          : interpreted.entities.length
+            ? "Para eu consultar os dados certos: você quer saber sobre " +
+              interpreted.choices
+                .map((c) => c.label.toLowerCase())
+                .join(" ou ") +
+              "? Pode me responder por aqui."
+            : "Ainda não entendi como relacionar isso ao Lastro. Posso ajudar com oportunidades, artigos, newsletters e o andamento do ecossistema. O que você gostaria de saber sobre eles?",
+      choices:
+        !interpreted.unsupportedTime &&
+        !interpreted.prohibitedWrite &&
+        interpreted.entities.length
+          ? interpreted.choices
+          : undefined,
     };
   const prefs = await jarvisPreferences(env);
   await saveJarvisPreferences(env, { ...prefs, area: input.area });

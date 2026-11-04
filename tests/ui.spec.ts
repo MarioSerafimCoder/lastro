@@ -1638,10 +1638,12 @@ for (const width of [1280, 390])
       .getByRole("button", { name: "Jarvis Seu próximo caminho", exact: true })
       .click();
     await page.getByLabel("Consultar o ecossistema").fill("oportunidades");
-    await page.getByRole("button", { name: "Consultar", exact: true }).click();
-    await page
-      .getByRole("button", { name: "Acompanhamentos atrasados", exact: true })
-      .click();
+    await page.getByRole("button", { name: "Enviar", exact: true }).click();
+    await expect(
+      page.getByText("Qual consulta deseja fazer?", { exact: true }),
+    ).toBeVisible();
+    await page.getByLabel("Consultar o ecossistema").fill("as atrasadas");
+    await page.getByLabel("Consultar o ecossistema").press("Enter");
     await expect(
       page.getByText("Há uma oportunidade atrasada.", { exact: true }),
     ).toBeVisible();
@@ -1918,7 +1920,7 @@ for (const width of [1440, 1280, 390])
     const before = await heading.boundingBox();
     const composer = await input.boundingBox();
     for (const text of [
-      "Bom dia",
+      "olá Jarvis está por ai?",
       "Quem é você?",
       "Obrigado",
       "Até mais",

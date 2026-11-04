@@ -20,6 +20,24 @@ const phrases: [Social, string][] = [
   ["greeting", "bom dia"],
   ["greeting", "boa tarde"],
   ["greeting", "boa noite"],
+  ...[
+    "esta",
+    "ta",
+    "voce esta",
+    "voce ta",
+    "voce esta por",
+    "esta por",
+    "ta por",
+    "voce ta por",
+    "tem alguem",
+  ].map((phrase): [Social, string] => ["greeting", phrase + " ai"]),
+  ["greeting", "pode me ouvir"],
+  ["greeting", "voce me ouve"],
+  ["greeting", "consegue me ouvir"],
+  ["wellbeing", "tudo certo"],
+  ["wellbeing", "como voce esta"],
+  ["wellbeing", "estou bem"],
+  ["wellbeing", "to bem"],
   ["greeting", "voce esta ai"],
   ["greeting", "esta ai"],
   ["greeting", "ta ai"],
@@ -35,6 +53,8 @@ const phrases: [Social, string][] = [
   ["farewell", "ate logo"],
   ["farewell", "tchau"],
 ];
+// Match the longest phrase first so a short suffix never strands a pronoun.
+phrases.sort((a, b) => b[1].length - a[1].length);
 const priority: Record<Social, number> = {
   greeting: 0,
   wellbeing: 1,
@@ -114,7 +134,10 @@ export function socialAnswer(
       : "";
   return {
     kind: "social",
-    text: prefix + options[Math.abs(Math.trunc(turn)) % count],
+    text:
+      kind === "greeting" && /\b(ai|ouvir|ouve)\b/.test(normalizeQuestion(raw))
+        ? "Estou por aqui, sim. Pode falar — em que posso ajudar?"
+        : prefix + options[Math.abs(Math.trunc(turn)) % count],
     source: "Interação local",
     period: { label: "Conversa atual", from: null, to: "", days: null },
     syncedAt: null,
@@ -125,4 +148,36 @@ export function socialAnswer(
       reason: "Resposta social determinística, sem inferência.",
     },
   };
+}
+
+// Resolve only an explicit reply to one of the alternatives just offered.
+export function clarificationChoice(raw: string, choices: Answer["choices"]) {
+  const text = normalizeQuestion(raw).replace(
+    /^(?:quero ver |quero |os |as |o |a )/,
+    "",
+  );
+  const aliases: Record<string, string[]> = {
+    "opportunities.new": [
+      "novos",
+      "novas",
+      "novos pedidos",
+      "novas oportunidades",
+    ],
+    "opportunities.overdue": [
+      "atrasados",
+      "atrasadas",
+      "pendentes",
+      "acompanhamentos",
+    ],
+    "articles.top": ["mais acessados", "mais lidos", "visitas"],
+    "articles.without_newsletter": ["sem newsletter", "sem distribuicao"],
+    "drafts.pending": ["rascunhos", "rascunhos pendentes"],
+  };
+  const matches =
+    choices?.filter(
+      (c) =>
+        normalizeQuestion(c.label) === text ||
+        aliases[c.intent]?.includes(text),
+    ) ?? [];
+  return matches.length === 1 ? matches[0].intent : undefined;
 }

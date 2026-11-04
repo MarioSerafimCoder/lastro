@@ -1,4 +1,7 @@
-import { socialAnswer } from "../../../packages/contracts/jarvis-social";
+import {
+  socialAnswer,
+  clarificationChoice,
+} from "../../../packages/contracts/jarvis-social";
 import { jarvisApi as commercialApi } from "./jarvis-client";
 import {
   loadJarvisState,
@@ -15,7 +18,7 @@ import type {
 import { isPeriodContinuation } from "../../../packages/contracts/jarvis";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Minus, X } from "lucide-react";
-import { contextualSuggestion, type JarvisContext } from "./experience";
+import type { JarvisContext } from "./experience";
 import { usePresence } from "./motion";
 type Message = {
   id: string;
@@ -23,13 +26,6 @@ type Message = {
   answer?: Answer;
   error?: string;
 };
-const quickQuestions = [
-  ["O que merece minha atenção?", "integrations.failures"],
-  ["Tenho oportunidades atrasadas?", "opportunities.overdue"],
-  ["Quais artigos tiveram mais visitas?", "articles.top"],
-  ["Como estão minhas newsletters?", "newsletters.performance"],
-  ["Quais rascunhos preciso continuar?", "drafts.pending"],
-] as const;
 const preferenceKey = "lastro:jarvis:proactive";
 function read(store: "localStorage" | "sessionStorage", key: string) {
   try {
@@ -185,7 +181,6 @@ export default function Jarvis({
   const claiming = useRef(false),
     lastOffered = useRef<string | null>(null),
     stateRef = useRef<JarvisState | null>(null);
-  const suggestion = contextualSuggestion(context);
   const interrupted = () =>
     document.visibilityState !== "visible" ||
     !document.hasFocus() ||
@@ -354,7 +349,9 @@ export default function Jarvis({
     }
     const continuation = !choice && isPeriodContinuation(text);
     const selectedChoice =
-      choice || (continuation ? (lastIntent.current ?? undefined) : undefined);
+      choice ||
+      clarificationChoice(text, answer?.choices) ||
+      (continuation ? (lastIntent.current ?? undefined) : undefined);
     if (!continuation) lastIntent.current = null;
     const controller = new AbortController();
     request.current = controller;
@@ -565,7 +562,7 @@ export default function Jarvis({
             {!messages.length && (
               <div className="jarvis-welcome">
                 <span className="kicker">JARVIS / À DISPOSIÇÃO</span>
-                <h3>O que merece atenção?</h3>
+                <h3>Estou por aqui.</h3>
                 <p>
                   Posso consultar o ecossistema e preparar o próximo passo. A
                   decisão continua sendo sua.
@@ -605,15 +602,6 @@ export default function Jarvis({
                         </>
                       )}
                     </small>
-                    {message.answer.choices?.map((c) => (
-                      <button
-                        disabled={busy}
-                        key={c.intent}
-                        onClick={() => void ask(c.intent, message.question)}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
                     {message.answer.action && (
                       <button
                         disabled={busy}
@@ -652,40 +640,6 @@ export default function Jarvis({
             )}
             <details className="jarvis-settings">
               <summary>Preferências e contexto</summary>
-              <div className="jarvis-suggestion" key={suggestion.action}>
-                <span className="kicker">Um ponto de partida</span>
-                <h3>{suggestion.title}</h3>
-                <p>{suggestion.body}</p>
-                <button
-                  className="primary-button"
-                  onClick={() =>
-                    void act(
-                      suggestion.action === "queue"
-                        ? { kind: "references.open", target: "queue" }
-                        : suggestion.action.startsWith("open-studio:")
-                          ? {
-                              kind: "studio.continue",
-                              target: suggestion.action.slice(12),
-                            }
-                          : {
-                              kind:
-                                suggestion.action === "opportunities"
-                                  ? "opportunity.open"
-                                  : suggestion.action === "newsletters"
-                                    ? "newsletters.open"
-                                    : suggestion.action === "publications"
-                                      ? "integration.review"
-                                      : suggestion.action === "studio"
-                                        ? "workshop.prepare"
-                                        : "references.open",
-                            },
-                    )
-                  }
-                >
-                  {suggestion.label}
-                  <ArrowUpRight size={16} />
-                </button>
-              </div>
               <label className="jarvis-preference">
                 <input
                   type="checkbox"
@@ -720,33 +674,6 @@ export default function Jarvis({
               </label>
             </details>
           </div>
-          <div className="jarvis-quick" aria-label="Perguntas sugeridas">
-            {quickQuestions.map(([text, intent]) => (
-              <button
-                key={intent}
-                disabled={busy}
-                onClick={() =>
-                  void ask(
-                    intent === "integrations.failures"
-                      ? (
-                          {
-                            100: "integrations.failures",
-                            95: "opportunities.overdue",
-                            90: "opportunities.new",
-                            75: "articles.without_newsletter",
-                            60: "drafts.pending",
-                            45: "articles.top",
-                          } as const
-                        )[state?.notices[0]?.priority || 100]
-                      : intent,
-                    text,
-                  )
-                }
-              >
-                {text}
-              </button>
-            ))}
-          </div>
           <form
             className="jarvis-query"
             onSubmit={(e) => {
@@ -774,13 +701,13 @@ export default function Jarvis({
                   void ask();
                 }
               }}
-              placeholder="Uma pergunta, por favor."
+              placeholder="Fale comigo…"
             />
             <button
               className="primary-button"
               disabled={busy || !question.trim()}
             >
-              Consultar
+              Enviar
             </button>
             <small>Enter envia · Shift+Enter quebra linha</small>
           </form>

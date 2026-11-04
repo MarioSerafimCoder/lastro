@@ -3457,25 +3457,6 @@ section[aria-labelledby="feed-title"] > .filters {
   line-height: 1.7;
   margin-bottom: 12px;
 }
-.jarvis-chat .jarvis-quick {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  padding: 8px 18px;
-  flex: none;
-}
-.jarvis-chat .jarvis-quick button {
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 8px 10px;
-  font-size: 11px;
-  line-height: 1.4;
-  text-align: left;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  min-height: 40px;
-}
 .jarvis-chat .jarvis-query {
   flex: none;
   display: grid;
@@ -3558,11 +3539,6 @@ section[aria-labelledby="feed-title"] > .filters {
 .jarvis-chat :where(button:disabled) {
   cursor: default;
   opacity: 0.5;
-}
-.jarvis-chat .jarvis-quick button {
-  background: transparent;
-  color: var(--ink);
-  font-size: 11px;
 }
 .jarvis-chat .jarvis-chat-tools button {
   background: transparent;

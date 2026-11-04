@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { socialAnswer } from "../packages/contracts/jarvis-social";
+import {
+  socialAnswer,
+  clarificationChoice,
+} from "../packages/contracts/jarvis-social";
 import { interpretQuestion } from "../packages/contracts/jarvis-intents";
 import { answerJarvis } from "../src/jarvis";
 import type { Env } from "../src/env";
@@ -75,4 +78,75 @@ test("greetings do not hide identity, capabilities or farewell", () => {
     /Posso consultar/,
   );
   assert.match(socialAnswer("Obrigado, até mais, boa noite")!.text, /Até/);
+});
+
+test("presence variants from the real chat remain local, mixed requests remain operational", async () => {
+  for (const text of [
+    "olá Jarvis está por ai?",
+    "oi, você tá por aí?",
+    "Jarvis, consegue me ouvir?",
+    "tá aí?",
+    "Olá, tudo certo?",
+  ]) {
+    const reply = await answerJarvis(
+      new Proxy({} as Env, {
+        get() {
+          throw Error("Unexpected data access");
+        },
+      }),
+      { text, area: "for-you" },
+    );
+    assert.equal(reply.kind, "social", text);
+    assert.equal(reply.choices, undefined);
+  }
+  assert.equal(
+    socialAnswer("Olá Jarvis está por aí? Tenho clientes pendentes?"),
+    null,
+  );
+  assert.equal(
+    interpretQuestion(
+      "Olá Jarvis está por aí? Tenho clientes pendentes?",
+      "for-you",
+    ).intent,
+    "opportunities.overdue",
+  );
+});
+test("clarification is conversational, scoped to the preceding alternatives", async () => {
+  const reply = await answerJarvis({} as Env, {
+    text: "oportunidades",
+    area: "for-you",
+  });
+  assert.match(reply.text, /novos pedidos.*ou.*atrasados/);
+  assert.deepEqual(
+    reply.choices?.map((c) => c.intent),
+    ["opportunities.new", "opportunities.overdue"],
+  );
+  assert.equal(
+    clarificationChoice("as atrasadas", reply.choices),
+    "opportunities.overdue",
+  );
+  assert.equal(
+    clarificationChoice("novas", reply.choices),
+    "opportunities.new",
+  );
+  for (const text of [
+    "envie as atrasadas",
+    "não quero atrasadas",
+    "artigos",
+    "qual a capital da França?",
+  ])
+    assert.equal(clarificationChoice(text, reply.choices), undefined);
+  assert.equal(clarificationChoice("atrasadas", undefined), undefined);
+  const outside = await answerJarvis({} as Env, {
+    text: "qual a capital da França?",
+    area: "for-you",
+  });
+  assert.equal(outside.choices, undefined);
+  assert.doesNotMatch(outside.text, /admite mais/);
+  const blocked = await answerJarvis({} as Env, {
+    text: "Oi Jarvis, envie as newsletters",
+    area: "for-you",
+  });
+  assert.equal(blocked.choices, undefined);
+  assert.match(blocked.text, /Não executo/);
 });

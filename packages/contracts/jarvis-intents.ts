@@ -430,7 +430,9 @@ export function interpretQuestion(raw: string, area: string, choice?: Intent) {
     fuzzyRanked.length && !matchedIntent
       ? fuzzyRanked.filter((entry) => entry.score <= fuzzyRanked[0].score + 0.1)
       : ranked[0].score
-        ? ranked.filter((entry) => entry.score >= ranked[0].score - 3)
+        ? ranked.filter(
+            (entry) => entry.score >= Math.max(1, ranked[0].score - 3),
+          )
         : ranked;
   return {
     intent: selected,
@@ -442,6 +444,7 @@ export function interpretQuestion(raw: string, area: string, choice?: Intent) {
           label: labels[r.intent],
         })),
     unsupportedTime,
+    prohibitedWrite,
   };
 }
 export function resolvePeriod(raw: string, clock = Date.now()): Period {
