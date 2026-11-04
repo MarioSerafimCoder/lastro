@@ -168,6 +168,7 @@ export async function answerJarvis(
   ): Answer => ({
     ...base,
     text,
+    intent,
     source,
     action,
     syncedAt: s.loadedAt,

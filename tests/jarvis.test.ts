@@ -10,6 +10,10 @@ import {
   normalizeQuestion,
 } from "../packages/contracts/jarvis-intents";
 import {
+  isPeriodContinuation,
+  type Intent,
+} from "../packages/contracts/jarvis";
+import {
   answerJarvis,
   jarvisState,
   markNotice,
@@ -56,6 +60,151 @@ test("Portuguese synonyms, entities, accents, ambiguity and periods", () => {
     "2026-11-03T03:00:00.000Z",
   );
   assert.equal(resolvePeriod("30 dias", clock).days, 30);
+});
+test("fuzzy Portuguese vocabulary improves recall without guessing", () => {
+  const cases: [string, Intent | null][] = [
+    ["Tem cliente me esperando?", "opportunities.new"],
+    ["Chegou algum orçamento?", "opportunities.new"],
+    ["Alguém pediu projeto?", "opportunities.new"],
+    ["Algum orçamento foi recebido?", "opportunities.new"],
+    ["Novo pedido para atender", "opportunities.new"],
+    ["Novos leads", "opportunities.new"],
+    ["Contato aguardando atendimento", "opportunities.new"],
+    ["Chegou pedido de cliente", "opportunities.new"],
+    ["Recebi algum orçamento", "opportunities.new"],
+    ["Quem está esperando retorno?", "opportunities.overdue"],
+    ["Tem lead parado?", "opportunities.overdue"],
+    ["Estou devendo resposta para alguém?", "opportunities.overdue"],
+    ["Cliente esperando uma resposta", "opportunities.overdue"],
+    ["Orçamento pendente de retorno", "opportunities.overdue"],
+    ["Acompanhamento atrasado de cliente", "opportunities.overdue"],
+    ["Lead sem retorno", "opportunities.overdue"],
+    ["Follow up atrasado", "opportunities.overdue"],
+    ["Como anda meu site?", "articles.top"],
+    ["Qual post bombou?", "articles.top"],
+    ["O que estão lendo?", "articles.top"],
+    ["Artigos com mais acesso", "articles.top"],
+    ["Artigos mais vistos", "articles.top"],
+    ["Posts populares do blog", "articles.top"],
+    ["Conteúdos mais lidos", "articles.top"],
+    ["Tráfego do blog", "articles.top"],
+    ["Qual artigo teve mais acessos?", "articles.top"],
+    ["Página mais visitada", "articles.top"],
+    ["Tenho textos pela metade?", "drafts.pending"],
+    ["O que falta publicar?", "drafts.pending"],
+    ["Tem rascunho parado?", "drafts.pending"],
+    ["Textos esperando continuação", "drafts.pending"],
+    ["O que preciso terminar no Studio?", "drafts.pending"],
+    ["Quais textos estão incompletos?", "drafts.pending"],
+    ["Rascunhos aguardando revisão", "drafts.pending"],
+    ["Tem artigo sem divulgação?", "articles.without_newsletter"],
+    ["Publicação ainda não divulgada", "articles.without_newsletter"],
+    ["Artigos não distribuídos", "articles.without_newsletter"],
+    ["Artigo sem distribuição", "articles.without_newsletter"],
+    ["Quais artigos faltam compartilhar?", "articles.without_newsletter"],
+    ["Artigo sem campanha de newsletter", "articles.without_newsletter"],
+    ["Publicações sem newsletter vinculada", "articles.without_newsletter"],
+    ["Como anda o Cafezinho?", "newsletters.performance"],
+    ["Minha newsletter trouxe visitas?", "newsletters.performance"],
+    ["Quais campanhas tiveram resultado?", "newsletters.performance"],
+    ["Tráfego vindo da newsletter?", "newsletters.performance"],
+    ["Engajamento das campanhas de email", "newsletters.performance"],
+    ["Visitas geradas pelo Cafezinho", "newsletters.performance"],
+    ["Campanhas com melhor desempenho", "newsletters.performance"],
+    ["A newsletter está trazendo leitores?", "newsletters.performance"],
+    ["O que aconteceu essa semana?", "ecosystem.weekly"],
+    ["Balanço semanal do ecossistema", "ecosystem.weekly"],
+    ["Resumo dos últimos 7 dias", "ecosystem.weekly"],
+    ["Como foi minha semana?", "ecosystem.weekly"],
+    ["Resumo de atividades semanais", "ecosystem.weekly"],
+    ["O que rolou essa semana no Lastro?", "ecosystem.weekly"],
+    ["Está tudo funcionando?", "integrations.failures"],
+    ["Tem algo dando problema?", "integrations.failures"],
+    ["Alguma coisa quebrou no sistema?", "integrations.failures"],
+    ["Integrações fora do ar", "integrations.failures"],
+    ["Falhas de sincronização", "integrations.failures"],
+    ["Serviços com erro", "integrations.failures"],
+    ["Algo parou de funcionar", "integrations.failures"],
+    ["Status das integrações", "integrations.failures"],
+    ["O que posso aproveitar das pesquisas?", "research.unused"],
+    ["Referências ainda sem uso", "research.unused"],
+    ["O que está guardado para aproveitar?", "research.unused"],
+    ["Referências sem vínculo com rascunhos", "research.unused"],
+    ["Me ajuda a começar um artigo?", "editorial.prepare"],
+    ["Preparar uma pauta editorial", "editorial.prepare"],
+    ["Montar briefing para o próximo texto", "editorial.prepare"],
+    ["Quero estruturar um artigo novo", "editorial.prepare"],
+    ["Abrir oficina para pensar uma pauta", "editorial.prepare"],
+    ["Planejar a próxima publicação", "editorial.prepare"],
+    ["Tem cliete me esperano?", "opportunities.new"],
+    ["Qual artigo teve mais acessso?", "articles.top"],
+    ["Falhas na integracoa", "integrations.failures"],
+    ["ORÇAMENTOS, NOVOS?", "opportunities.new"],
+    [
+      "Me diga quais artigos do blog tiveram mais acessos nesta semana",
+      "articles.top",
+    ],
+    ["Não quero publicar artigos", null],
+    ["Nunca envie a newsletter", null],
+    ["Não me mostre os artigos mais acessados", null],
+    ["Pare de enviar campanhas", null],
+    ["oportunidades", null],
+    ["campanhas", null],
+    ["artigos e clientes", null],
+    ["Quem está esperando?", null],
+    ["Qual a previsão do tempo?", null],
+    ["Quanto dinheiro tenho na conta?", null],
+    ["Publique um artigo novo", null],
+    ["Crie uma oportunidade para mim", null],
+    ["Responda a mensagem do cliente", null],
+    ["Artigos mais acessados ontem", null],
+    ["Resumo dos últimos 90 dias", null],
+    ["Tem cliente esperando desde o mês passado?", null],
+    ["Resumo da última semana", null],
+    ["Quais artigos bombaram em 2025?", null],
+  ];
+  assert.ok(cases.length >= 60);
+  const started = performance.now();
+  for (const [question, expected] of cases)
+    assert.equal(
+      interpretQuestion(question, "for-you").intent,
+      expected,
+      question,
+    );
+  assert.ok(performance.now() - started < 2500, "interactive intent matching");
+});
+test("period-only follow-ups reuse just a supported prior intent", () => {
+  for (const q of [
+    "E nos últimos 30 dias?",
+    "e nos ultimos 7 dias",
+    "Na semana?",
+    "essa semana",
+    "hoje",
+  ])
+    assert.equal(isPeriodContinuation(q), true, q);
+  for (const q of [
+    "E nos últimos 90 dias?",
+    "E no mês passado?",
+    "E quais artigos?",
+    "Publique nos próximos 7 dias",
+  ])
+    assert.equal(isPeriodContinuation(q), false, q);
+  assert.equal(
+    interpretQuestion("E nos últimos 30 dias?", "analytics", "articles.top")
+      .intent,
+    "articles.top",
+  );
+  assert.equal(
+    interpretQuestion("E nos últimos 90 dias?", "analytics", "articles.top")
+      .intent,
+    null,
+  );
+  assert.equal(resolvePeriod("E nos últimos 30 dias").days, 30);
+  assert.equal(
+    interpretQuestion("Artigos mais acessados nos últimos 60 dias", "analytics")
+      .intent,
+    null,
+  );
 });
 before(async () => {
   mf = new Miniflare(
@@ -187,6 +336,7 @@ test("answers use real records, bound periods and no PII; AI remains locked even
     allowAI: true,
   });
   assert.match(response.text, /1 pedidos/);
+  assert.equal(response.intent, "opportunities.new");
   assert.equal(response.ai.enabled, false);
   assert.ok(response.syncedAt);
   assert.equal(response.stale, false);

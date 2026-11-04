@@ -61,6 +61,7 @@ export type Period = {
 };
 export type Answer = {
   text: string;
+  intent?: Intent;
   source: string;
   period: Period;
   syncedAt: string | null;
@@ -70,6 +71,18 @@ export type Answer = {
   choices?: { intent: Intent; label: string }[];
   ai: { enabled: false; reason: string };
 };
+export function isPeriodContinuation(value: string): boolean {
+  const text = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return /^(?:e\s+)?(?:hoje|(?:nos?\s+)?(?:ultimos?\s+)?(?:7|30)\s+dias|(?:na\s+)?semana(?:\s+atual)?|(?:essa|esta)\s+semana)$/.test(
+    text,
+  );
+}
 export type Notice = {
   id: string;
   priority: 100 | 95 | 90 | 75 | 60 | 45;

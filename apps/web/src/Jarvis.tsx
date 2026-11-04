@@ -11,6 +11,7 @@ import type {
   JarvisState,
   Notice,
 } from "../../../packages/contracts/jarvis";
+import { isPeriodContinuation } from "../../../packages/contracts/jarvis";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Minus, X } from "lucide-react";
 import { contextualSuggestion, type JarvisContext } from "./experience";
@@ -123,12 +124,14 @@ export default function Jarvis({
   );
   const [messages, setMessages] = useState<Message[]>([]);
   const sessionAlive = useRef(true),
+    lastIntent = useRef<Intent | null>(null),
     request = useRef<AbortController | null>(null),
     inputRef = useRef<HTMLTextAreaElement>(null),
     logRef = useRef<HTMLDivElement>(null);
   function clearConversation() {
     request.current?.abort();
     request.current = null;
+    lastIntent.current = null;
     setMessages([]);
     setQuestion("");
     setAnswer(null);
@@ -143,6 +146,7 @@ export default function Jarvis({
       preferenceRequest.current?.abort();
       request.current?.abort();
       clearJarvisSession();
+      lastIntent.current = null;
       setMessages([]);
       setQuestion("");
       setAnswer(null);
@@ -321,6 +325,10 @@ export default function Jarvis({
   }
   async function ask(choice?: Intent, text = question) {
     if (busy || !text.trim() || !sessionAlive.current) return;
+    const continuation = !choice && isPeriodContinuation(text);
+    const selectedChoice =
+      choice || (continuation ? (lastIntent.current ?? undefined) : undefined);
+    if (!continuation) lastIntent.current = null;
     const controller = new AbortController();
     request.current = controller;
     const id = crypto.randomUUID();
@@ -333,9 +341,14 @@ export default function Jarvis({
       const response: Answer = await commercialApi("jarvis/query", {
         method: "POST",
         signal: controller.signal,
-        body: JSON.stringify({ text, area: context.area, choice }),
+        body: JSON.stringify({
+          text,
+          area: context.area,
+          choice: selectedChoice,
+        }),
       });
       if (controller.signal.aborted || !sessionAlive.current) return;
+      lastIntent.current = response.intent || null;
       setAnswer(response);
       setMessages((m) =>
         m.map((item) =>
@@ -343,7 +356,8 @@ export default function Jarvis({
         ),
       );
     } catch {
-      if (!controller.signal.aborted && sessionAlive.current)
+      if (!controller.signal.aborted && sessionAlive.current) {
+        lastIntent.current = null;
         setMessages((m) =>
           m.map((item) =>
             item.id === id
@@ -355,6 +369,7 @@ export default function Jarvis({
               : item,
           ),
         );
+      }
     } finally {
       if (request.current === controller) {
         setBusy(false);
