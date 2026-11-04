@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./radar-board.css";
-import {
-  Heart,
-  Clock,
-  X,
-  ExternalLink,
-  Plus,
-  Columns3,
-  List,
-} from "lucide-react";
+import { Heart, Clock, X, ExternalLink, Plus } from "lucide-react";
+import RadarCountryCarousel from "./RadarCountryCarousel";
 import type {
   Content,
   RadarStatus,
@@ -17,6 +10,15 @@ import type {
 import { radarTriage } from "../../../packages/contracts";
 import { createLastroClient } from "../../../packages/contracts/client";
 const api = createLastroClient();
+const countries = new Intl.DisplayNames(["pt-BR"], { type: "region" });
+const countryName = (code?: string | null) =>
+  code ? (countries.of(code) ?? code) : "País não informado";
+const triageLabels = {
+  novidade: "Novidade",
+  para_avaliar: "Para avaliar",
+  favorito: "Favorito",
+  descartado: "Descartado",
+};
 const categories = {
   art_visual_culture: "Arte",
   graphic_design: "Design",
@@ -64,13 +66,13 @@ export default function RadarBoard({
     [busy, setBusy] = useState(false);
   const [scope, setScope] = useState<"editorial" | "scientific">("editorial"),
     [sort, setSort] = useState<RadarFeedQuery["sort"]>("novidade"),
-    [list, setList] = useState(false),
     [detail, setDetail] = useState<Content | null>(null);
   const [period, setPeriod] = useState("week"),
     [category, setCategory] = useState(""),
     [country, setCountry] = useState(""),
     [source, setSource] = useState(""),
     [language, setLanguage] = useState(""),
+    [triage, setTriage] = useState(""),
     [unread, setUnread] = useState(false),
     [search, setSearch] = useState("");
   const dialog = useRef<HTMLDialogElement>(null),
@@ -200,6 +202,7 @@ export default function RadarBoard({
     setCountry("");
     setSource("");
     setLanguage("");
+    setTriage("");
     setUnread(false);
     setSearch("");
   };
@@ -241,9 +244,10 @@ export default function RadarBoard({
       return false;
     return (
       (!category || c.radar?.category === category) &&
-      (!country || c.radar?.country === country) &&
+      (!country || (c.radar?.country ?? "unknown") === country) &&
       (!source || c.sourceId === source) &&
       (!language || c.language === language) &&
+      (!triage || radarTriage(c) === triage) &&
       (!unread || !c.state.read) &&
       (period !== "week" ||
         scope !== "scientific" ||
@@ -274,12 +278,28 @@ export default function RadarBoard({
           key === "source"
             ? [c.sourceId, c.sourceName]
             : key === "country"
-              ? [c.radar?.country, c.radar?.country]
+              ? [c.radar?.country ?? "unknown", countryName(c.radar?.country)]
               : [c.language, c.language],
         )
         .filter(([v]) => v) as [string, string][],
     ).entries(),
   ];
+  const byCountry = new Map<string, Content[]>();
+  for (const c of filtered) {
+    const key = c.radar?.country ?? "unknown";
+    const group = byCountry.get(key) ?? [];
+    group.push(c);
+    byCountry.set(key, group);
+  }
+  const groups = [...byCountry.entries()].sort(([a, first], [b, second]) => {
+    if (a === b) return 0;
+    if (a === "BR" || b === "unknown") return -1;
+    if (b === "BR" || a === "unknown") return 1;
+    return (
+      second.length - first.length ||
+      countryName(a).localeCompare(countryName(b), "pt-BR")
+    );
+  });
   const editorialSources = (status?.sources ?? []).filter(
     (s) => s.cycle === "daily",
   );
@@ -331,10 +351,6 @@ export default function RadarBoard({
           </h2>
         </div>
         <div className="radar-actions">
-          <button onClick={() => setList(!list)} aria-pressed={list}>
-            {list ? <Columns3 size={16} /> : <List size={16} />}{" "}
-            {list ? "Ver colunas" : "Lista densa"}
-          </button>
           <button disabled={loading} onClick={() => void load()}>
             Atualizar
           </button>
@@ -419,7 +435,11 @@ export default function RadarBoard({
             )}
             <option value="today">Hoje</option>
             <option value="week">Esta semana</option>
-            <option value="nine">Últimos nove dias</option>
+            <option value="nine">
+              {scope === "editorial"
+                ? "Nove dias · semana atual"
+                : "Últimos nove dias"}
+            </option>
           </select>
         </label>
         <label>
@@ -455,6 +475,15 @@ export default function RadarBoard({
           </label>
         ))}
         <label>
+          Estado
+          <select value={triage} onChange={(e) => setTriage(e.target.value)}>
+            <option value="">Todas as referências</option>
+            <option value="novidade">Novidades</option>
+            <option value="para_avaliar">Para avaliar</option>
+            <option value="favorito">Favoritos</option>
+          </select>
+        </label>
+        <label>
           Ordenação
           <select
             value={sort}
@@ -484,10 +513,11 @@ export default function RadarBoard({
       </div>
       <p className="radar-scope-note">
         {scope === "editorial"
-          ? "Diário: publicações da semana civil em Fortaleza. O recorte de nove dias não amplia essa janela; Favoritos incluem o acervo preservado."
-          : "Científico: critérios e datas próprios, sem expiração editorial."}{" "}
-        Fotografia e ilustração compartilham um assunto. Até 500 referências por
-        recorte e 500 favoritos.
+          ? "Publicações desta semana, no horário de Fortaleza. Favoritos incluem o acervo salvo."
+          : "Pesquisas com critérios e datas próprios, sem expiração editorial."}
+      </p>
+      <p className="radar-browse-hint">
+        Explore por país. Arraste as matérias ou use as setas para continuar.
       </p>
       <p role="status" className="radar-feedback">
         {feedback}
@@ -498,103 +528,91 @@ export default function RadarBoard({
           <button onClick={() => void load()}>Tentar novamente</button>
         </div>
       ) : loading ? (
-        <div className="radar-columns" aria-label="Carregando referências">
+        <div
+          className="radar-carousel-loading"
+          aria-label="Carregando referências"
+        >
           {[0, 1, 2].map((n) => (
             <div key={n} className="radar-skeleton" />
           ))}
         </div>
       ) : (
-        <div className={`radar-columns ${list ? "radar-dense" : ""}`}>
-          {(["novidade", "para_avaliar", "favorito"] as const).map(
-            (state, i) => {
-              const cards = filtered.filter((c) => radarTriage(c) === state);
-              return (
-                <section
-                  key={state}
-                  className="radar-column"
-                  aria-label={["Novidades", "Para avaliar", "Favoritos"][i]}
-                >
-                  <header>
-                    <h3>{["Novidades", "Para avaliar", "Favoritos"][i]}</h3>
-                    <span>{cards.length}</span>
-                  </header>
-                  <p>
-                    {
-                      [
-                        "Descobrir e separar",
-                        "Retenção de nove dias continua",
-                        "Preservados na biblioteca Salvos",
-                      ][i]
-                    }
-                  </p>
-                  {!cards.length ? (
-                    <div className="radar-empty">
-                      Nenhuma referência neste recorte.
-                    </div>
-                  ) : (
-                    cards.map((c) => (
-                      <article
-                        key={c.id}
-                        className="radar-compact"
-                        data-testid="radar-card"
-                        data-reference-id={c.id}
-                        id={`content-${c.id}`}
-                        tabIndex={-1}
-                      >
-                        <div className="radar-origin">
-                          {c.sourceName}{" "}
-                          <span>
-                            {c.radar?.country ?? "País não informado"}
-                          </span>
-                        </div>
-                        <button
-                          className="radar-title"
-                          onClick={() => setDetail(c)}
-                        >
-                          {c.imageUrl && (
-                            <img
-                              src={c.imageUrl}
-                              alt=""
-                              loading="lazy"
-                              referrerPolicy="no-referrer"
-                            />
-                          )}
-                          <h4>{c.title}</h4>
-                        </button>
-                        <div className="radar-card-meta">
-                          <span>
-                            {c.radar?.category
-                              ? categories[c.radar.category]
-                              : (c.topics[0] ?? "Assunto não informado")}
-                          </span>
-                          <time>{date(c.publishedAt)}</time>
-                        </div>
-                        {state === "para_avaliar" && scope === "editorial" && (
-                          <p className="radar-deadline">
-                            {Math.max(
-                              0,
-                              Math.ceil(
-                                (Date.parse(
-                                  c.radar?.expiresAt ??
-                                    new Date(
-                                      Date.parse(c.collectedAt) + 9 * 86400000,
-                                    ).toISOString(),
-                                ) -
-                                  Date.now()) /
-                                  86400000,
-                              ),
-                            )}{" "}
-                            dias restantes · não preservado
-                          </p>
-                        )}
-                        {actions(c)}
-                      </article>
-                    ))
-                  )}
-                </section>
-              );
-            },
+        <div className="radar-countries">
+          {!groups.length && (
+            <div className="radar-empty">Nenhuma referência neste recorte.</div>
           )}
+          {groups.map(([code, cards]) => (
+            <RadarCountryCarousel
+              key={code}
+              code={code}
+              name={countryName(code === "unknown" ? null : code)}
+              count={cards.length}
+            >
+              {cards.map((c) => (
+                <article
+                  key={c.id}
+                  className="radar-compact"
+                  data-testid="radar-card"
+                  data-reference-id={c.id}
+                  data-triage={radarTriage(c)}
+                  id={`content-${c.id}`}
+                  tabIndex={-1}
+                >
+                  <div className="radar-origin">
+                    {c.sourceName}{" "}
+                    <span>{c.radar?.country ?? "País não informado"}</span>
+                  </div>
+                  <button className="radar-title" onClick={() => setDetail(c)}>
+                    {c.imageUrl && (
+                      <img
+                        draggable={false}
+                        src={c.imageUrl}
+                        alt=""
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
+                    <h4>{c.title}</h4>
+                  </button>
+                  <div className="radar-card-meta">
+                    <span>
+                      {c.radar?.category
+                        ? categories[c.radar.category]
+                        : (c.topics[0] ?? "Assunto não informado")}
+                    </span>
+                    <time>{date(c.publishedAt)}</time>
+                  </div>
+                  <div className="radar-card-state">
+                    <span
+                      className={`radar-state radar-state-${radarTriage(c)}`}
+                    >
+                      {triageLabels[radarTriage(c)]}
+                    </span>
+                    {radarTriage(c) === "para_avaliar" &&
+                      scope === "editorial" && (
+                        <p className="radar-deadline">
+                          {Math.max(
+                            0,
+                            Math.ceil(
+                              (Date.parse(
+                                c.radar?.expiresAt ??
+                                  new Date(
+                                    Date.parse(c.collectedAt) + 9 * 86400000,
+                                  ).toISOString(),
+                              ) -
+                                Date.now()) /
+                                86400000,
+                            ),
+                          )}{" "}
+                          dias restantes · não preservado
+                        </p>
+                      )}
+                  </div>
+                  {actions(c)}
+                </article>
+              ))}
+            </RadarCountryCarousel>
+          ))}
         </div>
       )}
       <dialog

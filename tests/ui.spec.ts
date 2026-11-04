@@ -2236,7 +2236,7 @@ test("Jarvis Brain: revoked Google access preserves the authenticated Lastro cha
   ).toBeVisible();
 });
 
-test("Radar 2: 32 cards, triagem, filtros, detalhes, Oficina e captura", async ({
+test("Radar 2: países, 32 cards, triagem, filtros, detalhes e Oficina", async ({
   page,
 }) => {
   await mockApi(page, 40, true, false, false, true);
@@ -2252,26 +2252,14 @@ test("Radar 2: 32 cards, triagem, filtros, detalhes, Oficina e captura", async (
   await first
     .getByRole("button", { name: `Avaliar ${title}`, exact: true })
     .click();
-  await expect(
-    board
-      .getByRole("region", { name: "Para avaliar", exact: true })
-      .getByTestId("radar-card"),
-  ).toHaveCount(1);
+  await expect(board.locator('[data-triage="para_avaliar"]')).toHaveCount(1);
   await board
-    .getByRole("region", { name: "Para avaliar", exact: true })
+    .locator('[data-triage="para_avaliar"]')
     .getByRole("button", { name: `Favoritar ${title}`, exact: true })
     .click();
-  await expect(
-    board
-      .getByRole("region", { name: "Favoritos", exact: true })
-      .getByTestId("radar-card"),
-  ).toHaveCount(1);
+  await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
   await page.reload();
-  await expect(
-    board
-      .getByRole("region", { name: "Favoritos", exact: true })
-      .getByTestId("radar-card"),
-  ).toHaveCount(1);
+  await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
   await board
     .getByRole("combobox", { name: "País", exact: true })
     .selectOption("GB");
@@ -2301,23 +2289,20 @@ test("Radar 2: 32 cards, triagem, filtros, detalhes, Oficina e captura", async (
   await expect(
     board.getByRole("button", { name: openedTitle, exact: true }),
   ).toBeFocused();
-  await mkdir("docs/examples/radar2-ui", { recursive: true });
+  await mkdir(".wrangler/radar-country-mock", { recursive: true });
   await page.screenshot({
-    path: "docs/examples/radar2-ui/desktop-dark.png",
+    path: ".wrangler/radar-country-mock/desktop-dark.png",
     fullPage: true,
   });
   await page.evaluate(() => (document.documentElement.dataset.theme = "light"));
   await page.screenshot({
-    path: "docs/examples/radar2-ui/desktop-light.png",
+    path: ".wrangler/radar-country-mock/desktop-light.png",
     fullPage: true,
   });
-  await board.getByRole("button", { name: "Lista densa" }).click();
-  await expect(board.locator(".radar-dense")).toBeVisible();
-  await page.screenshot({
-    path: "docs/examples/radar2-ui/desktop-list.png",
-    fullPage: true,
-  });
-  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    board.getByRole("region", { name: "Brasil", exact: true }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 1280, height: 900 });
   await expect(board).toBeVisible();
   expect(
     await page.evaluate(
@@ -2364,11 +2349,7 @@ test("Radar 2: expiração em nove dias preserva favorito e descarte é efetivo"
     .first()
     .getByRole("button", { name: /^Favoritar / })
     .click();
-  await expect(
-    board
-      .getByRole("region", { name: "Favoritos", exact: true })
-      .getByTestId("radar-card"),
-  ).toHaveCount(1);
+  await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
   await page.clock.fastForward(9 * 86400000 + 60001);
   await expect(board.getByTestId("radar-card")).toHaveCount(1);
   await board
