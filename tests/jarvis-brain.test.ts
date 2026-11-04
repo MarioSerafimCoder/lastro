@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { readFile, readdir } from "node:fs/promises";
 import { migrationStatements } from "./migration-statements";
+import { build } from "esbuild";
+import { ApiFault } from "../src/errors";
 import { app } from "../src/index";
 import {
   applyMemory,
@@ -36,6 +38,8 @@ import {
 import type { Env } from "../src/env";
 let mf: Miniflare, env: Env;
 const realFetch = globalThis.fetch;
+const runtimeCalls: string[] = [];
+let runtimeRedirect = false;
 const draft = (
   summary = "Prefiro textos com humor seco.",
   project: string | null = null,
@@ -80,12 +84,60 @@ async function chat(s = scope()) {
   };
 }
 before(async () => {
+  const runtime = await build({
+    stdin: {
+      contents: `import {beginDriveOAuth,finishDriveOAuth} from './src/jarvis-drive';
+        export default {async fetch(req, bindings) {
+          const env={...bindings, BRAIN_DRIVE_ENABLED:'true', BRAIN_DRIVE_FREE_CONFIRMED:'true',
+            BRAIN_DRIVE_CLIENT_ID:'runtime-client', BRAIN_DRIVE_CLIENT_SECRET:'runtime-secret',
+            BRAIN_DRIVE_TOKEN_KEY:btoa('x'.repeat(32)), OWNER_EMAIL:'owner@example.test',
+            ALLOWED_ORIGIN:'https://lastro.test', BRAIN_DRIVE_REDIRECT_URI:'https://lastro.test/api/jarvis/drive/oauth/callback'};
+          const started=await beginDriveOAuth(env,new Request('https://lastro.test/api/jarvis/drive/oauth',{method:'POST',headers:{Origin:'https://lastro.test'}}));
+          try { return await finishDriveOAuth(env,new Request(env.BRAIN_DRIVE_REDIRECT_URI+'?code=runtime-code&state='+new URL(started.url).searchParams.get('state'),{headers:{Cookie:started.cookie.split(';')[0]}})); }
+          catch(error) { return Response.json({code:error.code},{status:error.status??500}); }
+        }}`,
+      resolveDir: process.cwd(),
+    },
+    bundle: true,
+    write: false,
+    format: "esm",
+    platform: "browser",
+  });
   mf = new Miniflare(
     await convertV4MiniflareOptions({
       modules: true,
-      script: "export default {fetch(){return new Response('ok')}}",
+      script: runtime.outputFiles[0].text,
       compatibilityDate: "2026-10-01",
       d1Databases: { DB: "brain-test" },
+      outboundService: async (req: Request) => {
+        runtimeCalls.push(new URL(req.url).pathname);
+        if (runtimeRedirect)
+          return new Response(null, {
+            status: 302,
+            headers: {
+              Location: "https://credential-exfiltration.test/forbidden",
+            },
+          });
+        if (req.url === "https://oauth2.googleapis.com/token") {
+          const params = new URLSearchParams(await req.text());
+          assert.equal(params.get("grant_type"), "authorization_code");
+          assert.equal(
+            params.get("redirect_uri"),
+            "https://lastro.test" + DRIVE_CALLBACK,
+          );
+          assert.ok(params.get("code_verifier"));
+          return reply({
+            access_token: "runtime-access",
+            refresh_token: "runtime-refresh",
+            scope: DRIVE_SCOPE + " openid email",
+          });
+        }
+        assert.equal(
+          req.url,
+          "https://openidconnect.googleapis.com/v1/userinfo",
+        );
+        return reply({ email: "owner@example.test", email_verified: true });
+      },
     }),
   );
   env = {
@@ -102,6 +154,8 @@ before(async () => {
       await env.DB.prepare(sql).run();
 });
 beforeEach(async () => {
+  runtimeCalls.length = 0;
+  runtimeRedirect = false;
   for (const table of [
     "jarvis_brain",
     "jarvis_brain_budget",
@@ -497,6 +551,187 @@ test("OAuth uses independent minimal scope, PKCE, exact HTTPS, single-use state 
   assert.equal(await unseal(env, stored), "mock-refresh");
   assert.ok(!(await result.text()).includes("mock-access"));
   await assert.rejects(() => finishDriveOAuth(env, flow.request), /State/);
+});
+test("OAuth completes in the actual Workers runtime with manual redirects and encrypted persistence", async () => {
+  const response = await mf.dispatchFetch("https://lastro.test/runtime-test");
+  assert.equal(response.status, 200);
+  assert.deepEqual(runtimeCalls, ["/token", "/v1/userinfo"]);
+  const stored = await env.DB.prepare(
+    "SELECT token_cipher FROM jarvis_brain_drive",
+  ).first<string>("token_cipher");
+  enableDrive();
+  assert.equal(await unseal(env, stored!), "runtime-refresh");
+  assert.equal(
+    await env.DB.prepare("SELECT COUNT(*) AS n FROM jarvis_brain_oauth").first(
+      "n",
+    ),
+    0,
+  );
+});
+test("actual Workers runtime refuses redirects without forwarding OAuth credentials", async () => {
+  runtimeRedirect = true;
+  const response = await mf.dispatchFetch("https://lastro.test/runtime-test");
+  assert.equal(response.status, 502);
+  assert.deepEqual(await response.json(), { code: "drive_redirect" });
+  assert.deepEqual(runtimeCalls, ["/token"]);
+  assert.equal(
+    await env.DB.prepare("SELECT COUNT(*) AS n FROM jarvis_brain_drive").first(
+      "n",
+    ),
+    0,
+  );
+});
+test("initial OAuth failures have safe, distinct diagnoses, never retry codes or delay an existing connection", async () => {
+  const cases = [
+    {
+      code: "drive_timeout",
+      status: 504,
+      error: new DOMException("private-provider-detail", "TimeoutError"),
+    },
+    {
+      code: "drive_connection",
+      status: 503,
+      error: new TypeError("private-provider-detail"),
+    },
+    { code: "drive_redirect", status: 502, http: 302 },
+    {
+      code: "drive_oauth_code",
+      status: 400,
+      http: 400,
+      oauth: "invalid_grant",
+    },
+    { code: "drive_config", status: 503, http: 401, oauth: "invalid_client" },
+    {
+      code: "drive_config",
+      status: 503,
+      http: 400,
+      oauth: "redirect_uri_mismatch",
+    },
+    { code: "drive_config", status: 503, http: 400, oauth: "invalid_request" },
+    { code: "drive_authorization", status: 401, http: 401 },
+    { code: "drive_authorization", status: 403, http: 403 },
+    { code: "drive_authorization", status: 429, http: 429 },
+    { code: "drive_service", status: 503, http: 503 },
+    {
+      code: "drive_service",
+      status: 503,
+      http: 400,
+      oauth: "temporarily_unavailable",
+    },
+    {
+      code: "drive_request",
+      status: 502,
+      http: 400,
+      oauth: "private-provider-detail",
+    },
+    { code: "drive_response", status: 502, http: 200, malformed: true },
+  ];
+  await env.DB.prepare(
+    "INSERT INTO jarvis_brain_drive(owner,token_cipher) VALUES ('owner','unchanged-cipher')",
+  ).run();
+  for (const item of cases) {
+    const flow = await oauth();
+    let calls = 0;
+    const logs: string[] = [];
+    const warn = console.warn;
+    console.warn = (value) => {
+      logs.push(String(value));
+    };
+    globalThis.fetch = async (_url, init) => {
+      calls++;
+      assert.equal(init?.redirect, "manual");
+      assert.ok(init?.signal);
+      if (item.error) throw item.error;
+      if (item.malformed) return new Response("private-provider-detail");
+      return reply(
+        {
+          error: item.oauth,
+          error_description: "private-provider-detail",
+          access_token: "private-access-token",
+        },
+        item.http,
+      );
+    };
+    try {
+      await assert.rejects(
+        () => finishDriveOAuth(env, flow.request),
+        (error) => {
+          assert.ok(error instanceof ApiFault);
+          assert.equal(error.code, item.code);
+          assert.equal(error.status, item.status);
+          assert.doesNotMatch(
+            error.message,
+            /private-provider-detail|authorized-code|private-access-token|mock-client-secret/,
+          );
+          return true;
+        },
+      );
+      await assert.rejects(() => finishDriveOAuth(env, flow.request), /State/);
+      assert.equal(calls, 1);
+      assert.doesNotMatch(
+        logs.join(""),
+        /private-provider-detail|authorized-code|private-access-token|mock-client-secret|code_verifier|Authorization|Location/,
+      );
+      assert.deepEqual(
+        await env.DB.prepare(
+          "SELECT token_cipher,retry_at FROM jarvis_brain_drive",
+        ).first(),
+        { token_cipher: "unchanged-cipher", retry_at: 0 },
+      );
+    } finally {
+      console.warn = warn;
+    }
+  }
+});
+test("OAuth body transport failures retain timeout diagnosis and response limits", async () => {
+  for (const oversized of [false, true]) {
+    const flow = await oauth();
+    globalThis.fetch = async () =>
+      oversized
+        ? new Response("x".repeat(32769))
+        : new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(
+                  new DOMException("sensitive-body", "TimeoutError"),
+                );
+              },
+            }),
+          );
+    await assert.rejects(
+      () => finishDriveOAuth(env, flow.request),
+      (error) =>
+        error instanceof ApiFault &&
+        error.code === (oversized ? "drive_size" : "drive_timeout"),
+    );
+  }
+});
+test("refresh service failures never masquerade as revocation or poison a valid stored token", async () => {
+  await fakeDrive();
+  const m = (await create())!;
+  for (const status of [500, 502, 503]) {
+    globalThis.fetch = async () =>
+      reply(
+        { error: "server_error", error_description: "private-provider-detail" },
+        status,
+      );
+    await assert.rejects(
+      () => syncMemory(env, m.id, 1),
+      (error) => error instanceof ApiFault && error.code === "drive_service",
+    );
+    assert.equal(
+      await env.DB.prepare("SELECT retry_at FROM jarvis_brain_drive").first(
+        "retry_at",
+      ),
+      0,
+    );
+    assert.equal(
+      await env.DB.prepare("SELECT lock_until FROM jarvis_brain_drive").first(
+        "lock_until",
+      ),
+      0,
+    );
+  }
 });
 test("OAuth rejects wrong owner, replay, expired state, wrong nonce and tampered ciphertext", async () => {
   let flow = await oauth("intruder@example.test");

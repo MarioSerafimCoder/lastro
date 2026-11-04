@@ -154,81 +154,137 @@ async function request(
   url: string,
   init: RequestInit = {},
   allow404 = false,
+  grant?: "authorization_code" | "refresh_token",
 ) {
   await brainBudget(env, 32768); // reserve the maximum response before every external request
+  const signal = AbortSignal.timeout(8000);
+  const diagnostic = {
+    component: "jarvis-drive",
+    host: new URL(url).hostname,
+    operation: grant ?? "drive",
+  };
   let response: Response;
+  let body: string;
   try {
     response = await fetch(url, {
       ...init,
-      redirect: "error",
-      signal: AbortSignal.timeout(8000),
+      // Workers rejects redirect:"error" before sending any request.
+      // Never forward OAuth credentials or bearer headers to a redirect target.
+      redirect: "manual",
+      signal,
     });
-  } catch (error) {
-    console.warn(
-      JSON.stringify({
-        component: "jarvis-drive",
-        event: "upstream_fetch_failed",
-        host: new URL(url).hostname,
-        errorName: error instanceof Error ? error.name : "UnknownError",
-      }),
-    );
-    throw new ApiFault(
-      503,
-      "drive_unavailable",
-      "Drive indisponível; o D1 foi preservado. Tente novamente manualmente.",
-    );
-  }
-  if (allow404 && response.status === 404) {
-    await response.body?.cancel();
-    return null;
-  }
-  if (!response.ok) {
-    if (
-      response.status === 400 &&
-      url === "https://oauth2.googleapis.com/revoke"
-    ) {
-      const result = JSON.parse(await bounded(response));
-      if (result.error === "invalid_token") return { body: "", etag: null };
-    }
-    await response.body?.cancel();
-    const status = response.status;
-    if (status === 401 || status === 403 || status === 429) {
-      await stmt(
-        env.DB,
-        "UPDATE jarvis_brain_drive SET retry_at=? WHERE owner=?",
-        Date.now() + (status === 429 ? 60000 : 300000),
-        OWNER,
-      ).run();
+    if (response.status >= 300 && response.status < 400) {
+      await response.body?.cancel();
+      console.warn(
+        JSON.stringify({
+          ...diagnostic,
+          event: "upstream_redirect",
+          status: response.status,
+        }),
+      );
       throw new ApiFault(
-        status,
-        "drive_authorization",
-        status === 429
-          ? "Limite do Drive; aguarde e tente novamente."
-          : "Acesso ao Drive expirado, revogado ou sem permissão. Revise a conexão.",
+        502,
+        "drive_redirect",
+        "Redirecionamento do Google recusado. Revise a configuração.",
       );
     }
+    if (allow404 && response.status === 404) {
+      await response.body?.cancel();
+      return null;
+    }
+    body = await bounded(response);
+  } catch (error) {
+    if (error instanceof ApiFault) throw error;
+    const timeout =
+      signal.aborted ||
+      (error instanceof Error &&
+        (error.name === "TimeoutError" || error.name === "AbortError"));
+    console.warn(
+      JSON.stringify({
+        ...diagnostic,
+        event: "upstream_fetch_failed",
+        category: timeout ? "timeout" : "connection",
+      }),
+    );
     throw new ApiFault(
-      502,
-      "drive_request",
-      "Operação do Drive não confirmada. D1 preservado.",
+      timeout ? 504 : 503,
+      timeout ? "drive_timeout" : "drive_connection",
+      timeout
+        ? "Tempo de resposta do Google excedido; D1 preservado. Inicie nova autorização se estava conectando o Drive."
+        : "Conexão com o Google indisponível; D1 preservado. Inicie nova autorização se estava conectando o Drive.",
     );
   }
-  return { body: await bounded(response), etag: response.headers.get("etag") };
-}
-async function tokenRequest(env: Env, params: Record<string, string>) {
-  let result;
-  try {
-    result = await request(env, "https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        ...params,
-        client_id: env.BRAIN_DRIVE_CLIENT_ID!,
-        client_secret: env.BRAIN_DRIVE_CLIENT_SECRET!,
+  if (!response.ok) {
+    let oauthError = "unknown";
+    try {
+      const value: unknown = JSON.parse(body)?.error;
+      if (
+        typeof value === "string" &&
+        [
+          "invalid_grant",
+          "invalid_client",
+          "unauthorized_client",
+          "redirect_uri_mismatch",
+          "invalid_request",
+          "invalid_scope",
+          "unsupported_grant_type",
+          "invalid_token",
+          "temporarily_unavailable",
+          "server_error",
+        ].includes(value)
+      )
+        oauthError = value;
+    } catch {
+      /* Provider bodies are never logged or returned. */
+    }
+    console.warn(
+      JSON.stringify({
+        ...diagnostic,
+        event: "upstream_http_failed",
+        status: response.status,
+        ...(grant ? { oauthError } : {}),
       }),
-    });
-  } catch (error) {
-    if (error instanceof ApiFault && error.status === 502) {
+    );
+    if (
+      response.status === 400 &&
+      url === "https://oauth2.googleapis.com/revoke" &&
+      oauthError === "invalid_token"
+    )
+      return { body: "", etag: null };
+    const status = response.status;
+    if (
+      status >= 500 ||
+      oauthError === "temporarily_unavailable" ||
+      oauthError === "server_error"
+    )
+      throw new ApiFault(
+        503,
+        "drive_service",
+        "Operação do Drive não confirmada: serviço Google temporariamente indisponível. D1 preservado.",
+      );
+    if (
+      grant &&
+      [
+        "invalid_client",
+        "unauthorized_client",
+        "redirect_uri_mismatch",
+        "invalid_request",
+        "invalid_scope",
+        "unsupported_grant_type",
+      ].includes(oauthError)
+    )
+      throw new ApiFault(
+        503,
+        "drive_config",
+        "Configuração OAuth recusada pelo Google. Revise cliente, callback e PKCE.",
+      );
+    if (grant && oauthError === "invalid_grant") {
+      if (grant === "authorization_code")
+        throw new ApiFault(
+          400,
+          "drive_oauth_code",
+          "Código OAuth inválido, expirado ou incompatível com callback/PKCE. Inicie nova autorização.",
+        );
       await stmt(
         env.DB,
         "UPDATE jarvis_brain_drive SET retry_at=? WHERE owner=?",
@@ -241,9 +297,74 @@ async function tokenRequest(env: Env, params: Record<string, string>) {
         "Autorização inválida, expirada ou revogada. Reconecte o Drive.",
       );
     }
-    throw error;
+    if (status === 401 || status === 403 || status === 429) {
+      if (grant !== "authorization_code")
+        await stmt(
+          env.DB,
+          "UPDATE jarvis_brain_drive SET retry_at=? WHERE owner=?",
+          Date.now() + (status === 429 ? 60000 : 300000),
+          OWNER,
+        ).run();
+      throw new ApiFault(
+        status,
+        "drive_authorization",
+        status === 429
+          ? "Limite do Drive; aguarde e tente novamente."
+          : grant === "authorization_code"
+            ? "Autorização inicial recusada pelo Google. Revise o cliente e inicie nova autorização."
+            : "Acesso ao Drive expirado, revogado ou sem permissão. Revise a conexão.",
+      );
+    }
+    throw new ApiFault(
+      502,
+      "drive_request",
+      "Operação do Drive não confirmada. D1 preservado.",
+    );
   }
-  return JSON.parse(result!.body) as {
+  return { body, etag: response.headers.get("etag") };
+}
+async function tokenRequest(env: Env, params: Record<string, string>) {
+  const grant = params.grant_type as "authorization_code" | "refresh_token";
+  const result = await request(
+    env,
+    "https://oauth2.googleapis.com/token",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        ...params,
+        client_id: env.BRAIN_DRIVE_CLIENT_ID!,
+        client_secret: env.BRAIN_DRIVE_CLIENT_SECRET!,
+      }),
+    },
+    false,
+    grant,
+  );
+  let tokens;
+  try {
+    tokens = JSON.parse(result!.body);
+  } catch {
+    throw new ApiFault(
+      502,
+      "drive_response",
+      "Resposta OAuth inválida do Google. Inicie nova autorização se estava conectando o Drive.",
+    );
+  }
+  if (
+    !tokens ||
+    typeof tokens !== "object" ||
+    typeof tokens.access_token !== "string" ||
+    !tokens.access_token ||
+    (tokens.refresh_token !== undefined &&
+      typeof tokens.refresh_token !== "string") ||
+    (tokens.scope !== undefined && typeof tokens.scope !== "string")
+  )
+    throw new ApiFault(
+      502,
+      "drive_response",
+      "Resposta OAuth incompleta do Google. Revise a conexão.",
+    );
+  return tokens as {
     access_token?: string;
     refresh_token?: string;
     scope?: string;

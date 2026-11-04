@@ -1,5 +1,17 @@
 # Jarvis-Brain 1.0 — handoff
 
+## Diagnóstico final Drive — 04/11/2026
+
+**BLOQUEADO para homologação/ativação; correção técnica implantada.** Versão ativa `3438f34e-7686-432a-bfd8-8188af07f08f`, 100%. Esta atualização substitui o diagnóstico de rede abaixo.
+
+A versão anterior `54cc2eb9` já continha a instrumentação e correspondia aos módulos locais. Causa reproduzida no workerd e no Worker real: `redirect: "error"` lança `TypeError` antes da rede. Sonda autenticada sem código/credenciais: modo antigo falhou em 0 ms; `manual` recebeu HTTP 400 do endpoint de tokens em 294 ms. A sonda foi removida; rota confirmou 404 autenticado. Correção usa `manual`, rejeita 3xx sem seguir Location e distingue timeout, conexão, configuração, autorização, código inválido e serviço temporário. Autorização inicial não vira erro de refresh. Timeout permanece 8 s; sem retentativas automáticas nem logs sensíveis.
+
+Console autenticado: Drive API ativa; OAuth em produção, cliente exclusivo, callback e três escopos corretos; políticas publicadas. Cotas efetivas: 1.000.000 unidades/minuto e 325.000/usuário; legadas 12.000. Billing de avaliação continua vinculado somente ao projeto listado, sem alteração. [Workspace trata Billing como opcional](https://developers.google.com/workspace/guides/create-project); [Drive padrão não tem custo adicional, sujeito aos limites e mudanças anunciadas](https://developers.google.com/workspace/drive/api/guides/limits). Desvinculação exige autorização específica e verificação de continuidade dos serviços antes da execução; não fechar a conta compartilhada.
+
+Ambos os flags permanecem `false`. D1: zero conexões, zero memórias, um state antigo; nenhuma escrita documental. OAuth real, refresh, nova sessão e ciclo documental permanecem pendentes. Workers Free confirmado. Apenas `jarvis-drive.ts` mudou no código publicado; bindings e três Crons idênticos. Master remoto segue `6174549`; trabalho preservado na branch `codex/jarvis-brain-01`.
+
+Validação: 58 testes Jarvis/segurança aprovados e mais uma regressão de redirecionamento no runtime (26/26 Brain na rodada final); 14/14 Playwright; TypeScript Worker/web e build aprovados. Testes simulados cobrem versões, idempotência, concorrência, falhas parciais, refresh e criptografia. A homologação real continua bloqueada pelas condições de custo e pelas confirmações reservadas ao proprietário.
+
 Base: `b23016ef5a7c98b5764cb2cd215af437c78fe3cf`. Branch `codex/jarvis-brain-01` enviada ao GitHub e integrada por fast-forward à `master`. Código publicado: `c330e3f`. Versão Cloudflare: `1229d175-317a-4466-9b69-14d87f613410` (04/11/2026).
 
 **APTO COM RESSALVAS:** memória D1 ativada e verificada; Drive depende de homologação independente. O teste real de navegador usou a sessão autenticada existente; logout/novo login foram validados em teste automatizado com os handlers e cookies de produção em D1 isolado.
