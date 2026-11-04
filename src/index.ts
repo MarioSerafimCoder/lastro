@@ -1,3 +1,17 @@
+import {
+  querySchema as jarvisQuerySchema,
+  noticeSchema as jarvisNoticeSchema,
+  actionSchema as jarvisActionSchema,
+  preferencesSchema as jarvisPreferencesSchema,
+} from "../packages/contracts/jarvis";
+import {
+  answerJarvis,
+  jarvisState,
+  saveJarvisPreferences,
+  markNotice,
+  resolveAction,
+  invalidateJarvis,
+} from "./jarvis";
 import { newsletterSummary, commercialRecommendations } from "./newsletters";
 import {
   receiveOpportunity,
@@ -203,6 +217,31 @@ app.use("/api/*", async (c, next) => {
   }
   await next();
 });
+app.use(
+  "/api/jarvis/*",
+  bodyLimit({
+    maxSize: 4096,
+    onError: () => {
+      throw new ApiFault(413, "payload_too_large", "Corpo limitado a 4 KiB.");
+    },
+  }),
+);
+app.get("/api/jarvis/state", async (c) => c.json(await jarvisState(c.env)));
+app.post("/api/jarvis/query", async (c) =>
+  c.json(await answerJarvis(c.env, await json(c, jarvisQuerySchema))),
+);
+app.patch("/api/jarvis/preferences", async (c) =>
+  c.json(
+    await saveJarvisPreferences(c.env, await json(c, jarvisPreferencesSchema)),
+  ),
+);
+app.post("/api/jarvis/notices", async (c) => {
+  const input = await json(c, jarvisNoticeSchema);
+  return c.json(await markNotice(c.env, input.id, input.operation));
+});
+app.post("/api/jarvis/actions", async (c) =>
+  c.json(await resolveAction(c.env, await json(c, jarvisActionSchema))),
+);
 app.get("/api/commercial/recommendations", async (c) =>
   c.json(await commercialRecommendations(c.env)),
 );
@@ -229,6 +268,7 @@ app.patch("/api/opportunities/:id", async (c) => {
   ).run();
   if (!result.meta.changes)
     throw new ApiFault(404, "not_found", "Oportunidade não encontrada.");
+  invalidateJarvis(c.env);
   return c.json({ updated: true });
 });
 app.delete("/api/opportunities/:id", async (c) => {
@@ -237,6 +277,7 @@ app.delete("/api/opportunities/:id", async (c) => {
     "DELETE FROM opportunities WHERE id=?",
     c.req.param("id"),
   ).run();
+  invalidateJarvis(c.env);
   return c.json({ deleted: true });
 });
 app.get("/api/analytics/overview", async (c) =>

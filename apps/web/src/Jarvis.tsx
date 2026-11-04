@@ -1,4 +1,12 @@
 import { commercialApi } from "./Opportunities";
+import { loadJarvisState, invalidateJarvisClient } from "./jarvis-client";
+import type {
+  Answer,
+  Intent,
+  JarvisAction,
+  JarvisState,
+  Notice,
+} from "../../../packages/contracts/jarvis";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Minus, X } from "lucide-react";
 import { contextualSuggestion, type JarvisContext } from "./experience";
@@ -87,9 +95,6 @@ export default function Jarvis({
     () => read("localStorage", preferenceKey) !== "false",
   );
   const [hint, setHint] = useState(false);
-  const offered = useRef(
-    read("sessionStorage", "lastro:jarvis:offered") === "true",
-  );
   const toggleRef = useRef<HTMLButtonElement>(null);
   const { ref: panelRef, visible: panelVisible } = usePresence<HTMLDivElement>(
     open,
@@ -99,26 +104,204 @@ export default function Jarvis({
     hint && !open,
     "translateY(6px) scale(.98)",
   );
-  const [commercial, setCommercial] =
-    useState<JarvisContext["commercial"]>(null);
+  const [actionLink, setActionLink] = useState<string | null>(null);
+  const [state, setState] = useState<JarvisState | null>(null),
+    [notice, setNotice] = useState<Notice | null>(null),
+    [question, setQuestion] = useState(""),
+    [answer, setAnswer] = useState<Answer | null>(null),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const savingPreferences = useRef(false);
+  const claiming = useRef(false),
+    lastOffered = useRef<string | null>(null),
+    stateRef = useRef<JarvisState | null>(null);
+  const suggestion = contextualSuggestion(context);
+  const interrupted = () =>
+    document.visibilityState !== "visible" ||
+    context.area === "oficina" ||
+    !!document.querySelector('[role="dialog"], [aria-busy="true"]') ||
+    !!document.activeElement?.matches(
+      'input,textarea,select,[contenteditable="true"]',
+    );
   useEffect(() => {
-    if (!open) return;
-    let live = true;
-    commercialApi("commercial/recommendations")
-      .then((d) => {
-        if (live) setCommercial(d);
-      })
-      .catch(() => {
-        if (live) setCommercial(null);
-      });
-    return () => {
-      live = false;
+    let active = true;
+    async function check() {
+      if (document.visibilityState !== "visible" || savingPreferences.current)
+        return;
+      let ownsClaim = false;
+      try {
+        const next = await loadJarvisState();
+        if (!active) return;
+        stateRef.current = next;
+        setState(next);
+        setEnabled(next.preferences.enabled);
+        setProactive(next.preferences.proactive);
+        // Allow the initial workspace to settle; no extra data request is made.
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        if (!active || claiming.current) return;
+        const candidate = next.notices[0];
+        if (
+          !next.preferences.enabled ||
+          !next.preferences.proactive ||
+          !candidate ||
+          open ||
+          interrupted() ||
+          lastOffered.current === candidate.id
+        )
+          return;
+        claiming.current = true;
+        ownsClaim = true;
+        const result = await commercialApi("jarvis/notices", {
+          method: "POST",
+          body: JSON.stringify({ id: candidate.id, operation: "shown" }),
+        });
+        if (active && result.allowed) {
+          lastOffered.current = candidate.id;
+          setNotice(candidate);
+          if (!interrupted()) setHint(true);
+        }
+      } catch {
+        if (active) setHint(false);
+        if (active)
+          setError(
+            "Jarvis indisponível. Seus dados e preferências foram preservados.",
+          );
+      } finally {
+        if (ownsClaim) claiming.current = false;
+      }
+    }
+    void check();
+    const timer = setInterval(() => void check(), 300000);
+    const visibility = () => {
+      if (document.visibilityState === "visible") void check();
+      else setHint(false);
     };
-  }, [open, context.area]);
-  const suggestion = contextualSuggestion({ ...context, commercial });
-  const dismissHint = () => {
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      active = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [context.area, open]);
+  useEffect(() => {
+    if (context.area === "oficina") setHint(false);
+    const dismissOnEdit = (event: FocusEvent) => {
+      if (
+        (event.target as Element)?.matches(
+          "input,textarea,select,[contenteditable='true']",
+        )
+      )
+        setHint(false);
+    };
+    document.addEventListener("focusin", dismissOnEdit);
+    return () => document.removeEventListener("focusin", dismissOnEdit);
+  }, [context.area]);
+  async function dismissHint(operation: "dismiss" | "snooze" = "dismiss") {
     setHint(false);
-  };
+    if (!notice) return;
+    try {
+      await commercialApi("jarvis/notices", {
+        method: "POST",
+        body: JSON.stringify({ id: notice.id, operation }),
+      });
+      invalidateJarvisClient();
+      setState((s) =>
+        s ? { ...s, notices: s.notices.filter((n) => n.id !== notice.id) } : s,
+      );
+      setNotice(null);
+    } catch {
+      setError("Não foi possível salvar a dispensa. Tente novamente.");
+    }
+  }
+  async function preferences(patch: {
+    enabled?: boolean;
+    proactive?: boolean;
+    communication?: "formal" | "discreto";
+  }) {
+    const current = stateRef.current?.preferences;
+    if (!current) {
+      setError("Aguarde a leitura das preferências antes de alterar.");
+      return;
+    }
+    if (savingPreferences.current) return;
+    savingPreferences.current = true;
+    setError("");
+    if (patch.proactive !== undefined) setProactive(patch.proactive);
+    try {
+      const next = await commercialApi("jarvis/preferences", {
+        method: "PATCH",
+        body: JSON.stringify({ ...current, ...patch, area: context.area }),
+      });
+      stateRef.current = { ...stateRef.current!, preferences: next };
+      setState(stateRef.current);
+      setEnabled(next.enabled);
+      setProactive(next.proactive);
+      write("localStorage", "lastro:jarvis:enabled", String(next.enabled));
+      write("localStorage", preferenceKey, String(next.proactive));
+      invalidateJarvisClient();
+      if (!next.enabled) setOpen(false);
+      setHint(false);
+    } catch {
+      setProactive(current.proactive);
+      setEnabled(current.enabled);
+      setError("Não foi possível salvar as preferências.");
+    } finally {
+      savingPreferences.current = false;
+    }
+  }
+  async function ask(choice?: Intent) {
+    if (busy || !question.trim()) return;
+    setBusy(true);
+    setError("");
+    setActionLink(null);
+    try {
+      setAnswer(
+        await commercialApi("jarvis/query", {
+          method: "POST",
+          body: JSON.stringify({ text: question, area: context.area, choice }),
+        }),
+      );
+    } catch {
+      setError(
+        "Não foi possível consultar os dados. Nenhuma ação foi executada.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function act(action: JarvisAction) {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const resolved = await commercialApi("jarvis/actions", {
+        method: "POST",
+        body: JSON.stringify(action),
+      });
+      if (resolved.url) {
+        setActionLink(resolved.url);
+        return;
+      }
+      if (action.kind === "opportunity.open" && action.target)
+        sessionStorage.setItem("jarvis:opportunity", action.target);
+      close();
+      onAction(resolved.navigation);
+      if (action.kind === "opportunity.open" && action.target) {
+        window.dispatchEvent(
+          new CustomEvent("jarvis:opportunity", { detail: action.target }),
+        );
+      }
+      if (action.kind === "article.open" && action.target) {
+        window.dispatchEvent(
+          new CustomEvent("jarvis:article", { detail: action.target }),
+        );
+      }
+    } catch {
+      setError("A ação não está disponível. Consulte novamente os dados.");
+    } finally {
+      setBusy(false);
+    }
+  }
   const close = () => {
     setOpen(false);
     toggleRef.current?.focus({ preventScroll: true });
@@ -127,22 +310,6 @@ export default function Jarvis({
     setOpen(true);
     setHint(false);
   };
-  useEffect(() => {
-    if (context.area !== "for-you") setHint(false);
-  }, [context.area]);
-  useEffect(() => {
-    if (
-      !enabled ||
-      !proactive ||
-      offered.current ||
-      context.area !== "for-you" ||
-      !context.available
-    )
-      return;
-    offered.current = true;
-    write("sessionStorage", "lastro:jarvis:offered", "true");
-    setHint(true);
-  }, [enabled, proactive, context.area, context.available]);
   useEffect(() => {
     if (open)
       panelRef.current
@@ -165,8 +332,7 @@ export default function Jarvis({
         <button
           className="secondary-button"
           onClick={() => {
-            setEnabled(true);
-            write("localStorage", "lastro:jarvis:enabled", "true");
+            void preferences({ enabled: true });
           }}
         >
           Reativar Jarvis
@@ -199,9 +365,15 @@ export default function Jarvis({
           inert={!hint || open}
           aria-hidden={!hint || open || undefined}
         >
-          <p>Quer explorar uma referência diferente?</p>
-          <button onClick={show}>Explorar com Jarvis</button>
-          <button aria-label="Dispensar sugestão" onClick={dismissHint}>
+          <p>{notice?.text}</p>
+          <button onClick={show}>Revisar com Jarvis</button>
+          <button onClick={() => void dismissHint("snooze")}>
+            Adiar 24 horas
+          </button>
+          <button
+            aria-label="Dispensar sugestão"
+            onClick={() => void dismissHint()}
+          >
             <X size={16} />
           </button>
         </div>
@@ -218,21 +390,171 @@ export default function Jarvis({
         >
           <div className="jarvis-heading">
             <JarvisMark />
-            <span>Uma provocação, um caminho.</span>
+            <span>À disposição, com os fatos.</span>
             <button aria-label="Minimizar Jarvis" onClick={close}>
               <Minus size={18} />
             </button>
           </div>
+          <form
+            className="jarvis-query"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void ask();
+            }}
+          >
+            <label htmlFor="jarvis-question">Consultar o ecossistema</label>
+            <input
+              id="jarvis-question"
+              maxLength={500}
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Quais oportunidades estão atrasadas?"
+            />
+            <button
+              className="primary-button"
+              disabled={busy || !question.trim()}
+            >
+              Consultar
+            </button>
+          </form>
+          {error && <p role="alert">{error}</p>}
+          {actionLink && (
+            <p>
+              <a href={actionLink} target="_blank" rel="noopener noreferrer">
+                Abrir destino revisado ↗
+              </a>
+            </p>
+          )}
+          {answer && (
+            <section className="jarvis-answer" aria-live="polite">
+              <p>{answer.text}</p>
+              <small>
+                {answer.source} · {answer.period.label}
+                <br />
+                Sincronização:{" "}
+                {answer.syncedAt
+                  ? new Date(answer.syncedAt).toLocaleString("pt-BR")
+                  : "indisponível"}
+                {answer.stale ? " · Dados desatualizados" : ""}
+                {answer.incomplete ? " · Cobertura incompleta" : ""}
+              </small>
+              {answer.choices?.map((c) => (
+                <button
+                  disabled={busy}
+                  key={c.intent}
+                  onClick={() => void ask(c.intent)}
+                >
+                  {c.label}
+                </button>
+              ))}
+              {answer.action && (
+                <button
+                  disabled={busy}
+                  onClick={() => void act(answer.action!)}
+                >
+                  Revisar ação
+                </button>
+              )}
+            </section>
+          )}
+          {!!state?.notices.length && (
+            <section aria-label="Prioridades">
+              <h3>Prioridades</h3>
+              {state.notices.slice(0, 5).map((n) => (
+                <article key={n.id}>
+                  <p>{n.text}</p>
+                  <button disabled={busy} onClick={() => void act(n.action)}>
+                    Revisar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setNotice(n);
+                      void commercialApi("jarvis/notices", {
+                        method: "POST",
+                        body: JSON.stringify({
+                          id: n.id,
+                          operation: "dismiss",
+                        }),
+                      })
+                        .then(() => {
+                          invalidateJarvisClient();
+                          setState((s) =>
+                            s
+                              ? {
+                                  ...s,
+                                  notices: s.notices.filter(
+                                    (x) => x.id !== n.id,
+                                  ),
+                                }
+                              : s,
+                          );
+                        })
+                        .catch(() =>
+                          setError("Não foi possível salvar a dispensa."),
+                        );
+                    }}
+                  >
+                    Dispensar
+                  </button>
+                  <button
+                    onClick={() => {
+                      void commercialApi("jarvis/notices", {
+                        method: "POST",
+                        body: JSON.stringify({ id: n.id, operation: "snooze" }),
+                      })
+                        .then(() => {
+                          invalidateJarvisClient();
+                          setState((s) =>
+                            s
+                              ? {
+                                  ...s,
+                                  notices: s.notices.filter(
+                                    (x) => x.id !== n.id,
+                                  ),
+                                }
+                              : s,
+                          );
+                        })
+                        .catch(() =>
+                          setError("Não foi possível adiar o alerta."),
+                        );
+                    }}
+                  >
+                    Adiar 24h
+                  </button>
+                </article>
+              ))}
+            </section>
+          )}
           <div className="jarvis-suggestion" key={suggestion.action}>
             <span className="kicker">Um ponto de partida</span>
             <h3>{suggestion.title}</h3>
             <p>{suggestion.body}</p>
             <button
               className="primary-button"
-              onClick={() => {
-                close();
-                onAction(suggestion.action);
-              }}
+              onClick={() =>
+                void act(
+                  suggestion.action === "queue"
+                    ? { kind: "references.open", target: "queue" }
+                    : suggestion.action.startsWith("open-studio:")
+                      ? {
+                          kind: "studio.continue",
+                          target: suggestion.action.slice(12),
+                        }
+                      : {
+                          kind:
+                            suggestion.action === "opportunities"
+                              ? "opportunity.open"
+                              : suggestion.action === "newsletters"
+                                ? "newsletters.open"
+                                : suggestion.action === "publications"
+                                  ? "integration.review"
+                                  : suggestion.action === "studio"
+                                    ? "workshop.prepare"
+                                    : "references.open",
+                        },
+                )
+              }
             >
               {suggestion.label}
               <ArrowUpRight size={16} />
@@ -243,9 +565,7 @@ export default function Jarvis({
               type="checkbox"
               checked={proactive}
               onChange={(e) => {
-                setProactive(e.target.checked);
-                write("localStorage", preferenceKey, String(e.target.checked));
-                setHint(false);
+                void preferences({ proactive: e.target.checked });
               }}
             />
             Receber sugestões espontâneas
@@ -253,15 +573,29 @@ export default function Jarvis({
           <button
             className="quiet-link"
             onClick={() => {
-              setEnabled(false);
-              setOpen(false);
-              setHint(false);
-              write("localStorage", "lastro:jarvis:enabled", "false");
+              void preferences({ enabled: false });
             }}
           >
             Desativar Jarvis
           </button>
-          <small>Contexto e regras do Lastro. Sem IA generativa.</small>
+          <label className="jarvis-preference">
+            Comunicação
+            <select
+              value={state?.preferences.communication || "discreto"}
+              onChange={(e) =>
+                void preferences({
+                  communication: e.target.value as "formal" | "discreto",
+                })
+              }
+            >
+              <option value="discreto">Formal, com humor discreto</option>
+              <option value="formal">Apenas os fatos</option>
+            </select>
+          </label>
+          <small>
+            Modo determinístico. IA desativada; nenhum consumo de inferência.
+            Perguntas não são armazenadas.
+          </small>
         </div>
       )}
     </aside>

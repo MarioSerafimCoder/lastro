@@ -709,7 +709,8 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     notify(`Descoberta entre as referências carregadas: ${item.title}`);
   };
   const jarvisAction = (action: string) => {
-    if (action === "opportunities") navigate("oportunidades");
+    if (action === "analytics") navigate("analytics");
+    else if (action === "opportunities") navigate("oportunidades");
     else if (action === "newsletters") navigate("newsletters");
     else if (action === "publications") navigate("publicacoes");
     else if (action === "studio") {

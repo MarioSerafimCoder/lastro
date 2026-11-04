@@ -272,7 +272,7 @@ test("Jarvis recommendations use real counts and navigation only", () => {
     }).action,
     "newsletters",
   );
-  assert.equal(
+  assert.notEqual(
     contextualSuggestion({
       ...context,
       commercial: { ...commercial, newCount: 0, campaignAvailable: true },

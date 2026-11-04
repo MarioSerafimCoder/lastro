@@ -51,6 +51,20 @@ export default function Opportunities() {
   useEffect(() => {
     void load();
   }, []);
+  useEffect(() => {
+    const openRequested = () => {
+      const id = sessionStorage.getItem("jarvis:opportunity");
+      const item = items.find((o) => o.id === id);
+      if (item) {
+        setSelected({ ...item });
+        sessionStorage.removeItem("jarvis:opportunity");
+      }
+    };
+    openRequested();
+    window.addEventListener("jarvis:opportunity", openRequested);
+    return () =>
+      window.removeEventListener("jarvis:opportunity", openRequested);
+  }, [items]);
   async function save(remove = false) {
     if (!selected || busy) return;
     if (

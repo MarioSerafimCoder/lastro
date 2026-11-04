@@ -56,13 +56,6 @@ export function contextualSuggestion(c: JarvisContext): Suggestion {
       action: "newsletters",
       label: "Ver artigos e campanhas",
     };
-  if (commercial?.campaignAvailable)
-    return {
-      title: "Há campanhas disponíveis para consulta.",
-      body: "O último snapshot do CRM contém envios confirmados.",
-      action: "newsletters",
-      label: "Consultar newsletters",
-    };
   const e = c.ecosystem;
   if (e?.recommendations.integrationAttention.length)
     return {
