@@ -394,3 +394,18 @@ test("dismissal survives rereads; materially changed status/date generates anoth
   assert.notEqual(first.id, next.id);
   assert.equal(next.priority, 95);
 });
+
+test("empty Studio catalogue never offers a continuation action without a target", async () => {
+  await env.DB.prepare(
+    "UPDATE integration_control SET last_success=? WHERE id='catalogue'",
+  )
+    .bind(new Date().toISOString())
+    .run();
+  invalidateJarvis(env);
+  const answer = await answerJarvis(env, {
+    text: "Rascunhos pendentes",
+    area: "publicacoes",
+  });
+  assert.match(answer.text, /0 rascunhos/);
+  assert.equal(answer.action, undefined);
+});

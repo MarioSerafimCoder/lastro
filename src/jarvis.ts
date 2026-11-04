@@ -287,12 +287,14 @@ export async function answerJarvis(
       { kind: "workshop.prepare" },
     );
   let count = 0,
-    action: JarvisAction = { kind: "integration.review" },
+    action: JarvisAction | undefined = { kind: "integration.review" },
     text = "";
   if (intent === "drafts.pending") {
     const list = e.recommendations.continueDraft as { id: string }[];
     count = list.length;
-    action = { kind: "studio.continue", target: list[0]?.id };
+    action = list[0]
+      ? { kind: "studio.continue", target: list[0].id }
+      : undefined;
     text = `${count} rascunhos aguardam continuação no catálogo observado.`;
   }
   if (intent === "articles.without_newsletter") {
