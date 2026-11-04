@@ -365,6 +365,29 @@ test("all private brain/Drive endpoints require Lastro authentication and reject
   );
   assert.equal(response.status, 403);
 });
+test("Drive info and privacy pages are public and disclose only the narrow Brain archive", async () => {
+  const info = await app.request(
+    "https://lastro.test/api/jarvis/drive/info",
+    {},
+    env,
+  );
+  assert.equal(info.status, 200);
+  const infoHtml = await info.text();
+  assert.match(infoHtml, /LASTRO — JARVIS BRAIN/);
+  assert.match(infoHtml, /drive\.file/);
+  assert.match(infoHtml, /\/api\/jarvis\/drive\/privacy/);
+
+  const privacy = await app.request(
+    "https://lastro.test/api/jarvis/drive/privacy",
+    {},
+    env,
+  );
+  assert.equal(privacy.status, 200);
+  const privacyHtml = await privacy.text();
+  assert.match(privacyHtml, /Nenhum arquivo do Drive é importado/);
+  assert.match(privacyHtml, /refresh token OAuth cifrado com AES-GCM/);
+  assert.match(privacyHtml, /não apaga documentos já arquivados/);
+});
 function enableDrive() {
   Object.assign(env, {
     BRAIN_DRIVE_ENABLED: "true",

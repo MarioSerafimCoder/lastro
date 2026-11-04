@@ -476,7 +476,10 @@ export default function JarvisMemory() {
           : drive?.enabled
             ? "desconectado"
             : "desativado"}
-        . {drive?.message}
+        . {drive?.message}{" "}
+        <a href="/api/jarvis/drive/privacy" target="_blank" rel="noreferrer">
+          Privacidade
+        </a>
       </p>
       {drive?.enabled && (
         <button
