@@ -1,0 +1,655 @@
+{
+  "checkedAt": "2026-11-04T18:56:58.840Z",
+  "source": "wrangler tail of existing lastro-api; no new logger Worker",
+  "units": "cpuMs/wallMs: milliseconds",
+  "events": [
+    {
+      "at": "2026-11-04T18:47:52.019Z",
+      "version": "57bc80ee-c2f4-4ccb-bce0-b6d8d4ce09d3",
+      "operation": "2-57/5 * * * *",
+      "cpuMs": 6,
+      "wallMs": 915,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:11.776Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/auth/session",
+      "cpuMs": 12,
+      "wallMs": 12,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:12.667Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/workshop/selection",
+      "cpuMs": 3,
+      "wallMs": 332,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:12.669Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/sources",
+      "cpuMs": 4,
+      "wallMs": 365,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:12.660Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/integrations/overview",
+      "cpuMs": 13,
+      "wallMs": 737,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:12.666Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/jarvis/state",
+      "cpuMs": 10,
+      "wallMs": 1276,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:12.660Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/feed",
+      "cpuMs": 12,
+      "wallMs": 1643,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:12.665Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/feed",
+      "cpuMs": 14,
+      "wallMs": 1877,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:14.609Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/favorites",
+      "cpuMs": 4,
+      "wallMs": 317,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:15.117Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/radar/status",
+      "cpuMs": 5,
+      "wallMs": 760,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:49.458Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/sources",
+      "cpuMs": 3,
+      "wallMs": 336,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:49.917Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/overview",
+      "cpuMs": 1,
+      "wallMs": 319,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:49.922Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/decisions",
+      "cpuMs": 1,
+      "wallMs": 328,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:49.918Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/ingestion-runs",
+      "cpuMs": 1,
+      "wallMs": 334,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:49.917Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/candidates",
+      "cpuMs": 9,
+      "wallMs": 514,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:50.243Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "POST /api/jarvis/notices",
+      "cpuMs": 5,
+      "wallMs": 881,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:50:48.830Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "*/5 * * * *",
+      "cpuMs": 117,
+      "wallMs": 5749,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:51:28.093Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/auth/session",
+      "cpuMs": 1,
+      "wallMs": 1,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:51:28.369Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/workshop/selection",
+      "cpuMs": 1,
+      "wallMs": 340,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:51:28.369Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/sources",
+      "cpuMs": 2,
+      "wallMs": 359,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:51:28.362Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/integrations/overview",
+      "cpuMs": 4,
+      "wallMs": 510,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:51:28.361Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/jarvis/state",
+      "cpuMs": 3,
+      "wallMs": 666,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:51:28.388Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/feed",
+      "cpuMs": 6,
+      "wallMs": 1416,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:51:28.367Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/feed",
+      "cpuMs": 13,
+      "wallMs": 1685,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:51:29.941Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/favorites",
+      "cpuMs": 1,
+      "wallMs": 304,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:51:30.377Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/radar/status",
+      "cpuMs": 4,
+      "wallMs": 754,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:51:31.119Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/jarvis/conversation",
+      "cpuMs": 7,
+      "wallMs": 790,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:51:33.680Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "POST /api/jarvis/notices",
+      "cpuMs": 10,
+      "wallMs": 1234,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:40.128Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/auth/session",
+      "cpuMs": 0,
+      "wallMs": 1,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:41.069Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/sources",
+      "cpuMs": 3,
+      "wallMs": 359,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:41.117Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/workshop/selection",
+      "cpuMs": 1,
+      "wallMs": 351,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:41.073Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/integrations/overview",
+      "cpuMs": 3,
+      "wallMs": 543,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:41.102Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/jarvis/state",
+      "cpuMs": 2,
+      "wallMs": 645,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:41.531Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/decisions",
+      "cpuMs": 2,
+      "wallMs": 316,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:41.522Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/overview",
+      "cpuMs": 1,
+      "wallMs": 323,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:41.517Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/sources",
+      "cpuMs": 2,
+      "wallMs": 336,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:41.557Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/ingestion-runs",
+      "cpuMs": 1,
+      "wallMs": 312,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:41.542Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/candidates",
+      "cpuMs": 15,
+      "wallMs": 514,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:41.083Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/feed",
+      "cpuMs": 11,
+      "wallMs": 1687,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:42.669Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "POST /api/jarvis/notices",
+      "cpuMs": 4,
+      "wallMs": 852,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:52.355Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "2-57/5 * * * *",
+      "cpuMs": 10,
+      "wallMs": 1195,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:52.596Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "POST /api/admin/sources/REDACTED/ingest",
+      "cpuMs": 40,
+      "wallMs": 4423,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:57.157Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/sources",
+      "cpuMs": 3,
+      "wallMs": 338,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:57.611Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/overview",
+      "cpuMs": 1,
+      "wallMs": 309,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:57.614Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/ingestion-runs",
+      "cpuMs": 1,
+      "wallMs": 316,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:57.621Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/decisions",
+      "cpuMs": 1,
+      "wallMs": 313,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:52:57.613Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/candidates",
+      "cpuMs": 18,
+      "wallMs": 507,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:03.527Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "POST /api/admin/sources/REDACTED/ingest",
+      "cpuMs": 45,
+      "wallMs": 3534,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:07.466Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/sources",
+      "cpuMs": 2,
+      "wallMs": 325,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:03.882Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "POST /api/admin/sources/REDACTED/ingest",
+      "cpuMs": 30,
+      "wallMs": 4011,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:07.990Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/overview",
+      "cpuMs": 1,
+      "wallMs": 307,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:07.988Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/ingestion-runs",
+      "cpuMs": 1,
+      "wallMs": 313,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:07.989Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/decisions",
+      "cpuMs": 1,
+      "wallMs": 316,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:08.004Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/sources",
+      "cpuMs": 2,
+      "wallMs": 335,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:07.984Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/candidates",
+      "cpuMs": 8,
+      "wallMs": 509,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:08.509Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/overview",
+      "cpuMs": 1,
+      "wallMs": 308,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:08.521Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/decisions",
+      "cpuMs": 1,
+      "wallMs": 309,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:08.517Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/ingestion-runs",
+      "cpuMs": 1,
+      "wallMs": 316,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:04.523Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "POST /api/admin/sources/REDACTED/ingest",
+      "cpuMs": 52,
+      "wallMs": 4350,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:08.975Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/admin/sources",
+      "cpuMs": 3,
+      "wallMs": 364,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:17.621Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/jarvis/conversation",
+      "cpuMs": 2,
+      "wallMs": 439,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:37.703Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/jarvis/brain",
+      "cpuMs": 3,
+      "wallMs": 631,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:54:38.494Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/jarvis/drive",
+      "cpuMs": 1,
+      "wallMs": 309,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:55:19.054Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/feed",
+      "cpuMs": 11,
+      "wallMs": 1389,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:55:19.059Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/feed",
+      "cpuMs": 17,
+      "wallMs": 1635,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:55:20.571Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/favorites",
+      "cpuMs": 2,
+      "wallMs": 314,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:55:21.012Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/radar/status",
+      "cpuMs": 4,
+      "wallMs": 739,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:55:22.877Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "POST /api/jarvis/notices",
+      "cpuMs": 9,
+      "wallMs": 1271,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:55:48.897Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "*/5 * * * *",
+      "cpuMs": 22,
+      "wallMs": 2957,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:56:43.506Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /health",
+      "cpuMs": 9,
+      "wallMs": 9,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:56:44.617Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/feed",
+      "cpuMs": 9,
+      "wallMs": 9,
+      "outcome": "ok",
+      "exceptions": []
+    },
+    {
+      "at": "2026-11-04T18:56:45.231Z",
+      "version": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+      "operation": "GET /api/radar/status",
+      "cpuMs": 13,
+      "wallMs": 14,
+      "outcome": "ok",
+      "exceptions": []
+    }
+  ]
+}

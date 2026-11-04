@@ -1,0 +1,537 @@
+{
+  "checkedAt": "2026-11-04T18:56:10.843Z",
+  "environment": "read-only production SQL via D1 API; no cleanup",
+  "migrations": [
+    {
+      "name": "0001_initial.sql"
+    },
+    {
+      "name": "0002_ingestion_queue.sql"
+    },
+    {
+      "name": "0003_ingestion_received.sql"
+    },
+    {
+      "name": "0004_radar_cycles.sql"
+    },
+    {
+      "name": "0005_editorial_synopses.sql"
+    },
+    {
+      "name": "0006_synopsis_verification.sql"
+    },
+    {
+      "name": "0007_synopsis_autonomy.sql"
+    },
+    {
+      "name": "0008_ecosystem.sql"
+    },
+    {
+      "name": "0009_analytics.sql"
+    },
+    {
+      "name": "0010_opportunities.sql"
+    },
+    {
+      "name": "0011_jarvis_memory.sql"
+    },
+    {
+      "name": "0012_jarvis_conversations.sql"
+    },
+    {
+      "name": "0013_jarvis_brain.sql"
+    },
+    {
+      "name": "0014_radar_editorial.sql"
+    }
+  ],
+  "sources": [
+    {
+      "id": "ef2c99e8-0598-4b8c-ae23-53804f84c7de",
+      "name": "A List Apart",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T12:50:49.555Z",
+      "last_attempt_at": "2026-11-04T12:50:49.555Z",
+      "last_processed_at": "2026-11-04T18:55:49.019Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T12:50:49.555Z",
+      "country": null,
+      "category": null,
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": null,
+      "queued": 3,
+      "lastDiscovery": "2026-10-21T19:17:23.141Z"
+    },
+    {
+      "id": "f14621f2-9d76-480c-8ee8-b98edc8a3414",
+      "name": "ARTE!Brasileiros",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T18:54:04.692Z",
+      "last_attempt_at": "2026-11-04T18:54:04.692Z",
+      "last_processed_at": "2026-11-04T18:54:04.692Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T18:54:04.692Z",
+      "country": "BR",
+      "category": "art_visual_culture",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": 0,
+      "queued": 8,
+      "lastDiscovery": "2026-11-04T18:54:04.692Z"
+    },
+    {
+      "id": "8a9a8a86-3b95-4de5-988c-b76318c5eb97",
+      "name": "ARTnews",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T18:54:04.051Z",
+      "last_attempt_at": "2026-11-04T18:54:04.051Z",
+      "last_processed_at": "2026-11-04T18:54:04.051Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T18:54:04.051Z",
+      "country": "US",
+      "category": "art_visual_culture",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": 0,
+      "queued": 8,
+      "lastDiscovery": "2026-11-04T18:54:04.051Z"
+    },
+    {
+      "id": "f1aad5d5-dc29-485c-a06e-5b5d991575b7",
+      "name": "BaixaCultura",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T10:55:49.122Z",
+      "last_attempt_at": "2026-11-04T10:55:49.122Z",
+      "last_processed_at": "2026-11-04T11:35:48.862Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T10:55:49.122Z",
+      "country": null,
+      "category": null,
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": 1,
+      "queued": 0,
+      "lastDiscovery": "2026-10-24T10:14:22.225Z"
+    },
+    {
+      "id": "d4da0b6f-c6f1-4332-9df0-86a1c922dc9f",
+      "name": "Colossal",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T18:52:52.763Z",
+      "last_attempt_at": "2026-11-04T18:52:52.763Z",
+      "last_processed_at": "2026-11-04T18:52:52.763Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T18:52:52.763Z",
+      "country": "US",
+      "category": "art_visual_culture",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": 0,
+      "queued": 8,
+      "lastDiscovery": "2026-11-04T18:52:52.763Z"
+    },
+    {
+      "id": "9bee49c6-fc48-476b-bd5f-61ee94f336ba",
+      "name": "Creative Boom",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T12:55:49.594Z",
+      "last_attempt_at": "2026-11-04T12:55:49.594Z",
+      "last_processed_at": "2026-11-04T18:10:49.185Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T12:55:49.594Z",
+      "country": "GB",
+      "category": "graphic_design",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": null,
+      "queued": 0,
+      "lastDiscovery": "2026-11-04T18:10:53.128Z"
+    },
+    {
+      "id": "f0973d3d-d0bf-4258-a52b-75266b46ab87",
+      "name": "Creative Commons — Cultura aberta",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T12:35:49.329Z",
+      "last_attempt_at": "2026-11-04T12:35:49.329Z",
+      "last_processed_at": "2026-11-04T17:20:49.138Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T12:35:49.329Z",
+      "country": "US",
+      "category": "creative_technology",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": 1,
+      "queued": 0,
+      "lastDiscovery": "2026-11-04T12:35:50.992Z"
+    },
+    {
+      "id": "a698818c-b200-4ef0-944a-2b28c8c91d6c",
+      "name": "Design Studies — via OpenAlex",
+      "connector": "openalex",
+      "status": "approved",
+      "last_success_at": "2026-11-03T00:00:29.222Z",
+      "last_attempt_at": "2026-11-03T00:00:29.222Z",
+      "last_processed_at": "2026-11-03T01:25:28.567Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2027-01-01T00:00:00.000Z",
+      "country": null,
+      "category": null,
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": null,
+      "queued": 0,
+      "lastDiscovery": "2026-10-23T15:30:18.764Z"
+    },
+    {
+      "id": "3533bc3d-5746-4345-8015-bf74ea01a651",
+      "name": "Design in government",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T10:40:49.467Z",
+      "last_attempt_at": "2026-11-04T10:40:49.467Z",
+      "last_processed_at": "2026-11-04T10:40:49.467Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T10:40:49.467Z",
+      "country": null,
+      "category": null,
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": 1,
+      "queued": 0,
+      "lastDiscovery": "2026-11-03T10:40:31.883Z"
+    },
+    {
+      "id": "e01c3709-1c8e-400e-a46f-a7a5bae44378",
+      "name": "Escola de Dados — Cartografia e visualização",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T12:20:49.230Z",
+      "last_attempt_at": "2026-11-04T12:20:49.230Z",
+      "last_processed_at": "2026-11-04T15:10:49.234Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T12:20:49.230Z",
+      "country": "BR",
+      "category": "creative_technology",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": 1,
+      "queued": 0,
+      "lastDiscovery": "2026-10-24T12:03:51.276Z"
+    },
+    {
+      "id": "fbe9bace-636c-4d38-9b5b-533d37296f7f",
+      "name": "Hyperallergic",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T18:54:03.701Z",
+      "last_attempt_at": "2026-11-04T18:54:03.701Z",
+      "last_processed_at": "2026-11-04T18:54:03.701Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T18:54:03.701Z",
+      "country": "US",
+      "category": "art_visual_culture",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": 0,
+      "queued": 13,
+      "lastDiscovery": "2026-11-04T18:54:03.701Z"
+    },
+    {
+      "id": "dfdf872e-6bfa-4fac-a56d-43db8f2a1217",
+      "name": "InternetLab",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T10:50:49.035Z",
+      "last_attempt_at": "2026-11-04T10:50:49.035Z",
+      "last_processed_at": "2026-11-04T10:50:49.035Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T10:50:49.035Z",
+      "country": null,
+      "category": null,
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": 1,
+      "queued": 0,
+      "lastDiscovery": "2026-10-24T10:14:40.234Z"
+    },
+    {
+      "id": "522d9b45-375d-44ab-b3f8-7543bec4fdb0",
+      "name": "It’s Nice That",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T12:40:49.280Z",
+      "last_attempt_at": "2026-11-04T12:40:49.280Z",
+      "last_processed_at": "2026-11-04T18:40:49.062Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T12:40:49.280Z",
+      "country": "GB",
+      "category": "graphic_design",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": null,
+      "queued": 1,
+      "lastDiscovery": "2026-11-04T12:40:50.949Z"
+    },
+    {
+      "id": "a1985745-b854-4fec-920d-91d2f33c571c",
+      "name": "Journal of Vision — via OpenAlex",
+      "connector": "openalex",
+      "status": "approved",
+      "last_success_at": "2026-11-01T00:00:28.793Z",
+      "last_attempt_at": "2026-11-01T00:00:28.793Z",
+      "last_processed_at": "2026-11-01T02:05:29.481Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2027-01-01T00:00:00.000Z",
+      "country": null,
+      "category": null,
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": null,
+      "queued": 0,
+      "lastDiscovery": "2026-11-01T00:00:42.290Z"
+    },
+    {
+      "id": "91b8c657-55bc-4cab-8b65-9b9096272faf",
+      "name": "Plau — Entrelinha",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T15:05:49.782Z",
+      "last_attempt_at": "2026-11-04T15:05:49.782Z",
+      "last_processed_at": "2026-11-04T18:45:49.161Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T15:05:49.782Z",
+      "country": "BR",
+      "category": "graphic_design",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": null,
+      "queued": 4,
+      "lastDiscovery": "2026-10-23T13:02:02.618Z"
+    },
+    {
+      "id": "b9515d27-6e3d-4c13-b3f4-ada1b09f7809",
+      "name": "Smashing Magazine",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T13:00:48.795Z",
+      "last_attempt_at": "2026-11-04T13:00:48.795Z",
+      "last_processed_at": "2026-11-04T18:35:49.714Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T13:00:48.795Z",
+      "country": "DE",
+      "category": "creative_technology",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": null,
+      "queued": 3,
+      "lastDiscovery": "2026-11-04T13:00:51.194Z"
+    },
+    {
+      "id": "69a2fa37-425b-4584-8ad0-d892b971534e",
+      "name": "UX Collective Brasil",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T13:35:49.102Z",
+      "last_attempt_at": "2026-11-04T13:35:49.102Z",
+      "last_processed_at": "2026-11-04T17:50:49.231Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T13:35:49.102Z",
+      "country": null,
+      "category": null,
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": null,
+      "queued": 0,
+      "lastDiscovery": "2026-11-04T13:35:50.335Z"
+    },
+    {
+      "id": "c364585a-a008-4f13-9810-c0f7ae523606",
+      "name": "designboom",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T18:54:04.357Z",
+      "last_attempt_at": "2026-11-04T18:54:04.357Z",
+      "last_processed_at": "2026-11-04T18:54:04.357Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T18:54:04.357Z",
+      "country": "IT",
+      "category": "architecture_objects",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": 0,
+      "queued": 8,
+      "lastDiscovery": "2026-11-04T18:54:04.357Z"
+    },
+    {
+      "id": "2f14571e-60fc-4d63-8f65-2517f362e641",
+      "name": "étapes:",
+      "connector": "rss",
+      "status": "approved",
+      "last_success_at": "2026-11-04T18:50:49.003Z",
+      "last_attempt_at": "2026-11-04T18:50:49.003Z",
+      "last_processed_at": "2026-11-04T18:50:49.003Z",
+      "consecutive_failures": 0,
+      "next_fetch_at": "2026-11-05T18:50:49.003Z",
+      "country": "FR",
+      "category": "graphic_design",
+      "metadataAllowed": 1,
+      "imageAllowed": 0,
+      "synopsisAllowed": 0,
+      "queued": 18,
+      "lastDiscovery": "2026-11-04T18:50:49.003Z"
+    }
+  ],
+  "runs": [
+    {
+      "name": "A List Apart",
+      "started_at": "2026-11-04T18:55:49.019Z",
+      "status": "partial",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 2,
+      "duplicates": 0,
+      "received": 0,
+      "new_references": null,
+      "error": null
+    },
+    {
+      "name": "ARTE!Brasileiros",
+      "started_at": "2026-11-04T18:54:04.692Z",
+      "status": "partial",
+      "accepted": 1,
+      "pending": 0,
+      "rejected": 1,
+      "duplicates": 0,
+      "received": 10,
+      "new_references": 10,
+      "error": null
+    },
+    {
+      "name": "designboom",
+      "started_at": "2026-11-04T18:54:04.357Z",
+      "status": "partial",
+      "accepted": 2,
+      "pending": 0,
+      "rejected": 0,
+      "duplicates": 0,
+      "received": 10,
+      "new_references": 10,
+      "error": null
+    },
+    {
+      "name": "ARTnews",
+      "started_at": "2026-11-04T18:54:04.051Z",
+      "status": "partial",
+      "accepted": 1,
+      "pending": 0,
+      "rejected": 1,
+      "duplicates": 0,
+      "received": 10,
+      "new_references": 10,
+      "error": null
+    },
+    {
+      "name": "Hyperallergic",
+      "started_at": "2026-11-04T18:54:03.701Z",
+      "status": "partial",
+      "accepted": 0,
+      "pending": 1,
+      "rejected": 1,
+      "duplicates": 0,
+      "received": 15,
+      "new_references": 15,
+      "error": null
+    },
+    {
+      "name": "Colossal",
+      "started_at": "2026-11-04T18:52:52.763Z",
+      "status": "partial",
+      "accepted": 2,
+      "pending": 0,
+      "rejected": 0,
+      "duplicates": 0,
+      "received": 10,
+      "new_references": 10,
+      "error": null
+    },
+    {
+      "name": "étapes:",
+      "started_at": "2026-11-04T18:50:49.003Z",
+      "status": "partial",
+      "accepted": 1,
+      "pending": 0,
+      "rejected": 1,
+      "duplicates": 0,
+      "received": 20,
+      "new_references": 20,
+      "error": null
+    },
+    {
+      "name": "Plau — Entrelinha",
+      "started_at": "2026-11-04T18:45:49.161Z",
+      "status": "partial",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 2,
+      "duplicates": 0,
+      "received": 0,
+      "new_references": null,
+      "error": null
+    },
+    {
+      "name": "It’s Nice That",
+      "started_at": "2026-11-04T18:40:49.062Z",
+      "status": "partial",
+      "accepted": 0,
+      "pending": 0,
+      "rejected": 2,
+      "duplicates": 0,
+      "received": 0,
+      "new_references": null,
+      "error": null
+    }
+  ],
+  "scheduler": [
+    {
+      "id": 1,
+      "last_started_at": "2026-11-04T18:55:49.019Z",
+      "last_finished_at": "2026-11-04T18:55:49.019Z",
+      "last_status": "partial",
+      "last_error": null,
+      "last_retention_at": null,
+      "expired": 0,
+      "purged": 0
+    }
+  ],
+  "totals": [
+    {
+      "contents": 158,
+      "expired": 0,
+      "purged": 0
+    }
+  ],
+  "favorites": [
+    {
+      "count": 0
+    }
+  ],
+  "workshop": [
+    {
+      "count": 0
+    }
+  ],
+  "foreignKeys": [],
+  "integrity": [
+    {
+      "quick_check": "ok"
+    }
+  ]
+}

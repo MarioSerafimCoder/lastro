@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-11-04T18:56:21.599Z",
+  "units": "CPU and request duration in microseconds; schema verified",
+  "data": {
+    "viewer": {
+      "accounts": [
+        {
+          "workersInvocationsAdaptive": [
+            {
+              "dimensions": {
+                "scriptVersion": "d4e7057b-3009-4aef-a5e9-f9e44750d01a",
+                "status": "success"
+              },
+              "quantiles": {
+                "cpuTimeP50": 3348,
+                "cpuTimeP99": 117853,
+                "requestDurationP50": 359463,
+                "requestDurationP99": 4692373
+              },
+              "sum": {
+                "errors": 0,
+                "requests": 75,
+                "subrequests": 6
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
