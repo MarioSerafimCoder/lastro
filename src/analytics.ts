@@ -263,6 +263,28 @@ export async function runAnalyticsReports(
       },
     );
     const report = await jsonResponse(response);
+    // GA4 may omit repeated header fields for a metadata-only empty report.
+    // Keep it empty, rather than manufacturing zero-valued metric rows.
+    if (
+      newsletter &&
+      report.kind === "analyticsData#runReport" &&
+      report.metadata &&
+      typeof report.metadata === "object" &&
+      (report.rows === undefined ||
+        (Array.isArray(report.rows) && report.rows.length === 0)) &&
+      (report.rowCount === undefined || report.rowCount === 0) &&
+      report.metricHeaders === undefined &&
+      report.dimensionHeaders === undefined
+    ) {
+      reports.push({
+        dimension,
+        rows: [],
+        rowCount: 0,
+        limited: false,
+        privacyFiltered: false,
+      });
+      continue;
+    }
     if (
       !Array.isArray(report.dimensionHeaders ?? []) ||
       !Array.isArray(report.metricHeaders) ||
@@ -354,7 +376,7 @@ export async function analyticsOverview(
   config(env);
   if (days !== 7 && days !== 30)
     throw new ApiFault(400, "analytics_range_invalid", "Périodo inválido.");
-  const cacheId = `${newsletter ? "newsletter-v1" : "analytics-v2"}-${days}`;
+  const cacheId = `${newsletter ? "newsletter-v2" : "analytics-v2"}-${days}`;
   await stmt(
     env.DB,
     "INSERT OR IGNORE INTO analytics_cache(id) VALUES (?)",

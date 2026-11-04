@@ -411,3 +411,18 @@ test("newsletter uses separate cached source-filtered reports with campaign/date
     null,
   );
 });
+
+test("newsletter accepts identified metadata-only empty reports, never inventing metric rows", async () => {
+  globalThis.fetch = async () =>
+    Response.json({
+      kind: "analyticsData#runReport",
+      metadata: { timeZone: "America/Fortaleza" },
+    });
+  const data = await runAnalyticsReports("synthetic", "560757639", 7, true);
+  assert.equal(data.reports.length, 5);
+  assert.ok(data.reports.every((r) => r.rows.length === 0));
+  globalThis.fetch = async () => Response.json({});
+  await assert.rejects(() =>
+    runAnalyticsReports("synthetic", "560757639", 7, true),
+  );
+});

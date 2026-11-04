@@ -68,7 +68,7 @@ export async function commercialRecommendations(env: Env) {
   );
   const cache = await first<{ body_json: string | null }>(
     env.DB,
-    "SELECT body_json FROM analytics_cache WHERE id='newsletter-v1-7' AND error IS NULL AND fetched_at>?",
+    "SELECT body_json FROM analytics_cache WHERE id='newsletter-v2-7' AND error IS NULL AND fetched_at>?",
     Date.now() - 43200000,
   );
   const data = cache?.body_json ? JSON.parse(cache.body_json) : null;

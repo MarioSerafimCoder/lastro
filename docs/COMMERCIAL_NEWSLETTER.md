@@ -1,4 +1,4 @@
-# Inteligência comercial e newsletter — ativação pendente
+# Inteligência comercial e newsletter
 
 Branches: Lastro `codex/commercial-newsletter`, CRM `codex/newsletter-attribution`, portfólio `codex/commercial-intake`.
 Nenhum deploy, Secret, migration remota, serviço, cron, contato ou campanha real foi alterado.
@@ -38,3 +38,26 @@ Custo contratado incremental: R$ 0; nenhuma dependência, plano ou recurso pago 
 - Lastro: 19 testes direcionados de Analytics/oportunidades aprovados; TypeScript backend/frontend e build/dry-run aprovados; navegador desktop 1280 e mobile 390 aprovados.
 - A suíte completa do Lastro revelou uma falha preexistente no teste de orçamento diário das sinopses (`tests/synopsis-autonomy.test.ts:806`): ele simula mais dez minutos a partir do relógio real e pode atravessar meia-noite UTC. A mesma falha `validated` versus `pending` foi reproduzida no commit original `a8888d8`, em checkout separado, sem as alterações desta entrega. Nenhum módulo de sinopses foi modificado. Duas verificações da suíte ficam ignoradas pelas condições já existentes.
 - Não houve homologação remota de escrita, deploy ou alteração de dados reais. O Apps Script usa mocks de MailApp/UrlFetchApp nos testes; os relatórios usam respostas sintéticas.
+
+## Produção ativada — 03/11/2026, horário de São Paulo
+
+Autorização explícita recebida para backup, migration 0010, segredo exclusivo, deploys e atualização do Apps Script. Nenhuma contratação, mudança de plano ou faturamento foi realizada; plano Workers Free confirmado no painel. Custo incremental R$ 0.
+
+Backup protegido e ignorado em `.wrangler/commercial-activation/lastro-before-0010.sql`: 5.734.554 bytes, SHA-256 `bc2e933bca97cc4d46b55ede25474ae22f3941e11cc968d69c488c13900a7b7c`. Restaurado em SQLite em memória, `integrity_check=ok`, 48 tabelas e migrations 0001–0009. Versões anteriores registradas antes das alterações: Lastro `9f866461-4f69-40c9-a1e1-b1cb2d851472`, CRM `22f85053-8c48-48b7-b201-0ea44b9406ed` / `34f72d3`, portfólio `bdd952a8-712a-4e72-b958-1afd8bffa48d` / `263eb79`, Apps Script versão 2.
+
+Aplicada exclusivamente `0010_opportunities.sql`; `quick_check=ok`. Zero oportunidades e zero recibos após a homologação remota. O segredo exclusivo foi gerado aleatoriamente, provisionado por stdin no Worker e em Script Properties; recuperação local cifrada por DPAPI CurrentUser, diretório com ACL restrita. A transferência temporária foi removida. Os 24 bindings anteriores do Lastro foram preservados exatamente; acrescentado somente `PORTFOLIO_INTEGRATION_SECRET`. Crons preservados.
+
+A primeira verificação encontrou resposta 405 no intake, interceptado pelo serviço de assets. Foi executado rollback imediato à versão anterior, sem restaurar ou remover dados. Ajuste mínimo de implantação: `/integration/*` em `assets.run_worker_first`, verificado localmente antes da reativação. Nenhuma funcionalidade nova foi criada nesta etapa.
+
+O relatório filtrado retornou a forma legítima do GA4 de relatório vazio apenas com metadados, sem cabeçalhos. O parser da nova modalidade newsletter foi corrigido para aceitar somente essa forma identificada (`kind=analyticsData#runReport`, metadados, nenhuma linha e contagem ausente/zero), mantendo listas vazias e sem fabricar métricas zero. Resposta arbitrária `{}` continua rejeitada. Cache da modalidade corrigida é `newsletter-v2`, independente do GA4 anterior. Vinte testes direcionados aprovados; TypeScript aprovado. A integração GA4 geral permaneceu funcionando.
+
+Versões finais:
+
+- Lastro Worker `ac6536e7-845b-4b9b-9145-3c42474d4ea4`, branch `codex/commercial-newsletter`, contendo os ajustes de ativação registrados neste documento.
+- CRM commit `4592a13`, produção Pages `11c17df0-1be0-4bf0-8fe7-a9070e49499a`.
+- Portfólio commit `714588c`, produção Pages `a2912205-4085-4fbc-9777-833f0d924c9c`.
+- Apps Script existente atualizado à versão 3, mesma URL `/exec`, proprietário e acesso. Secret salvo em Script Properties. Execução de `doGet` no editor concluiu sem novo consentimento. GET público e POST inválido retornaram 200, com rejeição de campos no segundo caso; nenhum MailApp foi acionado na homologação. O caminho de envio e a tolerância à falha do Lastro foram testados com mocks, preservando a proibição de e-mail real.
+
+Verificações remotas: health 200; APIs oportunidades, newsletter e Analytics anônimas 401; intake sem assinatura 401, assinatura válida com contrato inválido 400 sem escrita. Painel Oportunidades autenticado mostra zero registros; newsletters 7/30 dias disponíveis sem erro e sem sessões sob a nova marcação, com quatro envios antigos do CRM disponíveis. Quantidade de destinatários ausente permanece indisponível. GA4 geral exibe os relatórios existentes; Jarvis oferece consulta às campanhas reais; Publicações carrega catálogo/calendário e registra zero falhas de integração, mantendo as cinco pendências históricas sem aprovação ou reprocessamento. Página inicial, contato e privacidade PT/EN do portfólio responderam 200. Cloudflare Access do CRM preservado.
+
+Painéis: https://lastro.marioserafim.com.br/oportunidades e https://lastro.marioserafim.com.br/newsletters. CRM: https://crm.marioserafim.com.br. Portfólio: https://marioserafim.com.br/contato. Não foram criados contatos artificiais, alterados assinantes, enviados e-mails/campanhas ou aprovados artigos durante os testes remotos. A ressalva preexistente de horário das sinopses permanece documentada acima.
