@@ -53,7 +53,7 @@ export default function RadarBoard({
   onSelect,
   query,
 }: {
-  onSelect: (c: Content) => void;
+  onSelect: (c: Content) => Promise<boolean>;
   query?: { q?: string; topic?: string; sourceId?: string; kind?: string };
 }) {
   const [items, setItems] = useState<Content[]>([]),
@@ -127,7 +127,7 @@ export default function RadarBoard({
   }, [scope, sort]);
   useEffect(() => {
     if (detail && !dialog.current?.open) dialog.current?.showModal();
-  }, [detail]);
+  }, [detail?.id]);
   useEffect(() => {
     const timer = window.setInterval(() => setItems((p) => [...p]), 60000);
     return () => clearInterval(timer);
@@ -203,6 +203,25 @@ export default function RadarBoard({
     setUnread(false);
     setSearch("");
   };
+  async function selectWorkshop(c: Content) {
+    if (busy) return;
+    setBusy(true);
+    setFeedback("");
+    try {
+      if (!(await onSelect(c)))
+        throw new Error("Seleção da Oficina não confirmada. Tente novamente.");
+      patch(await api.content(c.id));
+      setFeedback("Seleção da Oficina atualizada.");
+    } catch (e) {
+      setFeedback(
+        "Ação não concluída. " +
+          (e instanceof Error ? e.message : "Tente novamente."),
+      );
+      void load();
+    } finally {
+      setBusy(false);
+    }
+  }
   const available = items.filter(
     (c) => (scope === "scientific") === (c.kind === "paper"),
   );
@@ -261,6 +280,9 @@ export default function RadarBoard({
         .filter(([v]) => v) as [string, string][],
     ).entries(),
   ];
+  const editorialSources = (status?.sources ?? []).filter(
+    (s) => s.cycle === "daily",
+  );
   const actions = (c: Content) => (
     <div className="radar-card-actions">
       <button
@@ -344,15 +366,25 @@ export default function RadarBoard({
               </strong>
             </span>
             <span>
+              Pendentes de ingestão / revisão{" "}
+              <strong>{status.health?.pending ?? "—"}</strong>
+            </span>
+            <span>
               Fontes com falha{" "}
               <strong>{status.health?.failedSources ?? "—"}</strong>
             </span>
+            {editorialSources.filter((s) => s.lastSuccessAt).length > 0 &&
+              editorialSources
+                .filter((s) => s.lastSuccessAt)
+                .every((s) => s.state === "no_new_entries") && (
+                <span>Nenhuma matéria nova na última coleta editorial.</span>
+              )}
             <span>
               Última descoberta{" "}
               <strong>
                 {date(
-                  status.sources
-                    ?.map((s) => s.lastNewReferenceAt)
+                  editorialSources
+                    .map((s) => s.lastNewReferenceAt)
                     .filter((v): v is string => !!v)
                     .sort()
                     .at(-1),
@@ -583,6 +615,23 @@ export default function RadarBoard({
           if (e.target === dialog.current) dialog.current?.close();
         }}
         aria-labelledby="radar-detail-title"
+        onKeyDown={(e) => {
+          if (e.key !== "Tab") return;
+          const controls = [
+            ...e.currentTarget.querySelectorAll<HTMLElement>(
+              'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),[tabindex="0"]',
+            ),
+          ].filter((el) => el.getClientRects().length > 0);
+          const first = controls[0],
+            last = controls.at(-1);
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last?.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first?.focus();
+          }
+        }}
       >
         {detail && (
           <>
@@ -608,6 +657,14 @@ export default function RadarBoard({
               <br />
               Descoberta {date(detail.radar?.firstSeenAt ?? detail.collectedAt)}
               <br />
+              Aprovação editorial {date(detail.radar?.approvedAt)}
+              <br />
+              Última coleta bem-sucedida da fonte{" "}
+              {date(
+                status?.sources?.find((s) => s.id === detail.sourceId)
+                  ?.lastSuccessAt,
+              )}
+              <br />
               Expiração{" "}
               {detail.state.favorite
                 ? "Preservada nos Salvos"
@@ -628,17 +685,7 @@ export default function RadarBoard({
               </a>
             )}
             {actions(detail)}
-            <button
-              disabled={busy}
-              onClick={() => {
-                onSelect(detail);
-                patch({
-                  ...detail,
-                  state: { ...detail.state, selected: !detail.state.selected },
-                });
-                setFeedback("Seleção da Oficina atualizada.");
-              }}
-            >
+            <button disabled={busy} onClick={() => void selectWorkshop(detail)}>
               {" "}
               <Plus size={16} /> Selecionar / remover da Oficina
             </button>

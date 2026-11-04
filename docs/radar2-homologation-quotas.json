@@ -1,0 +1,97 @@
+{
+  "checkedAt": "2026-11-04T18:35:19.711Z",
+  "operations": "read-only Cloudflare settings, subscriptions and account-wide D1 analytics",
+  "worker": {
+    "status": 200,
+    "usageModel": "standard",
+    "errors": [],
+    "flags": [
+      {
+        "name": "ANALYTICS_ENABLED",
+        "value": "true"
+      },
+      {
+        "name": "BRAIN_DRIVE_ENABLED",
+        "value": "true"
+      },
+      {
+        "name": "BRAIN_DRIVE_FREE_CONFIRMED",
+        "value": "true"
+      },
+      {
+        "name": "INGEST_ENABLED",
+        "value": "true"
+      },
+      {
+        "name": "INTEGRATION_ENABLED",
+        "value": "true"
+      },
+      {
+        "name": "SYNOPSIS_ENABLED",
+        "value": "true"
+      },
+      {
+        "name": "SYNOPSIS_REQUIRED",
+        "value": "true"
+      }
+    ],
+    "schedules": ["17,47 * * * *", "2-57/5 * * * *", "*/5 * * * *"]
+  },
+  "subscriptions": {
+    "status": 403,
+    "success": false,
+    "errors": [
+      {
+        "code": 10000,
+        "message": "Authentication error"
+      }
+    ],
+    "plans": []
+  },
+  "accountD1Today": {
+    "status": 200,
+    "data": {
+      "viewer": {
+        "accounts": [
+          {
+            "d1AnalyticsAdaptiveGroups": [
+              {
+                "dimensions": {
+                  "databaseId": "b3ab414c-bdcd-4348-a942-2cb153bc9f1b"
+                },
+                "sum": {
+                  "readQueries": 5179,
+                  "rowsRead": 565493,
+                  "rowsWritten": 3434,
+                  "writeQueries": 1981
+                }
+              },
+              {
+                "dimensions": {
+                  "databaseId": "02b2c69e-3780-484c-a0d2-034ebf15ea7a"
+                },
+                "sum": {
+                  "readQueries": 21,
+                  "rowsRead": 117,
+                  "rowsWritten": 8,
+                  "writeQueries": 6
+                }
+              },
+              {
+                "dimensions": {
+                  "databaseId": "51669b5c-01ea-4208-b1f1-4ca36360cbbb"
+                },
+                "sum": {
+                  "readQueries": 3318,
+                  "rowsRead": 26767,
+                  "rowsWritten": 23,
+                  "writeQueries": 9
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

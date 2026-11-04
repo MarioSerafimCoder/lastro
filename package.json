@@ -21,7 +21,8 @@
     "web:dev": "vite --config apps/web/vite.config.ts",
     "web:build": "vite build --config apps/web/vite.config.ts",
     "web:typecheck": "tsc --noEmit --project apps/web/tsconfig.json",
-    "test:ui": "playwright test --config tests/playwright.config.ts"
+    "test:ui": "playwright test --config tests/playwright.config.ts",
+    "test:ui:radar2": "npm run web:build && playwright test --config tests/radar2-integrated.config.ts"
   },
   "dependencies": {
     "fast-xml-parser": "^5.11.2",

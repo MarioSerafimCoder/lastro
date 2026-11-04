@@ -1,0 +1,147 @@
+{
+  "checkedAt": "2026-11-04T18:27:35.713Z",
+  "environment": "public RSS metadata; private SQLite snapshot read-only; no source changes or AI",
+  "week": {
+    "start": "2026-11-02T03:00:00.000Z",
+    "end": "2026-11-09T03:00:00.000Z"
+  },
+  "observations": [
+    {
+      "name": "Creative Boom",
+      "url": "https://www.creativeboom.com/feed/",
+      "status": 200,
+      "entries": 20,
+      "latestPublication": "2026-11-04T12:00:00.000Z",
+      "publicationsThisWeek": 12,
+      "lastCollection": "2026-11-04T12:55:49.594Z",
+      "payloadNotRetained": true,
+      "samples": [
+        {
+          "url": "https://www.creativeboom.com/insight/andstudios-augustinas-paukste-on-10-years-of-building-a-global-studio-from-vilnius",
+          "publishedAt": "2026-11-04T12:00:00.000Z",
+          "content": null,
+          "queued": false,
+          "decision": null
+        },
+        {
+          "url": "https://www.creativeboom.com/news/yinka-ilori-brings-his-joyful-love-of-colour-to-reimagine-the-tottenham-hotspur-away-shirt",
+          "publishedAt": "2026-11-04T09:00:00.000Z",
+          "content": null,
+          "queued": false,
+          "decision": {
+            "outcome": "rejected",
+            "reasons": ["off_topic"]
+          }
+        },
+        {
+          "url": "https://www.creativeboom.com/inspiration/burger-trees-spying-fruit-and-flying-taxis-discover-the-digital-clay-world-of-daniel-jurman",
+          "publishedAt": "2026-11-04T08:15:00.000Z",
+          "content": null,
+          "queued": false,
+          "decision": {
+            "outcome": "rejected",
+            "reasons": ["off_topic"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "It’s Nice That",
+      "url": "https://feeds2.feedburner.com/itsnicethat/SlXC",
+      "status": 200,
+      "entries": 20,
+      "latestPublication": "2026-11-04T09:00:00.000Z",
+      "publicationsThisWeek": 9,
+      "lastCollection": "2026-11-04T12:40:49.280Z",
+      "payloadNotRetained": true,
+      "samples": [
+        {
+          "url": "https://www.itsnicethat.com/articles/polar-pac-graphic-design-project-041126",
+          "publishedAt": "2026-11-04T09:00:00.000Z",
+          "content": null,
+          "queued": false,
+          "decision": {
+            "outcome": "rejected",
+            "reasons": ["off_topic"]
+          }
+        },
+        {
+          "url": "https://www.itsnicethat.com/articles/figur-graphic-design-discover-041126",
+          "publishedAt": "2026-11-04T09:00:00.000Z",
+          "content": {
+            "status": "approved",
+            "discoveredAt": "2026-11-04T12:40:50.840Z",
+            "publishedAt": "2026-11-04T09:00:00.000Z"
+          },
+          "queued": false,
+          "decision": {
+            "outcome": "approved",
+            "reasons": []
+          }
+        },
+        {
+          "url": "https://www.itsnicethat.com/articles/beam-eating-the-whole-fish-graphic-design-project-031126",
+          "publishedAt": "2026-11-03T09:00:00.000Z",
+          "content": null,
+          "queued": false,
+          "decision": {
+            "outcome": "rejected",
+            "reasons": ["off_topic"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Smashing Magazine",
+      "url": "https://www.smashingmagazine.com/feed/",
+      "status": 200,
+      "entries": 25,
+      "latestPublication": "2026-11-03T10:00:00.000Z",
+      "publicationsThisWeek": 1,
+      "lastCollection": "2026-11-04T13:00:48.795Z",
+      "payloadNotRetained": true,
+      "samples": [
+        {
+          "url": "https://smashingmagazine.com/2026/11/modern-css-might-make-your-front-end-more-complex",
+          "publishedAt": "2026-11-03T10:00:00.000Z",
+          "content": {
+            "status": "approved",
+            "discoveredAt": "2026-11-04T13:00:50.997Z",
+            "publishedAt": "2026-11-03T10:00:00.000Z"
+          },
+          "queued": false,
+          "decision": {
+            "outcome": "approved",
+            "reasons": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "A List Apart",
+      "url": "https://alistapart.com/main/feed/",
+      "status": 200,
+      "entries": 20,
+      "latestPublication": "2026-06-30T16:22:27.000Z",
+      "publicationsThisWeek": 0,
+      "lastCollection": "2026-11-04T12:50:49.555Z",
+      "payloadNotRetained": true,
+      "samples": []
+    },
+    {
+      "name": "Plau — Entrelinha",
+      "url": "https://plau.substack.com/feed",
+      "status": 200,
+      "entries": 20,
+      "latestPublication": "2026-09-11T14:25:36.000Z",
+      "publicationsThisWeek": 0,
+      "lastCollection": "2026-11-04T15:05:49.782Z",
+      "payloadNotRetained": true,
+      "samples": []
+    }
+  ],
+  "internationalChecksReusedFrom": {
+    "file": "radar2-source-validation.json",
+    "checkedAt": "2026-11-04T17:48:54.673Z"
+  }
+}

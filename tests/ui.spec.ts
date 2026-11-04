@@ -1393,9 +1393,8 @@ for (const width of [1280, 390])
       .getByRole("button", { name: "Jarvis", exact: false })
       .first()
       .click();
-    await expect(
-      page.getByRole("button", { name: "Revisar pendências" }),
-    ).toBeVisible();
+    await expect(page.getByLabel("Consultar o ecossistema")).toBeVisible();
+    await page.getByRole("button", { name: "Minimizar Jarvis" }).click();
     await page.route("**/api/integrations/overview", (route) =>
       route.fulfill({ status: 503, json: { error: { message: "Offline" } } }),
     );
@@ -1407,7 +1406,7 @@ for (const width of [1280, 390])
 test("Ecossistema: rascunho assíncrono preserva prompt e reutiliza vínculo", async ({
   page,
 }) => {
-  await mockApi(page, 2);
+  await mockApi(page, 2, true, false, false, true);
   const overview = ecosystemFixture();
   overview.tasks = [];
   let requests = 0;
@@ -1422,10 +1421,16 @@ test("Ecossistema: rascunho assíncrono preserva prompt e reutiliza vínculo", a
     });
   });
   await page.goto("/");
+  await page.getByTestId("radar-card").first().locator(".radar-title").click();
   await page
-    .getByRole("button", { name: "Selecionar para a Oficina", exact: true })
-    .first()
+    .getByRole("button", { name: "Selecionar / remover da Oficina" })
     .click();
+  await expect(
+    page
+      .getByRole("region", { name: "Mesa editorial", exact: true })
+      .getByRole("status"),
+  ).toContainText("Seleção da Oficina atualizada");
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Oficina", exact: true }).click();
   await page
     .getByLabel("Objetivo da publicação", { exact: false })
@@ -1738,7 +1743,7 @@ test("Jarvis defers balloons while editing and shares initial state requests", a
   });
   await page.goto("/");
   await page
-    .getByRole("searchbox", { name: "Buscar conteúdos" })
+    .getByLabel("Pesquisa", { exact: true })
     .fill("trabalho em andamento");
   release();
   await page
@@ -1860,7 +1865,9 @@ for (const width of [1280])
     hold = true;
     await input.fill("consulta privada pendente");
     await input.press("Enter");
-    await expect(page.getByRole("status")).toContainText("Consultando");
+    await expect(page.locator(".jarvis-loading[role=status]")).toContainText(
+      "Consultando",
+    );
     await page.getByRole("button", { name: "Sair", exact: true }).click();
     release();
     await expect(page.getByLabel("Senha de acesso")).toBeVisible();

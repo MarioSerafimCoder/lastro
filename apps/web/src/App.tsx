@@ -537,7 +537,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
       : [...selectedRef.current, item];
     if (desired.length > 20) {
       notify("A Oficina comporta até 20 referências.");
-      return;
+      return Promise.resolve(false);
     }
     setPrompt(null);
     selectedRef.current = desired;
@@ -556,11 +556,13 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     );
     setResults((p) => p.map(mark));
     setSaved((p) => p.map(mark));
+    let confirmed = false;
     seq.current = seq.current
       .catch(() => {})
       .then(async () => {
         try {
           const r = await api.setSelection(desired.map((i) => i.id));
+          confirmed = true;
           if (
             selectedRef.current.map((i) => i.id).join(",") ===
             desired.map((i) => i.id).join(",")
@@ -582,6 +584,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
           } catch {}
         }
       });
+    return seq.current.then(() => confirmed);
   };
   const interact = async (
     item: Content,
@@ -909,7 +912,9 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             )}
           </div>
         </div>
-        {area === "for-you" && <RadarBoard onSelect={selection} query={query} />}
+        {area === "for-you" && (
+          <RadarBoard onSelect={selection} query={query} />
+        )}
         {area === "salvos" && (
           <section className="page-section">
             <div className="section-heading">

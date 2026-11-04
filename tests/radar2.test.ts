@@ -437,6 +437,153 @@ test("Expired RSS URLs stay deduplicated after cleanup and a later discovery", a
       before,
     );
   }));
+
+test("Retention keeps eight days, expires nine complete days and preserves citations and processing synopses", async () =>
+  isolated(async (env, s) => {
+    const recent = await create(
+      env,
+      s,
+      {},
+      new Date(clock - 8 * 86400000).toISOString(),
+    );
+    const boundary = await create(
+      env,
+      s,
+      {},
+      new Date(clock - RETENTION_MS).toISOString(),
+    );
+    const saved = await create(
+      env,
+      s,
+      {},
+      new Date(clock - 12 * 86400000).toISOString(),
+    );
+    const cited = await create(
+      env,
+      s,
+      {},
+      new Date(clock - RETENTION_MS).toISOString(),
+    );
+    const processing = await create(
+      env,
+      s,
+      {},
+      new Date(clock - RETENTION_MS).toISOString(),
+    );
+    await env.DB.prepare("INSERT INTO favorites VALUES ('owner',?,?)")
+      .bind(saved, at)
+      .run();
+    await env.DB.prepare(
+      "INSERT INTO editorial_outputs(id,user_id,kind,status,title,created_at) VALUES ('retention-output','owner','article','published','Synthetic citation',?)",
+    )
+      .bind(at)
+      .run();
+    await env.DB.prepare(
+      "INSERT INTO output_sources VALUES ('retention-output',?)",
+    )
+      .bind(cited)
+      .run();
+    await env.DB.prepare(
+      "UPDATE content_synopses SET status='processing' WHERE content_id=?",
+    )
+      .bind(processing)
+      .run();
+    await env.DB.prepare("INSERT INTO radar_scheduler(id) VALUES (1)").run();
+    const result = await expireRadar(env.DB, clock);
+    assert.deepEqual(result, { expired: 3, purged: 1 });
+    const state = async (id: string) =>
+      env.DB.prepare(
+        "SELECT expired_at,purged_at,title FROM contents WHERE id=?",
+      )
+        .bind(id)
+        .first<any>();
+    assert.equal((await state(recent)).expired_at, null);
+    assert.equal((await state(boundary)).purged_at, at);
+    assert.equal((await state(saved)).expired_at, null);
+    for (const id of [cited, processing]) {
+      assert.equal((await state(id)).expired_at, at);
+      assert.equal((await state(id)).purged_at, null);
+    }
+    assert.deepEqual(
+      new Set(
+        (
+          await radarFeed(
+            env.DB,
+            { scope: "editorial" },
+            prefs,
+            defaultPolicy,
+            clock,
+          )
+        ).items.map((i) => i.content.id),
+      ),
+      new Set([recent, saved]),
+    );
+    const response = await app.fetch(
+      new Request(`http://localhost/api/contents/${saved}/favorite`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${env.DEV_TOKEN}` },
+      }),
+      env,
+    );
+    assert.equal(response.status, 204);
+    assert.equal((await state(saved)).purged_at, null);
+    assert.notEqual((await state(saved)).title, "Referência expirada");
+    await expireRadar(env.DB, clock + 1);
+    assert.notEqual((await state(saved)).purged_at, null);
+    assert.deepEqual(
+      (await env.DB.prepare("PRAGMA foreign_key_check").all()).results,
+      [],
+    );
+  }));
+
+test("Retention transaction rolls back on partial failure and retries in bounded batches", async () =>
+  isolated(async (env, s) => {
+    const old = new Date(clock - RETENTION_MS).toISOString();
+    for (let i = 0; i < 56; i++) await create(env, s, {}, old);
+    await env.DB.prepare("INSERT INTO radar_scheduler(id) VALUES (1)").run();
+    await env.DB.prepare(
+      "CREATE TRIGGER retention_fault BEFORE UPDATE ON content_synopses BEGIN SELECT RAISE(ABORT,'synthetic retention fault'); END",
+    ).run();
+    await assert.rejects(
+      expireRadar(env.DB, clock),
+      /synthetic retention fault/,
+    );
+    assert.equal(
+      await env.DB.prepare(
+        "SELECT COUNT(*) n FROM contents WHERE expired_at IS NOT NULL OR purged_at IS NOT NULL",
+      ).first("n"),
+      0,
+    );
+    assert.equal(
+      await env.DB.prepare(
+        "SELECT COUNT(*) n FROM contents WHERE title='Referência expirada'",
+      ).first("n"),
+      0,
+    );
+    assert.equal(
+      await env.DB.prepare(
+        "SELECT last_retention_at FROM radar_scheduler WHERE id=1",
+      ).first("last_retention_at"),
+      null,
+    );
+    await env.DB.prepare("DROP TRIGGER retention_fault").run();
+    const passes = [];
+    for (let i = 0; i < 3; i++)
+      passes.push(await expireRadar(env.DB, clock + i));
+    assert.deepEqual(passes, [
+      { expired: 50, purged: 25 },
+      { expired: 6, purged: 25 },
+      { expired: 0, purged: 6 },
+    ]);
+    assert.deepEqual(
+      (await env.DB.prepare("PRAGMA foreign_key_check").all()).results,
+      [],
+    );
+    assert.equal(
+      await env.DB.prepare("PRAGMA quick_check").first("quick_check"),
+      "ok",
+    );
+  }));
 test("RSS failures, recovery and actual discoveries have separate health metrics", async () =>
   isolated(async (env, s) => {
     const failed = await ingestSource(

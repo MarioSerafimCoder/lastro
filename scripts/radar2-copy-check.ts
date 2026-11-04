@@ -97,7 +97,10 @@ const audit = () =>
 const before = { protected: hash(protectedIds()), audit: audit() };
 sqlite.exec(await readFile("migrations/0014_radar_editorial.sql", "utf8"));
 sqlite.exec("INSERT INTO radar_scheduler(id) VALUES (1)");
-const clock = Date.parse("2026-11-04T17:21:59Z"),
+const clock = Date.parse(
+    process.argv.find((v) => v.startsWith("--at="))?.slice(5) ??
+      "2026-11-04T17:21:59Z",
+  ),
   p = await policy(DB),
   prefs = JSON.parse(
     (
@@ -173,7 +176,8 @@ if (
 )
   throw Error("Isolated integrity rehearsal failed");
 await writeFile(
-  "docs/radar2-copy-validation.json",
+  process.argv.find((v) => v.startsWith("--report="))?.slice(9) ??
+    "docs/radar2-copy-validation.json",
   JSON.stringify(report, null, 2) + "\n",
 );
 console.log(JSON.stringify({ ...report, health: undefined }));
