@@ -194,7 +194,9 @@ export default function RadarBoard({
     }
   }
   const available = items.filter(
-    (c) => (scope === "scientific") === (c.kind === "paper"),
+    (c) =>
+      c.radar?.country !== "DE" &&
+      (scope === "scientific") === (c.kind === "paper"),
   );
   const filtered = available.filter((c) => {
     const saved = c.state.favorite,
@@ -227,8 +229,10 @@ export default function RadarBoard({
   }
   const groups = [...byCountry.entries()].sort(([a, first], [b, second]) => {
     if (a === b) return 0;
-    if (a === "BR" || b === "unknown") return -1;
-    if (b === "BR" || a === "unknown") return 1;
+    if (a === "BR") return 1;
+    if (b === "BR") return -1;
+    if (a === "unknown") return 1;
+    if (b === "unknown") return -1;
     return (
       second.length - first.length ||
       countryName(a).localeCompare(countryName(b), "pt-BR")
