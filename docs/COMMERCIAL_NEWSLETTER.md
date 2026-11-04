@@ -1,7 +1,7 @@
 # Inteligência comercial e newsletter
 
 Branches: Lastro `codex/commercial-newsletter`, CRM `codex/newsletter-attribution`, portfólio `codex/commercial-intake`.
-Nenhum deploy, Secret, migration remota, serviço, cron, contato ou campanha real foi alterado.
+Na preparação original, nenhum serviço ou dado real foi alterado. O registro de ativação autorizada e suas evidências está na última seção.
 
 ## Contratos e limites
 
@@ -29,13 +29,13 @@ Nenhum deploy, Secret, migration remota, serviço, cron, contato ou campanha rea
 
 Reverter os três códigos e o Apps Script para as versões registradas. Remover somente a configuração da integração comercial para interromper encaminhamentos. Preservar a tabela aditiva e os registros privados; não restaurar backup sobre dados posteriores sem análise e autorização. GA4 e integrações editoriais permanecem independentes. Não remover Secrets ou dados preexistentes.
 
-Custo contratado incremental: R$ 0; nenhuma dependência, plano ou recurso pago novo. Homologação remota/ativação pendentes de autorização. Push das branches com `[CI Skip]` evita implantação automática do Pages.
+Custo contratado incremental: R$ 0; nenhuma dependência, plano ou recurso pago novo. Ativação posteriormente autorizada e registrada na última seção. Push das branches com `[CI Skip]` evita implantação automática do Pages.
 
 ## Verificação local
 
 - CRM: 197 testes, TypeScript/build e compilação Pages Functions aprovados.
 - Portfólio: 100 testes, TypeScript e build/exportação aprovados. Aviso de privacidade atualizado em português e inglês, por tradução editorial offline; nenhuma API de tradução chamada.
-- Lastro: 19 testes direcionados de Analytics/oportunidades aprovados; TypeScript backend/frontend e build/dry-run aprovados; navegador desktop 1280 e mobile 390 aprovados.
+- Lastro: 20 testes direcionados de Analytics/oportunidades aprovados após os ajustes de ativação; TypeScript backend/frontend e build/dry-run aprovados; navegador desktop 1280 e mobile 390 aprovados.
 - A suíte completa do Lastro revelou uma falha preexistente no teste de orçamento diário das sinopses (`tests/synopsis-autonomy.test.ts:806`): ele simula mais dez minutos a partir do relógio real e pode atravessar meia-noite UTC. A mesma falha `validated` versus `pending` foi reproduzida no commit original `a8888d8`, em checkout separado, sem as alterações desta entrega. Nenhum módulo de sinopses foi modificado. Duas verificações da suíte ficam ignoradas pelas condições já existentes.
 - Não houve homologação remota de escrita, deploy ou alteração de dados reais. O Apps Script usa mocks de MailApp/UrlFetchApp nos testes; os relatórios usam respostas sintéticas.
 
@@ -61,3 +61,5 @@ Versões finais:
 Verificações remotas: health 200; APIs oportunidades, newsletter e Analytics anônimas 401; intake sem assinatura 401, assinatura válida com contrato inválido 400 sem escrita. Painel Oportunidades autenticado mostra zero registros; newsletters 7/30 dias disponíveis sem erro e sem sessões sob a nova marcação, com quatro envios antigos do CRM disponíveis. Quantidade de destinatários ausente permanece indisponível. GA4 geral exibe os relatórios existentes; Jarvis oferece consulta às campanhas reais; Publicações carrega catálogo/calendário e registra zero falhas de integração, mantendo as cinco pendências históricas sem aprovação ou reprocessamento. Página inicial, contato e privacidade PT/EN do portfólio responderam 200. Cloudflare Access do CRM preservado.
 
 Painéis: https://lastro.marioserafim.com.br/oportunidades e https://lastro.marioserafim.com.br/newsletters. CRM: https://crm.marioserafim.com.br. Portfólio: https://marioserafim.com.br/contato. Não foram criados contatos artificiais, alterados assinantes, enviados e-mails/campanhas ou aprovados artigos durante os testes remotos. A ressalva preexistente de horário das sinopses permanece documentada acima.
+
+Verificação final de UTMs sem editar campanhas: o CRM autenticado serviu `index-DNE6D5EK.js`, correspondente ao build local aprovado; esse entrypoint referencia `EditorPage-DRQ3WF2J.js`, contendo `utm_source`, `utm_medium`, `utm_campaign` e `mais_um_cafezinho`. Os testes de preservação de parâmetros, fragmentos, HTML e links externos foram feitos localmente no mesmo código; nenhuma campanha real foi exportada ou alterada para essa conferência. Login humano do CRM pelo provedor Cloudflare existente concluiu e a interface confirmou Buttondown conectada. Código final do Lastro registrado no commit `23530ee`; os commits `4592a13` e `714588c` acionaram os builds de produção Pages sem modificar as árvores homologadas.
