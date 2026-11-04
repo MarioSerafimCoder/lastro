@@ -3343,3 +3343,235 @@ section[aria-labelledby="feed-title"] > .filters {
 .jarvis-hint p {
   max-width: 270px;
 }
+
+/* Conversational surface: floating, without resizing the workspace. */
+.app-shell:has(.jarvis-chat) {
+  grid-template-columns: var(--sidebar-size) minmax(0, 1fr);
+  --assistant-space: 0px;
+}
+.jarvis-panel.jarvis-chat {
+  top: auto;
+  left: auto;
+  right: 20px;
+  bottom: 90px;
+  width: min(420px, calc(100vw - 32px));
+  height: min(680px, calc(100dvh - 116px));
+  max-height: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-radius: 18px;
+  box-shadow: 0 18px 60px #0002;
+  transform-origin: bottom right;
+  background: var(--surface);
+  z-index: 60;
+}
+.jarvis-chat .jarvis-heading {
+  flex: none;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.jarvis-chat-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 18px;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.jarvis-chat-tools button {
+  font-size: 11px;
+  text-decoration: underline;
+  min-height: 32px;
+}
+.jarvis-messages {
+  flex: 1;
+  min-height: 80px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 18px 16px;
+  scrollbar-width: thin;
+}
+.jarvis-chat .jarvis-message {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  margin: 12px 0;
+  max-width: 95%;
+  overflow-wrap: anywhere;
+}
+.jarvis-chat .is-user {
+  margin-left: auto;
+  background: var(--ink);
+  color: var(--surface);
+  border-bottom-right-radius: 3px;
+  white-space: pre-wrap;
+}
+.jarvis-chat .is-assistant {
+  border-bottom-left-radius: 3px;
+  background: var(--surface);
+}
+.jarvis-message > span {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  opacity: 0.7;
+}
+.jarvis-chat .jarvis-message p {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: inherit;
+}
+.jarvis-message small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.jarvis-chat .jarvis-message button {
+  display: block;
+  margin-top: 10px;
+  padding: 7px 0;
+  color: var(--accent);
+  text-align: left;
+  font-size: 12px;
+  min-height: 36px;
+}
+.jarvis-chat .jarvis-welcome h3 {
+  font-size: 25px;
+  letter-spacing: -0.6px;
+  margin: 16px 0 12px;
+}
+.jarvis-chat .jarvis-welcome p {
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+.jarvis-quick {
+  display: flex;
+  gap: 6px;
+  padding: 8px 18px;
+  overflow-x: auto;
+  flex: none;
+  scrollbar-width: thin;
+}
+.jarvis-quick button {
+  flex: none;
+  max-width: 235px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 12px;
+  font-size: 11px;
+  text-align: left;
+  white-space: normal;
+  min-height: 36px;
+}
+.jarvis-chat .jarvis-query {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+}
+.jarvis-query textarea {
+  width: 100%;
+  min-width: 0;
+  resize: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  background: var(--surface);
+  box-sizing: border-box;
+}
+.jarvis-chat .jarvis-query .primary-button {
+  width: auto;
+  align-self: center;
+  padding: 10px 12px;
+}
+.jarvis-query small {
+  grid-column: 1/-1;
+  color: var(--muted);
+  font-size: 10px;
+}
+.jarvis-settings {
+  flex: none;
+  max-height: 160px;
+  overflow-y: auto;
+  padding: 8px 18px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.jarvis-settings summary {
+  cursor: pointer;
+  min-height: 30px;
+  display: list-item;
+}
+.jarvis-settings .jarvis-preference,
+.jarvis-settings .jarvis-suggestion {
+  margin-top: 12px;
+  padding-top: 8px;
+}
+.jarvis-chat .jarvis-footnote {
+  flex: none;
+  padding: 0 18px 10px;
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.jarvis-chat :is(button, a, textarea, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.jarvis-loading {
+  font-size: 12px;
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .jarvis-chat,
+  .jarvis-chat * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.jarvis-chat :where(button) {
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.jarvis-chat :where(button:disabled) {
+  cursor: default;
+  opacity: 0.5;
+}
+.jarvis-chat .jarvis-quick button {
+  background: transparent;
+  color: var(--ink);
+  font-size: 11px;
+}
+.jarvis-chat .jarvis-chat-tools button {
+  background: transparent;
+  border: 0;
+  font-size: 11px;
+}
+.jarvis-chat .jarvis-query .primary-button {
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+}
+.jarvis-chat .jarvis-footnote {
+  font-size: 10px;
+}

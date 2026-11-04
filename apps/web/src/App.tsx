@@ -1,3 +1,4 @@
+import { clearJarvisSession } from "./jarvis-client";
 import Opportunities from "./Opportunities";
 import Newsletters from "./Newsletters";
 import Analytics from "./Analytics";
@@ -1698,7 +1699,12 @@ export default function App() {
           setError(errorText(e));
         }
       });
-    const expired = () => setAuthenticated(false);
+    const expired = () => {
+      window.dispatchEvent(new Event("jarvis:logout"));
+      clearJarvisSession();
+      sessionStorage.removeItem("jarvis:opportunity");
+      setAuthenticated(false);
+    };
     window.addEventListener("lastro:unauthorized", expired);
     return () => {
       active = false;
@@ -1731,6 +1737,9 @@ export default function App() {
     }
   }
   async function logout() {
+    window.dispatchEvent(new Event("jarvis:logout"));
+    clearJarvisSession();
+    sessionStorage.removeItem("jarvis:opportunity");
     await fetch("/api/auth/logout", {
       method: "POST",
       credentials: "include",

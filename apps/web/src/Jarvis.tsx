@@ -1,5 +1,9 @@
-import { commercialApi } from "./Opportunities";
-import { loadJarvisState, invalidateJarvisClient } from "./jarvis-client";
+import { jarvisApi as commercialApi } from "./jarvis-client";
+import {
+  loadJarvisState,
+  invalidateJarvisClient,
+  clearJarvisSession,
+} from "./jarvis-client";
 import type {
   Answer,
   Intent,
@@ -11,6 +15,19 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Minus, X } from "lucide-react";
 import { contextualSuggestion, type JarvisContext } from "./experience";
 import { usePresence } from "./motion";
+type Message = {
+  id: string;
+  question: string;
+  answer?: Answer;
+  error?: string;
+};
+const quickQuestions = [
+  ["O que merece minha atenção?", "integrations.failures"],
+  ["Tenho oportunidades atrasadas?", "opportunities.overdue"],
+  ["Quais artigos tiveram mais visitas?", "articles.top"],
+  ["Como estão minhas newsletters?", "newsletters.performance"],
+  ["Quais rascunhos preciso continuar?", "drafts.pending"],
+] as const;
 const preferenceKey = "lastro:jarvis:proactive";
 function read(store: "localStorage" | "sessionStorage", key: string) {
   try {
@@ -104,6 +121,46 @@ export default function Jarvis({
     hint && !open,
     "translateY(6px) scale(.98)",
   );
+  const [messages, setMessages] = useState<Message[]>([]);
+  const sessionAlive = useRef(true),
+    request = useRef<AbortController | null>(null),
+    inputRef = useRef<HTMLTextAreaElement>(null),
+    logRef = useRef<HTMLDivElement>(null);
+  function clearConversation() {
+    request.current?.abort();
+    request.current = null;
+    setMessages([]);
+    setQuestion("");
+    setAnswer(null);
+    setActionLink(null);
+    setError("");
+    setBusy(false);
+    inputRef.current?.focus();
+  }
+  useEffect(() => {
+    const logout = () => {
+      sessionAlive.current = false;
+      preferenceRequest.current?.abort();
+      request.current?.abort();
+      clearJarvisSession();
+      setMessages([]);
+      setQuestion("");
+      setAnswer(null);
+      setActionLink(null);
+      setNotice(null);
+      setState(null);
+      stateRef.current = null;
+      setHint(false);
+      setOpen(false);
+      setEnabled(false);
+      setError("");
+    };
+    window.addEventListener("jarvis:logout", logout);
+    return () => {
+      request.current?.abort();
+      window.removeEventListener("jarvis:logout", logout);
+    };
+  }, []);
   const [actionLink, setActionLink] = useState<string | null>(null);
   const [state, setState] = useState<JarvisState | null>(null),
     [notice, setNotice] = useState<Notice | null>(null),
@@ -111,6 +168,10 @@ export default function Jarvis({
     [answer, setAnswer] = useState<Answer | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [messages, busy, open]);
+  const preferenceRequest = useRef<AbortController | null>(null);
   const savingPreferences = useRef(false);
   const claiming = useRef(false),
     lastOffered = useRef<string | null>(null),
@@ -118,6 +179,7 @@ export default function Jarvis({
   const suggestion = contextualSuggestion(context);
   const interrupted = () =>
     document.visibilityState !== "visible" ||
+    !document.hasFocus() ||
     context.area === "oficina" ||
     !!document.querySelector('[role="dialog"], [aria-busy="true"]') ||
     !!document.activeElement?.matches(
@@ -131,7 +193,7 @@ export default function Jarvis({
       let ownsClaim = false;
       try {
         const next = await loadJarvisState();
-        if (!active) return;
+        if (!active || !sessionAlive.current) return;
         stateRef.current = next;
         setState(next);
         setEnabled(next.preferences.enabled);
@@ -155,7 +217,7 @@ export default function Jarvis({
           method: "POST",
           body: JSON.stringify({ id: candidate.id, operation: "shown" }),
         });
-        if (active && result.allowed) {
+        if (active && sessionAlive.current && result.allowed) {
           lastOffered.current = candidate.id;
           setNotice(candidate);
           if (!interrupted()) setHint(true);
@@ -176,11 +238,14 @@ export default function Jarvis({
       if (document.visibilityState === "visible") void check();
       else setHint(false);
     };
+    const blur = () => setHint(false);
+    window.addEventListener("blur", blur);
     document.addEventListener("visibilitychange", visibility);
     return () => {
       active = false;
       clearInterval(timer);
       document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("blur", blur);
     };
   }, [context.area, open]);
   useEffect(() => {
@@ -225,13 +290,17 @@ export default function Jarvis({
     }
     if (savingPreferences.current) return;
     savingPreferences.current = true;
+    const preferenceController = new AbortController();
+    preferenceRequest.current = preferenceController;
     setError("");
     if (patch.proactive !== undefined) setProactive(patch.proactive);
     try {
       const next = await commercialApi("jarvis/preferences", {
+        signal: preferenceController.signal,
         method: "PATCH",
         body: JSON.stringify({ ...current, ...patch, area: context.area }),
       });
+      if (!sessionAlive.current || preferenceController.signal.aborted) return;
       stateRef.current = { ...stateRef.current!, preferences: next };
       setState(stateRef.current);
       setEnabled(next.enabled);
@@ -242,6 +311,7 @@ export default function Jarvis({
       if (!next.enabled) setOpen(false);
       setHint(false);
     } catch {
+      if (!sessionAlive.current || preferenceController.signal.aborted) return;
       setProactive(current.proactive);
       setEnabled(current.enabled);
       setError("Não foi possível salvar as preferências.");
@@ -249,36 +319,64 @@ export default function Jarvis({
       savingPreferences.current = false;
     }
   }
-  async function ask(choice?: Intent) {
-    if (busy || !question.trim()) return;
+  async function ask(choice?: Intent, text = question) {
+    if (busy || !text.trim() || !sessionAlive.current) return;
+    const controller = new AbortController();
+    request.current = controller;
+    const id = crypto.randomUUID();
+    setMessages((m) => [...m.slice(-29), { id, question: text }]);
+    setQuestion("");
     setBusy(true);
     setError("");
     setActionLink(null);
     try {
-      setAnswer(
-        await commercialApi("jarvis/query", {
-          method: "POST",
-          body: JSON.stringify({ text: question, area: context.area, choice }),
-        }),
+      const response: Answer = await commercialApi("jarvis/query", {
+        method: "POST",
+        signal: controller.signal,
+        body: JSON.stringify({ text, area: context.area, choice }),
+      });
+      if (controller.signal.aborted || !sessionAlive.current) return;
+      setAnswer(response);
+      setMessages((m) =>
+        m.map((item) =>
+          item.id === id ? { ...item, answer: response } : item,
+        ),
       );
     } catch {
-      setError(
-        "Não foi possível consultar os dados. Nenhuma ação foi executada.",
-      );
+      if (!controller.signal.aborted && sessionAlive.current)
+        setMessages((m) =>
+          m.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  error:
+                    "A consulta está indisponível. Nenhuma ação foi executada.",
+                }
+              : item,
+          ),
+        );
     } finally {
-      setBusy(false);
+      if (request.current === controller) {
+        setBusy(false);
+        request.current = null;
+      }
     }
   }
   async function act(action: JarvisAction) {
     if (busy) return;
     setBusy(true);
     setError("");
+    const controller = new AbortController();
+    request.current = controller;
     try {
       const resolved = await commercialApi("jarvis/actions", {
+        signal: controller.signal,
         method: "POST",
         body: JSON.stringify(action),
       });
+      if (controller.signal.aborted || !sessionAlive.current) return;
       if (resolved.url) {
+        show();
         setActionLink(resolved.url);
         return;
       }
@@ -297,9 +395,13 @@ export default function Jarvis({
         );
       }
     } catch {
-      setError("A ação não está disponível. Consulte novamente os dados.");
+      if (!controller.signal.aborted && sessionAlive.current)
+        setError("A ação não está disponível. Consulte novamente os dados.");
     } finally {
-      setBusy(false);
+      if (request.current === controller) {
+        request.current = null;
+        setBusy(false);
+      }
     }
   }
   const close = () => {
@@ -313,7 +415,7 @@ export default function Jarvis({
   useEffect(() => {
     if (open)
       panelRef.current
-        ?.querySelector<HTMLButtonElement>("button")
+        ?.querySelector<HTMLTextAreaElement>("textarea")
         ?.focus({ preventScroll: true });
   }, [open]);
   useEffect(() => {
@@ -366,10 +468,10 @@ export default function Jarvis({
           aria-hidden={!hint || open || undefined}
         >
           <p>{notice?.text}</p>
-          <button onClick={show}>Revisar com Jarvis</button>
-          <button onClick={() => void dismissHint("snooze")}>
-            Adiar 24 horas
+          <button onClick={() => notice && void act(notice.action)}>
+            Revisar ação
           </button>
+          <button onClick={() => void dismissHint("snooze")}>Depois</button>
           <button
             aria-label="Dispensar sugestão"
             onClick={() => void dismissHint()}
@@ -382,7 +484,7 @@ export default function Jarvis({
         <div
           id="jarvis-panel"
           ref={panelRef}
-          className="jarvis-panel"
+          className="jarvis-panel jarvis-chat"
           aria-hidden={!open || undefined}
           inert={!open}
           role="region"
@@ -395,6 +497,133 @@ export default function Jarvis({
               <Minus size={18} />
             </button>
           </div>
+          <div className="jarvis-chat-tools">
+            <span>Sessão atual · sem IA</span>
+            <button
+              onClick={clearConversation}
+              disabled={!messages.length && !question}
+            >
+              Limpar conversa
+            </button>
+          </div>
+          <div
+            className="jarvis-messages"
+            ref={logRef}
+            role="log"
+            aria-label="Conversa com Jarvis"
+            aria-live="polite"
+            aria-relevant="additions text"
+          >
+            {!messages.length && (
+              <div className="jarvis-welcome">
+                <span className="kicker">JARVIS / À DISPOSIÇÃO</span>
+                <h3>O que merece atenção?</h3>
+                <p>
+                  Posso consultar o ecossistema e preparar o próximo passo. A
+                  decisão continua sendo sua.
+                </p>
+              </div>
+            )}
+            {messages.map((message) => (
+              <div className="jarvis-turn" key={message.id}>
+                <article className="jarvis-message is-user" aria-label="Você">
+                  <span>Você</span>
+                  <p>{message.question}</p>
+                </article>
+                {message.answer && (
+                  <article
+                    className="jarvis-message is-assistant"
+                    aria-label="Resposta do Jarvis"
+                  >
+                    <span>Jarvis</span>
+                    <p>{message.answer.text}</p>
+                    <small>
+                      {message.answer.source} · {message.answer.period.label}
+                      <br />
+                      Sincronização:{" "}
+                      {message.answer.syncedAt
+                        ? new Date(message.answer.syncedAt).toLocaleString(
+                            "pt-BR",
+                          )
+                        : "indisponível"}
+                      {message.answer.stale ? " · Dados desatualizados" : ""}
+                      {message.answer.incomplete
+                        ? " · Cobertura incompleta"
+                        : ""}
+                    </small>
+                    {message.answer.choices?.map((c) => (
+                      <button
+                        disabled={busy}
+                        key={c.intent}
+                        onClick={() => void ask(c.intent, message.question)}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                    {message.answer.action && (
+                      <button
+                        disabled={busy}
+                        onClick={() => void act(message.answer!.action!)}
+                      >
+                        Revisar ação
+                      </button>
+                    )}
+                  </article>
+                )}
+                {message.error && (
+                  <article className="jarvis-message is-assistant" role="alert">
+                    <p>{message.error}</p>
+                    <button
+                      disabled={busy}
+                      onClick={() => void ask(undefined, message.question)}
+                    >
+                      Tentar novamente
+                    </button>
+                  </article>
+                )}
+              </div>
+            ))}
+            {busy && (
+              <p role="status" className="jarvis-loading">
+                Consultando os dados…
+              </p>
+            )}
+            {error && <p role="alert">{error}</p>}
+            {actionLink && (
+              <p>
+                <a href={actionLink} target="_blank" rel="noopener noreferrer">
+                  Abrir destino revisado ↗
+                </a>
+              </p>
+            )}
+          </div>
+          <div className="jarvis-quick" aria-label="Perguntas sugeridas">
+            {quickQuestions.map(([text, intent]) => (
+              <button
+                key={intent}
+                disabled={busy}
+                onClick={() =>
+                  void ask(
+                    intent === "integrations.failures"
+                      ? (
+                          {
+                            100: "integrations.failures",
+                            95: "opportunities.overdue",
+                            90: "opportunities.new",
+                            75: "articles.without_newsletter",
+                            60: "drafts.pending",
+                            45: "articles.top",
+                          } as const
+                        )[state?.notices[0]?.priority || 100]
+                      : intent,
+                    text,
+                  )
+                }
+              >
+                {text}
+              </button>
+            ))}
+          </div>
           <form
             className="jarvis-query"
             onSubmit={(e) => {
@@ -402,13 +631,27 @@ export default function Jarvis({
               void ask();
             }}
           >
-            <label htmlFor="jarvis-question">Consultar o ecossistema</label>
-            <input
+            <label className="sr-only" htmlFor="jarvis-question">
+              Consultar o ecossistema
+            </label>
+            <textarea
+              ref={inputRef}
               id="jarvis-question"
+              rows={2}
               maxLength={500}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Quais oportunidades estão atrasadas?"
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  !e.shiftKey &&
+                  !e.nativeEvent.isComposing
+                ) {
+                  e.preventDefault();
+                  void ask();
+                }
+              }}
+              placeholder="Uma pergunta, por favor."
             />
             <button
               className="primary-button"
@@ -416,183 +659,78 @@ export default function Jarvis({
             >
               Consultar
             </button>
+            <small>Enter envia · Shift+Enter quebra linha</small>
           </form>
-          {error && <p role="alert">{error}</p>}
-          {actionLink && (
-            <p>
-              <a href={actionLink} target="_blank" rel="noopener noreferrer">
-                Abrir destino revisado ↗
-              </a>
-            </p>
-          )}
-          {answer && (
-            <section className="jarvis-answer" aria-live="polite">
-              <p>{answer.text}</p>
-              <small>
-                {answer.source} · {answer.period.label}
-                <br />
-                Sincronização:{" "}
-                {answer.syncedAt
-                  ? new Date(answer.syncedAt).toLocaleString("pt-BR")
-                  : "indisponível"}
-                {answer.stale ? " · Dados desatualizados" : ""}
-                {answer.incomplete ? " · Cobertura incompleta" : ""}
-              </small>
-              {answer.choices?.map((c) => (
-                <button
-                  disabled={busy}
-                  key={c.intent}
-                  onClick={() => void ask(c.intent)}
-                >
-                  {c.label}
-                </button>
-              ))}
-              {answer.action && (
-                <button
-                  disabled={busy}
-                  onClick={() => void act(answer.action!)}
-                >
-                  Revisar ação
-                </button>
-              )}
-            </section>
-          )}
-          {!!state?.notices.length && (
-            <section aria-label="Prioridades">
-              <h3>Prioridades</h3>
-              {state.notices.slice(0, 5).map((n) => (
-                <article key={n.id}>
-                  <p>{n.text}</p>
-                  <button disabled={busy} onClick={() => void act(n.action)}>
-                    Revisar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setNotice(n);
-                      void commercialApi("jarvis/notices", {
-                        method: "POST",
-                        body: JSON.stringify({
-                          id: n.id,
-                          operation: "dismiss",
-                        }),
-                      })
-                        .then(() => {
-                          invalidateJarvisClient();
-                          setState((s) =>
-                            s
-                              ? {
-                                  ...s,
-                                  notices: s.notices.filter(
-                                    (x) => x.id !== n.id,
-                                  ),
-                                }
-                              : s,
-                          );
-                        })
-                        .catch(() =>
-                          setError("Não foi possível salvar a dispensa."),
-                        );
-                    }}
-                  >
-                    Dispensar
-                  </button>
-                  <button
-                    onClick={() => {
-                      void commercialApi("jarvis/notices", {
-                        method: "POST",
-                        body: JSON.stringify({ id: n.id, operation: "snooze" }),
-                      })
-                        .then(() => {
-                          invalidateJarvisClient();
-                          setState((s) =>
-                            s
-                              ? {
-                                  ...s,
-                                  notices: s.notices.filter(
-                                    (x) => x.id !== n.id,
-                                  ),
-                                }
-                              : s,
-                          );
-                        })
-                        .catch(() =>
-                          setError("Não foi possível adiar o alerta."),
-                        );
-                    }}
-                  >
-                    Adiar 24h
-                  </button>
-                </article>
-              ))}
-            </section>
-          )}
-          <div className="jarvis-suggestion" key={suggestion.action}>
-            <span className="kicker">Um ponto de partida</span>
-            <h3>{suggestion.title}</h3>
-            <p>{suggestion.body}</p>
+          <details className="jarvis-settings">
+            <summary>Preferências e contexto</summary>
+            <div className="jarvis-suggestion" key={suggestion.action}>
+              <span className="kicker">Um ponto de partida</span>
+              <h3>{suggestion.title}</h3>
+              <p>{suggestion.body}</p>
+              <button
+                className="primary-button"
+                onClick={() =>
+                  void act(
+                    suggestion.action === "queue"
+                      ? { kind: "references.open", target: "queue" }
+                      : suggestion.action.startsWith("open-studio:")
+                        ? {
+                            kind: "studio.continue",
+                            target: suggestion.action.slice(12),
+                          }
+                        : {
+                            kind:
+                              suggestion.action === "opportunities"
+                                ? "opportunity.open"
+                                : suggestion.action === "newsletters"
+                                  ? "newsletters.open"
+                                  : suggestion.action === "publications"
+                                    ? "integration.review"
+                                    : suggestion.action === "studio"
+                                      ? "workshop.prepare"
+                                      : "references.open",
+                          },
+                  )
+                }
+              >
+                {suggestion.label}
+                <ArrowUpRight size={16} />
+              </button>
+            </div>
+            <label className="jarvis-preference">
+              <input
+                type="checkbox"
+                checked={proactive}
+                onChange={(e) => {
+                  void preferences({ proactive: e.target.checked });
+                }}
+              />
+              Receber sugestões espontâneas
+            </label>
             <button
-              className="primary-button"
-              onClick={() =>
-                void act(
-                  suggestion.action === "queue"
-                    ? { kind: "references.open", target: "queue" }
-                    : suggestion.action.startsWith("open-studio:")
-                      ? {
-                          kind: "studio.continue",
-                          target: suggestion.action.slice(12),
-                        }
-                      : {
-                          kind:
-                            suggestion.action === "opportunities"
-                              ? "opportunity.open"
-                              : suggestion.action === "newsletters"
-                                ? "newsletters.open"
-                                : suggestion.action === "publications"
-                                  ? "integration.review"
-                                  : suggestion.action === "studio"
-                                    ? "workshop.prepare"
-                                    : "references.open",
-                        },
-                )
-              }
-            >
-              {suggestion.label}
-              <ArrowUpRight size={16} />
-            </button>
-          </div>
-          <label className="jarvis-preference">
-            <input
-              type="checkbox"
-              checked={proactive}
-              onChange={(e) => {
-                void preferences({ proactive: e.target.checked });
+              className="quiet-link"
+              onClick={() => {
+                void preferences({ enabled: false });
               }}
-            />
-            Receber sugestões espontâneas
-          </label>
-          <button
-            className="quiet-link"
-            onClick={() => {
-              void preferences({ enabled: false });
-            }}
-          >
-            Desativar Jarvis
-          </button>
-          <label className="jarvis-preference">
-            Comunicação
-            <select
-              value={state?.preferences.communication || "discreto"}
-              onChange={(e) =>
-                void preferences({
-                  communication: e.target.value as "formal" | "discreto",
-                })
-              }
             >
-              <option value="discreto">Formal, com humor discreto</option>
-              <option value="formal">Apenas os fatos</option>
-            </select>
-          </label>
-          <small>
+              Desativar Jarvis
+            </button>
+            <label className="jarvis-preference">
+              Comunicação
+              <select
+                value={state?.preferences.communication || "discreto"}
+                onChange={(e) =>
+                  void preferences({
+                    communication: e.target.value as "formal" | "discreto",
+                  })
+                }
+              >
+                <option value="discreto">Formal, com humor discreto</option>
+                <option value="formal">Apenas os fatos</option>
+              </select>
+            </label>
+          </details>
+          <small className="jarvis-footnote">
             Modo determinístico. IA desativada; nenhum consumo de inferência.
             Perguntas não são armazenadas.
           </small>

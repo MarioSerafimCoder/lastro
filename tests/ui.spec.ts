@@ -671,6 +671,7 @@ test("Jarvis: contexto real, uma sugestão, preferências e desativação persis
   await page
     .getByRole("button", { name: "Jarvis Seu próximo caminho" })
     .click();
+  await page.getByText("Preferências e contexto", { exact: true }).click();
   await page.getByLabel("Receber sugestões espontâneas").uncheck();
   await page
     .getByRole("button", { name: "Minimizar Jarvis", exact: true })
@@ -679,6 +680,7 @@ test("Jarvis: contexto real, uma sugestão, preferências e desativação persis
   await page
     .getByRole("button", { name: "Jarvis Seu próximo caminho" })
     .click();
+  await page.getByText("Preferências e contexto", { exact: true }).click();
   await page
     .getByRole("button", { name: "Desativar Jarvis", exact: true })
     .click();
@@ -694,6 +696,7 @@ test("Jarvis: contexto real, uma sugestão, preferências e desativação persis
   await page
     .getByRole("button", { name: "Jarvis Seu próximo caminho" })
     .click();
+  await page.getByText("Preferências e contexto", { exact: true }).click();
   await expect(
     page.getByLabel("Receber sugestões espontâneas"),
   ).not.toBeChecked();
@@ -972,12 +975,9 @@ for (const width of [1440, 768, 390])
     await expect(
       page.getByRole("region", { name: "Painel Jarvis" }),
     ).toBeVisible();
-    expect(
-      overlaps(
-        (await page.locator("#main").boundingBox())!,
-        (await page.locator(".jarvis-panel").boundingBox())!,
-      ),
-    ).toBe(false);
+    const chatBox = await page.locator(".jarvis-panel").boundingBox();
+    expect(chatBox!.x).toBeGreaterThanOrEqual(0);
+    expect(chatBox!.y).toBeGreaterThanOrEqual(0);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -1716,4 +1716,152 @@ test("Jarvis defers balloons while editing and shares initial state requests", a
   await expect(
     page.getByRole("button", { name: "Dispensar sugestão" }),
   ).toHaveCount(0);
+});
+
+for (const width of [1280])
+  test(`Jarvis conversation keyboard, errors, clearing and logout ${width}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockApi(page, 0);
+    let queries: string[] = [];
+    let fail = true;
+    let hold = false;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    await page.route("**/api/jarvis/**", async (route) => {
+      const path = new URL(route.request().url()).pathname;
+      if (path.endsWith("/state"))
+        return route.fulfill({
+          json: {
+            preferences: {
+              enabled: true,
+              proactive: false,
+              communication: "formal",
+              area: "for-you",
+            },
+            notices: [],
+            syncedAt: new Date().toISOString(),
+            ai: { enabled: false, reason: "Determinístico" },
+          },
+        });
+      if (path.endsWith("/query")) {
+        const body = route.request().postDataJSON();
+        queries.push(body.text);
+        if (hold) await gate;
+        if (fail) {
+          fail = false;
+          await route.fulfill({ status: 503, json: { error: "unavailable" } });
+          return;
+        }
+        try {
+          await route.fulfill({
+            json: {
+              text: "Há duas oportunidades aguardando acompanhamento.",
+              action: { kind: "article.open", target: "teste" },
+              source: "D1 · oportunidades",
+              period: { label: "Estado atual" },
+              syncedAt: "2026-11-03T20:00:00Z",
+              incomplete: false,
+              stale: false,
+              ai: { enabled: false, reason: "Determinístico" },
+            },
+          });
+        } catch {}
+        return;
+      }
+      await route.fulfill({
+        json: path.endsWith("/actions")
+          ? {
+              navigation: "publications",
+              url: "https://marioserafim.com.br/blog/teste",
+            }
+          : { allowed: true },
+      });
+    });
+    await page.goto("/");
+    await page
+      .getByRole("button", { name: "Jarvis Seu próximo caminho" })
+      .click();
+    const input = page.getByLabel("Consultar o ecossistema");
+    await expect(input).toBeFocused();
+    await input.fill("primeira linha");
+    await input.press("Shift+Enter");
+    await input.press("x");
+    await expect(input).toHaveValue("primeira linha\nx");
+    expect(queries.length).toBe(0);
+    await input.press("Enter");
+    await expect(
+      page.getByText(
+        "A consulta está indisponível. Nenhuma ação foi executada.",
+      ),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Tentar novamente", exact: true })
+      .click();
+    await expect(
+      page.getByText("Há duas oportunidades aguardando acompanhamento."),
+    ).toBeVisible();
+    await expect(
+      page.getByText("D1 · oportunidades · Estado atual"),
+    ).toBeVisible();
+    expect(queries.length).toBe(2);
+    await page.screenshot({ path: `.wrangler/jarvis-chat-${width}.png` });
+    await page
+      .getByRole("button", { name: "Revisar ação", exact: true })
+      .click();
+    await expect(
+      page.getByRole("link", { name: "Abrir destino revisado ↗" }),
+    ).toHaveAttribute("href", "https://marioserafim.com.br/blog/teste");
+    await page.getByRole("button", { name: "Limpar conversa" }).click();
+    await expect(
+      page.getByText("Há duas oportunidades aguardando acompanhamento."),
+    ).toHaveCount(0);
+    await expect(input).toBeFocused();
+    hold = true;
+    await input.fill("consulta privada pendente");
+    await input.press("Enter");
+    await expect(page.getByRole("status")).toContainText("Consultando");
+    await page.getByRole("button", { name: "Sair", exact: true }).click();
+    release();
+    await expect(page.getByLabel("Senha de acesso")).toBeVisible();
+    await expect(page.getByText("consulta privada pendente")).toHaveCount(0);
+  });
+
+test("Jarvis clears private conversation when the session expires", async ({
+  page,
+}) => {
+  await mockApi(page, 0);
+  await page.route("**/api/jarvis/**", async (route) => {
+    if (route.request().method() === "GET")
+      await route.fulfill({
+        json: {
+          preferences: {
+            enabled: true,
+            proactive: false,
+            communication: "formal",
+            area: "for-you",
+          },
+          notices: [],
+          syncedAt: new Date().toISOString(),
+          ai: { enabled: false },
+        },
+      });
+    else await route.fulfill({ status: 401, json: { error: "unauthorized" } });
+  });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Jarvis Seu próximo caminho" })
+    .click();
+  await page
+    .getByLabel("Consultar o ecossistema")
+    .fill("consulta confidencial da sessão");
+  await page.getByLabel("Consultar o ecossistema").press("Enter");
+  await expect(page.getByLabel("Senha de acesso")).toBeVisible();
+  await expect(page.getByText("consulta confidencial da sessão")).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("log")).toHaveCount(0);
 });
