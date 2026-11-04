@@ -159,7 +159,7 @@ export function createLastroClient(
       request<Page<EditorialDecision>>(
         `/admin/decisions?limit=20&offset=${offset}`,
       ),
-    feed: (q: { limit?: number; cursor?: string } = {}) =>
+    feed: (q: Partial<import("./radar").RadarFeedQuery> = {}) =>
       request<FeedPage>(`/feed?${query(q)}`),
     search: (q: SearchQuery = {}) =>
       request<Page<Content>>(`/search?${query(q)}`),

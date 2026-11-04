@@ -1,0 +1,343 @@
+.radar-board {
+  padding-bottom: 48px;
+}
+.radar-board .section-heading {
+  margin-bottom: 24px;
+}
+.radar-pulse {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+  padding: 16px 0;
+  border-block: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+.radar-pulse span {
+  display: grid;
+  gap: 5px;
+}
+.radar-pulse strong {
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.radar-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  padding: 22px 0 12px;
+}
+.radar-filterbar label {
+  display: grid;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.radar-filterbar select,
+.radar-filterbar input:not([type="checkbox"]) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink);
+  padding: 8px;
+  max-width: 200px;
+}
+.radar-board button {
+  color: var(--ink);
+}
+.radar-filterbar button,
+.radar-detail > button:not(.radar-close) {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 9px;
+  border-radius: 4px;
+}
+.radar-filterbar .radar-check {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+.radar-scope-note {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 85ch;
+  line-height: 1.6;
+}
+.radar-feedback {
+  min-height: 20px;
+  color: var(--accent-ink);
+  font-size: 12px;
+}
+.radar-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  align-items: start;
+}
+.radar-column {
+  min-width: 0;
+}
+.radar-column > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 2px solid var(--ink);
+  padding-top: 14px;
+}
+.radar-column:first-child > header {
+  border-color: var(--accent);
+}
+.radar-column > header h3 {
+  font-size: 18px;
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+}
+.radar-column > header span {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.radar-column > p {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+.radar-compact {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: border-color 120ms ease;
+}
+.radar-compact:hover,
+.radar-compact:focus-within {
+  border-color: var(--muted);
+}
+.radar-origin {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.radar-origin span {
+  white-space: nowrap;
+}
+.radar-title {
+  display: block;
+  width: 100%;
+  background: none;
+  border: 0;
+  text-align: left;
+  padding: 0;
+  margin: 14px 0;
+  min-height: 72px;
+}
+.radar-title h4 {
+  font-family: Georgia, serif;
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.28;
+  letter-spacing: -0.3px;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.radar-title img {
+  float: right;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  margin-left: 12px;
+  border-radius: 3px;
+}
+.radar-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  min-height: 26px;
+}
+.radar-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.radar-card-actions button,
+.radar-card-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+}
+.radar-card-actions a {
+  margin-left: auto;
+}
+.radar-card-actions button:hover,
+.radar-card-actions a:hover {
+  background: var(--soft);
+  color: var(--ink);
+}
+.radar-card-actions button[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+.radar-deadline {
+  font-size: 10px;
+  color: var(--accent-ink);
+}
+.radar-empty {
+  padding: 24px 12px;
+  border: 1px dashed var(--line);
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.radar-empty button {
+  display: block;
+  margin-top: 12px;
+}
+.radar-dense {
+  grid-template-columns: 1fr;
+}
+.radar-dense .radar-compact {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) 160px 150px;
+  gap: 16px;
+  align-items: center;
+  padding: 10px 16px;
+}
+.radar-dense .radar-title {
+  min-height: 0;
+  margin: 0;
+}
+.radar-dense .radar-title h4 {
+  font-size: 16px;
+}
+.radar-dense .radar-card-actions {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.radar-dense .radar-deadline {
+  grid-column: 2;
+}
+.radar-detail {
+  position: fixed;
+  inset: 0 0 0 auto;
+  margin: 0;
+  width: min(540px, 100%);
+  height: 100dvh;
+  max-height: 100dvh;
+  max-width: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  border: 0;
+  border-left: 1px solid var(--line);
+  padding: 64px 32px 32px;
+  box-shadow: -12px 0 60px var(--shadow-color);
+  overflow-y: auto;
+}
+.radar-detail::backdrop {
+  background: var(--scrim);
+}
+.radar-detail h2 {
+  font-family: Georgia, serif;
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 1.2;
+}
+.radar-detail p {
+  line-height: 1.7;
+  color: var(--muted);
+}
+.radar-detail > a,
+.radar-detail > button {
+  display: block;
+  margin-top: 18px;
+}
+.radar-detail > a {
+  color: var(--accent-ink);
+}
+.radar-close {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 8px;
+}
+.radar-board :focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 3px;
+}
+.radar-skeleton {
+  height: 330px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+@media (max-width: 1050px) {
+  .radar-columns {
+    gap: 12px;
+  }
+  .radar-compact {
+    padding: 12px;
+  }
+  .radar-dense .radar-compact {
+    grid-template-columns: 120px 1fr;
+  }
+  .radar-dense .radar-card-actions {
+    grid-column: 2;
+  }
+}
+@media (max-width: 700px) {
+  .radar-columns {
+    grid-template-columns: 1fr;
+  }
+  .radar-filterbar label {
+    flex: 1;
+    min-width: 125px;
+  }
+  .radar-filterbar select,
+  .radar-filterbar input:not([type="checkbox"]) {
+    max-width: 100%;
+    width: 100%;
+  }
+  .radar-board .section-heading {
+    align-items: start;
+    gap: 16px;
+    flex-direction: column;
+  }
+  .radar-dense .radar-compact {
+    display: block;
+  }
+  .radar-title {
+    min-height: 0;
+  }
+  .radar-detail {
+    padding: 60px 22px 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .radar-compact {
+    transition: none;
+  }
+}

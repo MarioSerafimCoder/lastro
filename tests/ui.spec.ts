@@ -24,6 +24,7 @@ async function mockApi(
   initialSession = true,
   withImage = false,
   editorial = false,
+  radar2 = false,
 ) {
   const items = Array.from({ length: count }, (_, i) =>
     contentFixture({
@@ -35,6 +36,22 @@ async function mockApi(
         withImage && i === 0
           ? "https://fixtures.example.test/feed-image.svg"
           : null,
+      ...(radar2
+        ? {
+            publishedAt: new Date().toISOString(),
+            collectedAt: new Date().toISOString(),
+            radar: {
+              firstSeenAt: new Date().toISOString(),
+              approvedAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 9 * 86400000).toISOString(),
+              expiredAt: null,
+              country: i % 2 ? "GB" : "BR",
+              category: "graphic_design" as const,
+              level: "metadata" as const,
+              triage: "novidade" as const,
+            },
+          }
+        : {}),
       ...(editorial
         ? {
             title: [
@@ -316,7 +333,7 @@ test("Refinamento: filtro mantém a leitura enquanto aguarda resultados", async 
   await expect(page.locator(".skeleton")).toHaveCount(0);
   release!();
   await expect(
-    page.getByText("Ainda não há referências por aqui"),
+    page.getByText("Nenhuma referência neste recorte.").first(),
   ).toBeVisible();
 });
 
@@ -754,7 +771,7 @@ test("Login e erro recuperável de rede", async ({ page }) => {
   await page.getByLabel("Senha de acesso").fill("TESTE-SENHA-SEM-VALOR");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(
-    page.getByText("Ainda não há referências por aqui"),
+    page.getByText("Nenhuma referência neste recorte.").first(),
   ).toBeVisible();
   await page.route("**/api/feed?**", (route) =>
     route.fulfill({
@@ -2210,4 +2227,154 @@ test("Jarvis Brain: revoked Google access preserves the authenticated Lastro cha
   await expect(
     page.getByRole("button", { name: "Sair", exact: true }),
   ).toBeVisible();
+});
+
+test("Radar 2: 32 cards, triagem, filtros, detalhes, Oficina e captura", async ({
+  page,
+}) => {
+  await mockApi(page, 40, true, false, false, true);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  const board = page.getByRole("region", {
+    name: "Mesa editorial",
+    exact: true,
+  });
+  await expect(board.getByTestId("radar-card")).toHaveCount(32);
+  const first = board.getByTestId("radar-card").first();
+  const title = await first.locator("h4").innerText();
+  await first
+    .getByRole("button", { name: `Avaliar ${title}`, exact: true })
+    .click();
+  await expect(
+    board
+      .getByRole("region", { name: "Para avaliar", exact: true })
+      .getByTestId("radar-card"),
+  ).toHaveCount(1);
+  await board
+    .getByRole("region", { name: "Para avaliar", exact: true })
+    .getByRole("button", { name: `Favoritar ${title}`, exact: true })
+    .click();
+  await expect(
+    board
+      .getByRole("region", { name: "Favoritos", exact: true })
+      .getByTestId("radar-card"),
+  ).toHaveCount(1);
+  await page.reload();
+  await expect(
+    board
+      .getByRole("region", { name: "Favoritos", exact: true })
+      .getByTestId("radar-card"),
+  ).toHaveCount(1);
+  await board
+    .getByRole("combobox", { name: "País", exact: true })
+    .selectOption("GB");
+  await board
+    .getByRole("combobox", { name: "Idioma", exact: true })
+    .selectOption("pt");
+  await board.getByLabel("Pesquisa", { exact: true }).fill("inexistente");
+  await expect(board.getByTestId("radar-card")).toHaveCount(0);
+  await board
+    .getByRole("button", { name: "Limpar filtros", exact: true })
+    .click();
+  await expect(board.getByTestId("radar-card")).toHaveCount(32);
+  const trigger = board
+    .getByTestId("radar-card")
+    .first()
+    .getByRole("button")
+    .first();
+  const openedTitle = await trigger.innerText();
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Selecionar / remover da Oficina" })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).not.toBeVisible();
+  await expect(
+    board.getByRole("button", { name: openedTitle, exact: true }),
+  ).toBeFocused();
+  await mkdir("docs/examples/radar2-ui", { recursive: true });
+  await page.screenshot({
+    path: "docs/examples/radar2-ui/desktop-dark.png",
+    fullPage: true,
+  });
+  await page.evaluate(() => (document.documentElement.dataset.theme = "light"));
+  await page.screenshot({
+    path: "docs/examples/radar2-ui/desktop-light.png",
+    fullPage: true,
+  });
+  await board.getByRole("button", { name: "Lista densa" }).click();
+  await expect(board.locator(".radar-dense")).toBeVisible();
+  await page.screenshot({
+    path: "docs/examples/radar2-ui/desktop-list.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(board).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+});
+
+test("Radar 2: falha da API e recuperação", async ({ page }) => {
+  await mockApi(page, 24, true, false, false, true);
+  let fail = true;
+  await page.route("**/api/feed?**", (route) =>
+    fail
+      ? route.fulfill({
+          status: 503,
+          json: { error: { message: "Serviço indisponível" } },
+        })
+      : route.fallback(),
+  );
+  await page.goto("/");
+  const board = page.getByRole("region", {
+    name: "Mesa editorial",
+    exact: true,
+  });
+  await expect(board.getByRole("alert")).toBeVisible();
+  fail = false;
+  await board.getByRole("button", { name: "Tentar novamente" }).click();
+  await expect(board.getByTestId("radar-card")).toHaveCount(19);
+});
+
+test("Radar 2: expiração em nove dias preserva favorito e descarte é efetivo", async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date() });
+  await mockApi(page, 24, true, false, false, true);
+  await page.goto("/");
+  const board = page.getByRole("region", {
+    name: "Mesa editorial",
+    exact: true,
+  });
+  await expect(board.getByTestId("radar-card")).toHaveCount(19);
+  await board
+    .getByTestId("radar-card")
+    .first()
+    .getByRole("button", { name: /^Favoritar / })
+    .click();
+  await expect(
+    board
+      .getByRole("region", { name: "Favoritos", exact: true })
+      .getByTestId("radar-card"),
+  ).toHaveCount(1);
+  await page.clock.fastForward(9 * 86400000 + 60001);
+  await expect(board.getByTestId("radar-card")).toHaveCount(1);
+  await board
+    .getByTestId("radar-card")
+    .first()
+    .getByRole("button", { name: /^Descartar / })
+    .click();
+  await expect(board.getByTestId("radar-card")).toHaveCount(0);
+  await board
+    .getByRole("combobox", { name: "Recorte", exact: true })
+    .selectOption("scientific");
+  await expect(board.getByTestId("radar-card")).toHaveCount(5);
+  await expect(
+    board.getByRole("combobox", { name: "Período", exact: true }),
+  ).toHaveValue("all");
 });
