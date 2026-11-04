@@ -37,9 +37,13 @@ import {
   Filter,
   Globe,
   Layers2,
+  Lightbulb,
+  Mail,
   Menu,
+  Newspaper,
   Plus,
   Search,
+  ChartNoAxesCombined,
   Sparkles,
   SquarePen,
   X,
@@ -791,6 +795,14 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                   <Layers2 size={18} />
                 ) : a.id === "curadoria" ? (
                   <Filter size={18} />
+                ) : a.id === "publicacoes" ? (
+                  <Newspaper size={18} />
+                ) : a.id === "analytics" ? (
+                  <ChartNoAxesCombined size={18} />
+                ) : a.id === "oportunidades" ? (
+                  <Lightbulb size={18} />
+                ) : a.id === "newsletters" ? (
+                  <Mail size={18} />
                 ) : (
                   <BookOpen size={18} />
                 )}
