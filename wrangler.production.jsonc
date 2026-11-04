@@ -27,8 +27,8 @@
   "triggers": { "crons": ["*/5 * * * *", "2-57/5 * * * *", "17,47 * * * *"] },
   "vars": {
     "ENVIRONMENT": "production",
-    "BRAIN_DRIVE_ENABLED": "false",
-    "BRAIN_DRIVE_FREE_CONFIRMED": "false",
+    "BRAIN_DRIVE_ENABLED": "true",
+    "BRAIN_DRIVE_FREE_CONFIRMED": "true",
     "BRAIN_DRIVE_CLIENT_ID": "352771654042-p6g4ad3dnlbofbfofvsda2f0rfivcvv8.apps.googleusercontent.com",
     "BRAIN_DRIVE_REDIRECT_URI": "https://lastro.marioserafim.com.br/api/jarvis/drive/oauth/callback",
     "ALLOWED_ORIGIN": "https://lastro.marioserafim.com.br",
