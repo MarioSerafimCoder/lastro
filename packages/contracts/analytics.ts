@@ -14,6 +14,8 @@ export type AnalyticsData = {
   version: "analytics-1.0";
   propertyId: string;
   range: { start: string; end: string };
+  timeZone?: string;
+  effectiveRange?: { start: string; end: string };
   reports: Array<{
     dimension:
       | "total"

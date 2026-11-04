@@ -1,3 +1,4 @@
+import { localDay, shiftDay } from "../packages/contracts/jarvis-periods";
 import type { Env } from "./env";
 import { ApiFault } from "./errors";
 import { first, stmt } from "./db";
@@ -197,6 +198,9 @@ export async function runAnalyticsReports(
     "userEngagementDuration",
   ];
   const reports: AnalyticsData["reports"] = [];
+  const started = Date.now();
+  const zones = new Set<string>();
+  let completeZones = true;
   for (const dimension of [
     "total",
     "date",
@@ -263,6 +267,16 @@ export async function runAnalyticsReports(
       },
     );
     const report = await jsonResponse(response);
+    try {
+      const zone = report.metadata?.timeZone;
+      if (typeof zone !== "string") completeZones = false;
+      else {
+        localDay(started, zone);
+        zones.add(zone);
+      }
+    } catch {
+      completeZones = false;
+    }
     // GA4 may omit repeated header fields for a metadata-only empty report.
     // Keep it empty, rather than manufacturing zero-valued metric rows.
     if (
@@ -357,13 +371,29 @@ export async function runAnalyticsReports(
           : dimension === "date" && !newsletter
             ? days
             : 100),
-      privacyFiltered: rows.length !== raw.length,
+      privacyFiltered:
+        rows.length !== raw.length ||
+        !!report.metadata?.subjectToThresholding ||
+        !!report.metadata?.dataLossFromOtherRow ||
+        !!report.metadata?.samplingMetadatas?.length ||
+        !!report.metadata?.dataTruncationReasons?.length,
     });
   }
   return {
     version: "analytics-1.0",
     propertyId: property,
     range: { start: `${days}daysAgo`, end: "yesterday" },
+    ...(completeZones &&
+    zones.size === 1 &&
+    localDay(started, [...zones][0]) === localDay(Date.now(), [...zones][0])
+      ? {
+          timeZone: [...zones][0],
+          effectiveRange: {
+            start: shiftDay(localDay(started, [...zones][0]), -days),
+            end: shiftDay(localDay(started, [...zones][0]), -1),
+          },
+        }
+      : {}),
     reports,
   };
 }

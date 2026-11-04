@@ -1,7 +1,3 @@
-import {
-  socialAnswer,
-  clarificationChoice,
-} from "../../../packages/contracts/jarvis-social";
 import { jarvisApi as commercialApi } from "./jarvis-client";
 import {
   loadJarvisState,
@@ -15,7 +11,11 @@ import type {
   JarvisState,
   Notice,
 } from "../../../packages/contracts/jarvis";
-import { isPeriodContinuation } from "../../../packages/contracts/jarvis";
+import type {
+  DialogueView,
+  DialogueReply,
+} from "../../../packages/contracts/jarvis-dialogue";
+import { JarvisRequestError } from "./jarvis-client";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Minus, X } from "lucide-react";
 import type { JarvisContext } from "./experience";
@@ -120,18 +120,58 @@ export default function Jarvis({
     "translateY(6px) scale(.98)",
   );
   const [messages, setMessages] = useState<Message[]>([]);
-  const socialTurn = useRef(0);
+  const conversation = useRef<DialogueView | null>(null);
+  const pendingSend = useRef(false);
+  const initializing = useRef<Promise<DialogueView> | null>(null);
+  async function currentConversation(): Promise<DialogueView> {
+    if (conversation.current) return conversation.current;
+    if (!initializing.current) {
+      initializing.current = commercialApi("jarvis/conversation")
+        .then((next: DialogueView) => {
+          if (sessionAlive.current) conversation.current = next;
+          return next;
+        })
+        .finally(() => {
+          initializing.current = null;
+        });
+    }
+    return initializing.current!;
+  }
+  const [restoredQuestion, setRestoredQuestion] = useState("");
   const followLatest = useRef(true);
   const sessionAlive = useRef(true),
-    lastIntent = useRef<Intent | null>(null),
     request = useRef<AbortController | null>(null),
     inputRef = useRef<HTMLTextAreaElement>(null),
     logRef = useRef<HTMLDivElement>(null);
-  function clearConversation() {
+  async function clearConversation() {
+    if (pendingSend.current || busy) return;
+    pendingSend.current = true;
+    setBusy(true);
+    try {
+      const current = await currentConversation();
+      conversation.current = await commercialApi("jarvis/conversation", {
+        method: "DELETE",
+        body: JSON.stringify({
+          conversationId: current.id,
+          revision: current.revision,
+        }),
+      });
+    } catch {
+      if (sessionAlive.current) {
+        conversation.current = null;
+        setError(
+          "Não foi possível limpar. Tente novamente para recuperar o contexto atual.",
+        );
+        setBusy(false);
+      }
+      pendingSend.current = false;
+      return;
+    }
+    if (!sessionAlive.current) return;
+    pendingSend.current = false;
+    setRestoredQuestion("");
     request.current?.abort();
     request.current = null;
-    lastIntent.current = null;
-    socialTurn.current = 0;
     setMessages([]);
     setQuestion("");
     setAnswer(null);
@@ -146,7 +186,8 @@ export default function Jarvis({
       preferenceRequest.current?.abort();
       request.current?.abort();
       clearJarvisSession();
-      lastIntent.current = null;
+      conversation.current = null;
+      setRestoredQuestion("");
       setMessages([]);
       setQuestion("");
       setAnswer(null);
@@ -325,34 +366,9 @@ export default function Jarvis({
   }
   async function ask(choice?: Intent, text = question) {
     if (busy || !text.trim() || !sessionAlive.current) return;
+    if (pendingSend.current) return;
+    pendingSend.current = true;
     followLatest.current = true;
-    const local =
-      !choice &&
-      socialAnswer(
-        text,
-        socialTurn.current,
-        stateRef.current?.preferences.communication,
-      );
-    if (local) {
-      socialTurn.current++;
-      lastIntent.current = null;
-      setMessages((m) => [
-        ...m.slice(-29),
-        { id: crypto.randomUUID(), question: text, answer: local },
-      ]);
-      setQuestion("");
-      setAnswer(local);
-      setError("");
-      setActionLink(null);
-      inputRef.current?.focus({ preventScroll: true });
-      return;
-    }
-    const continuation = !choice && isPeriodContinuation(text);
-    const selectedChoice =
-      choice ||
-      clarificationChoice(text, answer?.choices) ||
-      (continuation ? (lastIntent.current ?? undefined) : undefined);
-    if (!continuation) lastIntent.current = null;
     const controller = new AbortController();
     request.current = controller;
     const id = crypto.randomUUID();
@@ -362,33 +378,50 @@ export default function Jarvis({
     setError("");
     setActionLink(null);
     try {
-      const response: Answer = await commercialApi("jarvis/query", {
-        method: "POST",
-        signal: controller.signal,
-        body: JSON.stringify({
-          text,
-          area: context.area,
-          choice: selectedChoice,
-        }),
-      });
+      const current = await currentConversation();
       if (controller.signal.aborted || !sessionAlive.current) return;
-      lastIntent.current = response.intent || null;
+      const response: DialogueReply = await commercialApi(
+        "jarvis/conversation",
+        {
+          method: "POST",
+          signal: controller.signal,
+          body: JSON.stringify({
+            text,
+            area: context.area,
+            conversationId: current.id,
+            revision: current.revision,
+          }),
+        },
+      );
+      if (controller.signal.aborted || !sessionAlive.current) return;
+      conversation.current = response.conversation;
+      setRestoredQuestion("");
       setAnswer(response);
       setMessages((m) =>
         m.map((item) =>
           item.id === id ? { ...item, answer: response } : item,
         ),
       );
-    } catch {
+    } catch (failure) {
       if (!controller.signal.aborted && sessionAlive.current) {
-        lastIntent.current = null;
+        conversation.current = null;
+        const conflict =
+          failure instanceof JarvisRequestError && failure.status === 409;
+        if (conflict) {
+          try {
+            conversation.current = await commercialApi("jarvis/conversation", {
+              signal: controller.signal,
+            });
+          } catch {}
+        }
         setMessages((m) =>
           m.map((item) =>
             item.id === id
               ? {
                   ...item,
-                  error:
-                    "A consulta está indisponível. Nenhuma ação foi executada.",
+                  error: conflict
+                    ? "A conversa mudou em outra aba ou expirou. Recarreguei o contexto; envie a mensagem novamente."
+                    : "A consulta está indisponível. Nenhuma ação foi executada.",
                 }
               : item,
           ),
@@ -396,6 +429,7 @@ export default function Jarvis({
       }
     } finally {
       if (request.current === controller) {
+        pendingSend.current = false;
         setBusy(false);
         request.current = null;
       }
@@ -451,6 +485,26 @@ export default function Jarvis({
     setOpen(true);
     setHint(false);
   };
+  useEffect(() => {
+    if (!open || conversation.current) return;
+    let active = true;
+    currentConversation()
+      .then((next: DialogueView) => {
+        if (!active || !sessionAlive.current || pendingSend.current) return;
+        if (next.restored)
+          setRestoredQuestion(
+            next.pending?.question ||
+              "Retomei o contexto desta sessão. Pode continuar de onde parou.",
+          );
+      })
+      .catch(() => {
+        if (active && sessionAlive.current)
+          setError("Não consegui recuperar o contexto. Tente novamente.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [open]);
   useEffect(() => {
     if (open)
       panelRef.current
@@ -540,7 +594,9 @@ export default function Jarvis({
             <span>Sessão atual · sem IA</span>
             <button
               onClick={clearConversation}
-              disabled={!messages.length && !question}
+              disabled={
+                busy || (!messages.length && !question && !restoredQuestion)
+              }
             >
               Limpar conversa
             </button>
@@ -559,7 +615,8 @@ export default function Jarvis({
             aria-live="polite"
             aria-relevant="additions text"
           >
-            {!messages.length && (
+            {restoredQuestion && <p role="status">{restoredQuestion}</p>}
+            {!messages.length && !restoredQuestion && (
               <div className="jarvis-welcome">
                 <span className="kicker">JARVIS / À DISPOSIÇÃO</span>
                 <h3>Estou por aqui.</h3>
@@ -714,7 +771,7 @@ export default function Jarvis({
 
           <small className="jarvis-footnote">
             Modo determinístico. IA desativada; nenhum consumo de inferência.
-            Perguntas não são armazenadas.
+            Contexto temporário da sessão; perguntas não são armazenadas.
           </small>
         </div>
       )}

@@ -137,10 +137,11 @@ const bounded = (date: string, period: Period) =>
 export async function answerJarvis(
   env: Env,
   input: { text: string; area: string; choice?: Intent; allowAI?: boolean },
+  periodOverride?: Period,
 ): Promise<Answer> {
   const social = !input.choice && socialAnswer(input.text);
   if (social) return social;
-  const p = resolvePeriod(input.text),
+  const p = periodOverride ?? resolvePeriod(input.text),
     interpreted = interpretQuestion(input.text, input.area, input.choice);
   const base: Answer = {
     text: "Qual consulta deseja fazer?",

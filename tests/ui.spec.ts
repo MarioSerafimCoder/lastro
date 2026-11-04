@@ -1,5 +1,16 @@
 import { test, expect, type Page } from "@playwright/test";
 import { contentFixture, fixtureSource } from "./fixtures";
+import { socialAnswer } from "../packages/contracts/jarvis-social";
+const dialogueView = {
+  id: "12345678-1234-4234-8234-123456789012",
+  revision: 0,
+  state: "idle",
+  pending: null,
+  topic: null,
+  metric: "traffic",
+  period: null,
+  restored: false,
+};
 import { mkdir } from "node:fs/promises";
 
 async function selectMenu(page: Page, label: string, choice: string) {
@@ -68,7 +79,8 @@ async function mockApi(
     calls.push(`${req.method()} ${p}`);
     const body = req.postDataJSON() ?? {};
     let result: unknown;
-    if (p === "/api/jarvis/state")
+    if (p === "/api/jarvis/conversation") result = dialogueView;
+    else if (p === "/api/jarvis/state")
       result = {
         preferences: jarvisPreferences,
         notices: [],
@@ -701,11 +713,8 @@ test("Jarvis: contexto real, uma sugestão, preferências e desativação persis
     page.getByLabel("Receber sugestões espontâneas"),
   ).not.toBeChecked();
   await page.getByRole("button", { name: "Curadoria", exact: true }).click();
-  await expect(
-    page.getByText("3 candidatos aguardam revisão editorial."),
-  ).toBeVisible();
   await page
-    .getByRole("button", { name: "Revisar candidatos", exact: true })
+    .getByRole("button", { name: "Fila de revisão", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "Fila de revisão", exact: true }),
@@ -1570,12 +1579,16 @@ for (const width of [1280, 390])
         result = { allowed: true };
       }
       if (path.endsWith("/preferences")) result = body;
-      if (path.endsWith("/query")) {
+      if (path.endsWith("/conversation") && request.method() !== "POST")
+        return route.fulfill({ json: dialogueView });
+      if (path.endsWith("/conversation")) {
         questions++;
         result = {
-          text: body.choice
-            ? "Há uma oportunidade atrasada."
-            : "Qual consulta deseja fazer?",
+          conversation: { ...dialogueView, revision: body.revision + 1 },
+          text:
+            body.text === "as atrasadas"
+              ? "Há uma oportunidade atrasada."
+              : "Qual consulta deseja fazer?",
           source: "D1 · oportunidades",
           period: {
             label: "Estado atual",
@@ -1587,7 +1600,7 @@ for (const width of [1280, 390])
           incomplete: false,
           stale: false,
           ai: { enabled: false, reason: "Modo determinístico" },
-          ...(body.choice
+          ...(body.text === "as atrasadas"
             ? { action: notice.action }
             : {
                 choices: [
@@ -1675,6 +1688,8 @@ test("Jarvis defers balloons while editing and shares initial state requests", a
     release = resolve;
   });
   await page.route("**/api/jarvis/**", async (route) => {
+    if (route.request().url().endsWith("/conversation"))
+      return route.fulfill({ json: dialogueView });
     if (route.request().method() === "GET") {
       states++;
       await gate;
@@ -1749,7 +1764,9 @@ for (const width of [1280])
             ai: { enabled: false, reason: "Determinístico" },
           },
         });
-      if (path.endsWith("/query")) {
+      if (path.endsWith("/conversation") && route.request().method() !== "POST")
+        return route.fulfill({ json: dialogueView });
+      if (path.endsWith("/conversation")) {
         const body = route.request().postDataJSON();
         queries.push(body.text);
         if (hold) await gate;
@@ -1761,6 +1778,7 @@ for (const width of [1280])
         try {
           await route.fulfill({
             json: {
+              conversation: { ...dialogueView, revision: body.revision + 1 },
               text: "Há duas oportunidades aguardando acompanhamento.",
               action: { kind: "article.open", target: "teste" },
               source: "D1 · oportunidades",
@@ -1837,6 +1855,11 @@ test("Jarvis clears private conversation when the session expires", async ({
 }) => {
   await mockApi(page, 0);
   await page.route("**/api/jarvis/**", async (route) => {
+    if (
+      route.request().url().endsWith("/conversation") &&
+      route.request().method() === "GET"
+    )
+      return route.fulfill({ json: dialogueView });
     if (route.request().method() === "GET")
       await route.fulfill({
         json: {
@@ -1873,10 +1896,25 @@ for (const width of [1440, 1280, 390])
     await mockApi(page, 0);
     let queries = 0;
     await page.route("**/api/jarvis/**", async (route) => {
-      if (route.request().url().endsWith("/query")) {
+      if (
+        route.request().url().endsWith("/conversation") &&
+        route.request().method() !== "POST"
+      )
+        return route.fulfill({ json: dialogueView });
+      if (route.request().url().endsWith("/conversation")) {
+        const body = route.request().postDataJSON();
+        const social = socialAnswer(body.text, body.revision, "discreto");
+        if (social)
+          return route.fulfill({
+            json: {
+              ...social,
+              conversation: { ...dialogueView, revision: body.revision + 1 },
+            },
+          });
         queries++;
         await route.fulfill({
           json: {
+            conversation: { ...dialogueView, revision: body.revision + 1 },
             text: "Uma consulta operacional.",
             source: "D1",
             period: {
@@ -1919,6 +1957,7 @@ for (const width of [1440, 1280, 390])
     const heading = page.locator(".jarvis-chat .jarvis-heading");
     const before = await heading.boundingBox();
     const composer = await input.boundingBox();
+    let bodyCount = 0;
     for (const text of [
       "olá Jarvis está por ai?",
       "Quem é você?",
@@ -1929,6 +1968,16 @@ for (const width of [1440, 1280, 390])
     ]) {
       await input.fill(text);
       await input.press("Enter");
+      await expect(
+        page.getByRole("button", { name: "Enviar", exact: true }),
+      ).toBeDisabled();
+      await expect
+        .poll(() =>
+          page
+            .getByRole("article", { name: "Resposta do Jarvis", exact: true })
+            .count(),
+        )
+        .toBeGreaterThan(bodyCount++);
     }
     await expect(
       page.getByRole("article", { name: "Resposta do Jarvis" }),

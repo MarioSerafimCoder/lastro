@@ -1,3 +1,8 @@
+export class JarvisRequestError extends Error {
+  constructor(public status: number) {
+    super("Jarvis indisponível.");
+  }
+}
 export async function jarvisApi(path: string, init?: RequestInit) {
   const response = await fetch("/api/" + path, {
     ...init,
@@ -9,7 +14,7 @@ export async function jarvisApi(path: string, init?: RequestInit) {
     window.dispatchEvent(new Event("lastro:unauthorized"));
     throw new Error("Sessão encerrada.");
   }
-  if (!response.ok) throw new Error("Jarvis indisponível.");
+  if (!response.ok) throw new JarvisRequestError(response.status);
   return response.json();
 }
 import type { JarvisState } from "../../../packages/contracts/jarvis";

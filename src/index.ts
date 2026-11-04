@@ -1,4 +1,16 @@
 import {
+  dialogueInputSchema,
+  dialogueResetSchema,
+} from "../packages/contracts/jarvis-dialogue";
+import {
+  dialogueScope,
+  loadDialogue,
+  advanceDialogue,
+  resetDialogue,
+  eraseDialogue,
+  clearDialogueCookie,
+} from "./jarvis-dialogue";
+import {
   querySchema as jarvisQuerySchema,
   noticeSchema as jarvisNoticeSchema,
   actionSchema as jarvisActionSchema,
@@ -161,10 +173,12 @@ app.post("/api/auth/login", async (c) => {
   c.header("Set-Cookie", await issueSession(c.env));
   return c.json({ authenticated: true });
 });
-app.post("/api/auth/logout", (c) => {
+app.post("/api/auth/logout", async (c) => {
   if (c.req.header("Origin") !== new URL(c.req.url).origin)
     throw new ApiFault(403, "origin_forbidden", "Origem não autorizada.");
-  c.header("Set-Cookie", clearSession());
+  await eraseDialogue(c.env, c.req.raw);
+  c.header("Set-Cookie", clearDialogueCookie, { append: true });
+  c.header("Set-Cookie", clearSession(), { append: true });
   return c.json({ authenticated: false });
 });
 // Callback is authorized by the single-use state and HttpOnly nonce established
@@ -226,6 +240,32 @@ app.use(
     },
   }),
 );
+app.get("/api/jarvis/conversation", async (c) => {
+  const scope = await dialogueScope(c.req.raw);
+  if (!scope) throw new ApiFault(401, "unauthorized", "Sessão expirada.");
+  if (scope.cookie) c.header("Set-Cookie", scope.cookie);
+  return c.json((await loadDialogue(c.env, scope)).conversation);
+});
+app.post("/api/jarvis/conversation", async (c) => {
+  const scope = await dialogueScope(c.req.raw, Date.now(), false);
+  if (!scope)
+    throw new ApiFault(
+      409,
+      "dialogue_missing",
+      "Abra uma conversa antes de enviar.",
+    );
+  return c.json(
+    await advanceDialogue(c.env, scope, await json(c, dialogueInputSchema)),
+  );
+});
+app.delete("/api/jarvis/conversation", async (c) => {
+  const scope = await dialogueScope(c.req.raw, Date.now(), false);
+  if (!scope) throw new ApiFault(409, "dialogue_missing", "Conversa expirada.");
+  const input = await json(c, dialogueResetSchema);
+  return c.json(
+    await resetDialogue(c.env, scope, input.conversationId, input.revision),
+  );
+});
 app.get("/api/jarvis/state", async (c) => c.json(await jarvisState(c.env)));
 app.post("/api/jarvis/query", async (c) =>
   c.json(await answerJarvis(c.env, await json(c, jarvisQuerySchema))),
