@@ -1865,3 +1865,109 @@ test("Jarvis clears private conversation when the session expires", async ({
   );
   await expect(page.getByRole("log")).toHaveCount(0);
 });
+for (const width of [1440, 1280, 390])
+  test(`Jarvis social local and stable layout ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockApi(page, 0);
+    let queries = 0;
+    await page.route("**/api/jarvis/**", async (route) => {
+      if (route.request().url().endsWith("/query")) {
+        queries++;
+        await route.fulfill({
+          json: {
+            text: "Uma consulta operacional.",
+            source: "D1",
+            period: {
+              label: "Estado atual",
+              from: null,
+              to: new Date().toISOString(),
+              days: null,
+            },
+            syncedAt: null,
+            incomplete: true,
+            stale: false,
+            ai: { enabled: false, reason: "Teste" },
+          },
+        });
+      } else
+        await route.fulfill({
+          json: {
+            preferences: {
+              enabled: true,
+              proactive: false,
+              communication: "discreto",
+              area: "for-you",
+            },
+            notices: [],
+            ai: { enabled: false, reason: "Teste" },
+          },
+        });
+    });
+    await page.goto("/");
+    await page
+      .getByRole("button", { name: "Jarvis Seu próximo caminho", exact: true })
+      .click();
+    const input = page.getByLabel("Consultar o ecossistema");
+    await expect(input).toBeFocused();
+    await page.locator(".jarvis-chat").evaluate(async (el) => {
+      await Promise.all(
+        el.getAnimations().map((a) => a.finished.catch(() => {})),
+      );
+    });
+    const heading = page.locator(".jarvis-chat .jarvis-heading");
+    const before = await heading.boundingBox();
+    const composer = await input.boundingBox();
+    for (const text of [
+      "Bom dia",
+      "Quem é você?",
+      "Obrigado",
+      "Até mais",
+      "Oi",
+      "Como vai?",
+    ]) {
+      await input.fill(text);
+      await input.press("Enter");
+    }
+    await expect(
+      page.getByRole("article", { name: "Resposta do Jarvis" }),
+    ).toHaveCount(6);
+    expect(queries).toBe(0);
+    await expect(
+      page.getByText("Sincronização:", { exact: false }),
+    ).toHaveCount(0);
+    expect((await heading.boundingBox())!.y).toBeCloseTo(before!.y, 0);
+    expect((await input.boundingBox())!.y).toBeCloseTo(composer!.y, 0);
+    await input.fill("Bom dia, Jarvis. Tenho clientes pendentes?");
+    await input.press("Enter");
+    await expect.poll(() => queries).toBe(1);
+    await input.fill("x".repeat(500));
+    await input.press("Enter");
+    await expect.poll(() => queries).toBe(2);
+    expect(
+      await page.locator(".jarvis-chat").evaluate((el) =>
+        [el, ...el.querySelectorAll("*")]
+          .filter((e) => e.clientWidth > 0 && !e.classList.contains("sr-only"))
+          .filter((e) => e.scrollWidth > e.clientWidth + 1)
+          .map((e) => ({
+            tag: e.tagName,
+            class: e.className,
+            width: e.clientWidth,
+            scroll: e.scrollWidth,
+          })),
+      ),
+    ).toEqual([]);
+    await page.getByText("Preferências e contexto", { exact: true }).click();
+    expect((await input.boundingBox())!.y).toBeCloseTo(composer!.y, 0);
+    const log = page.getByRole("log");
+    await log.focus();
+    await page.keyboard.press("Home");
+    await page.screenshot({ path: `.wrangler/jarvis-21-${width}.png` });
+    await input.focus();
+    await input.press("Escape");
+    await expect(
+      page.getByRole("button", {
+        name: "Jarvis Seu próximo caminho",
+        exact: true,
+      }),
+    ).toBeFocused();
+  });

@@ -1,3 +1,4 @@
+import { socialAnswer } from "../../../packages/contracts/jarvis-social";
 import { jarvisApi as commercialApi } from "./jarvis-client";
 import {
   loadJarvisState,
@@ -123,6 +124,8 @@ export default function Jarvis({
     "translateY(6px) scale(.98)",
   );
   const [messages, setMessages] = useState<Message[]>([]);
+  const socialTurn = useRef(0);
+  const followLatest = useRef(true);
   const sessionAlive = useRef(true),
     lastIntent = useRef<Intent | null>(null),
     request = useRef<AbortController | null>(null),
@@ -132,6 +135,7 @@ export default function Jarvis({
     request.current?.abort();
     request.current = null;
     lastIntent.current = null;
+    socialTurn.current = 0;
     setMessages([]);
     setQuestion("");
     setAnswer(null);
@@ -173,7 +177,8 @@ export default function Jarvis({
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+    if (logRef.current && (followLatest.current || (open && !messages.length)))
+      logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [messages, busy, open]);
   const preferenceRequest = useRef<AbortController | null>(null);
   const savingPreferences = useRef(false);
@@ -325,6 +330,28 @@ export default function Jarvis({
   }
   async function ask(choice?: Intent, text = question) {
     if (busy || !text.trim() || !sessionAlive.current) return;
+    followLatest.current = true;
+    const local =
+      !choice &&
+      socialAnswer(
+        text,
+        socialTurn.current,
+        stateRef.current?.preferences.communication,
+      );
+    if (local) {
+      socialTurn.current++;
+      lastIntent.current = null;
+      setMessages((m) => [
+        ...m.slice(-29),
+        { id: crypto.randomUUID(), question: text, answer: local },
+      ]);
+      setQuestion("");
+      setAnswer(local);
+      setError("");
+      setActionLink(null);
+      inputRef.current?.focus({ preventScroll: true });
+      return;
+    }
     const continuation = !choice && isPeriodContinuation(text);
     const selectedChoice =
       choice || (continuation ? (lastIntent.current ?? undefined) : undefined);
@@ -524,6 +551,12 @@ export default function Jarvis({
           <div
             className="jarvis-messages"
             ref={logRef}
+            tabIndex={0}
+            onScroll={(e) => {
+              const el = e.currentTarget;
+              followLatest.current =
+                el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+            }}
             role="log"
             aria-label="Conversa com Jarvis"
             aria-live="polite"
@@ -554,17 +587,23 @@ export default function Jarvis({
                     <p>{message.answer.text}</p>
                     <small>
                       {message.answer.source} · {message.answer.period.label}
-                      <br />
-                      Sincronização:{" "}
-                      {message.answer.syncedAt
-                        ? new Date(message.answer.syncedAt).toLocaleString(
-                            "pt-BR",
-                          )
-                        : "indisponível"}
-                      {message.answer.stale ? " · Dados desatualizados" : ""}
-                      {message.answer.incomplete
-                        ? " · Cobertura incompleta"
-                        : ""}
+                      {message.answer.kind !== "social" && (
+                        <>
+                          <br />
+                          Sincronização:{" "}
+                          {message.answer.syncedAt
+                            ? new Date(message.answer.syncedAt).toLocaleString(
+                                "pt-BR",
+                              )
+                            : "indisponível"}
+                          {message.answer.stale
+                            ? " · Dados desatualizados"
+                            : ""}
+                          {message.answer.incomplete
+                            ? " · Cobertura incompleta"
+                            : ""}
+                        </>
+                      )}
                     </small>
                     {message.answer.choices?.map((c) => (
                       <button
@@ -611,6 +650,75 @@ export default function Jarvis({
                 </a>
               </p>
             )}
+            <details className="jarvis-settings">
+              <summary>Preferências e contexto</summary>
+              <div className="jarvis-suggestion" key={suggestion.action}>
+                <span className="kicker">Um ponto de partida</span>
+                <h3>{suggestion.title}</h3>
+                <p>{suggestion.body}</p>
+                <button
+                  className="primary-button"
+                  onClick={() =>
+                    void act(
+                      suggestion.action === "queue"
+                        ? { kind: "references.open", target: "queue" }
+                        : suggestion.action.startsWith("open-studio:")
+                          ? {
+                              kind: "studio.continue",
+                              target: suggestion.action.slice(12),
+                            }
+                          : {
+                              kind:
+                                suggestion.action === "opportunities"
+                                  ? "opportunity.open"
+                                  : suggestion.action === "newsletters"
+                                    ? "newsletters.open"
+                                    : suggestion.action === "publications"
+                                      ? "integration.review"
+                                      : suggestion.action === "studio"
+                                        ? "workshop.prepare"
+                                        : "references.open",
+                            },
+                    )
+                  }
+                >
+                  {suggestion.label}
+                  <ArrowUpRight size={16} />
+                </button>
+              </div>
+              <label className="jarvis-preference">
+                <input
+                  type="checkbox"
+                  checked={proactive}
+                  onChange={(e) => {
+                    void preferences({ proactive: e.target.checked });
+                  }}
+                />
+                Receber sugestões espontâneas
+              </label>
+              <button
+                className="quiet-link"
+                onClick={() => {
+                  void preferences({ enabled: false });
+                }}
+              >
+                Desativar Jarvis
+              </button>
+              <label className="jarvis-preference">
+                Comunicação
+                <select
+                  value={state?.preferences.communication || "discreto"}
+                  onChange={(e) =>
+                    void preferences({
+                      communication: e.target.value as "formal" | "discreto",
+                    })
+                  }
+                >
+                  <option value="discreto">Formal, com humor discreto</option>
+                  <option value="formal">Apenas os fatos</option>
+                </select>
+              </label>
+            </details>
           </div>
           <div className="jarvis-quick" aria-label="Perguntas sugeridas">
             {quickQuestions.map(([text, intent]) => (
@@ -676,75 +784,7 @@ export default function Jarvis({
             </button>
             <small>Enter envia · Shift+Enter quebra linha</small>
           </form>
-          <details className="jarvis-settings">
-            <summary>Preferências e contexto</summary>
-            <div className="jarvis-suggestion" key={suggestion.action}>
-              <span className="kicker">Um ponto de partida</span>
-              <h3>{suggestion.title}</h3>
-              <p>{suggestion.body}</p>
-              <button
-                className="primary-button"
-                onClick={() =>
-                  void act(
-                    suggestion.action === "queue"
-                      ? { kind: "references.open", target: "queue" }
-                      : suggestion.action.startsWith("open-studio:")
-                        ? {
-                            kind: "studio.continue",
-                            target: suggestion.action.slice(12),
-                          }
-                        : {
-                            kind:
-                              suggestion.action === "opportunities"
-                                ? "opportunity.open"
-                                : suggestion.action === "newsletters"
-                                  ? "newsletters.open"
-                                  : suggestion.action === "publications"
-                                    ? "integration.review"
-                                    : suggestion.action === "studio"
-                                      ? "workshop.prepare"
-                                      : "references.open",
-                          },
-                  )
-                }
-              >
-                {suggestion.label}
-                <ArrowUpRight size={16} />
-              </button>
-            </div>
-            <label className="jarvis-preference">
-              <input
-                type="checkbox"
-                checked={proactive}
-                onChange={(e) => {
-                  void preferences({ proactive: e.target.checked });
-                }}
-              />
-              Receber sugestões espontâneas
-            </label>
-            <button
-              className="quiet-link"
-              onClick={() => {
-                void preferences({ enabled: false });
-              }}
-            >
-              Desativar Jarvis
-            </button>
-            <label className="jarvis-preference">
-              Comunicação
-              <select
-                value={state?.preferences.communication || "discreto"}
-                onChange={(e) =>
-                  void preferences({
-                    communication: e.target.value as "formal" | "discreto",
-                  })
-                }
-              >
-                <option value="discreto">Formal, com humor discreto</option>
-                <option value="formal">Apenas os fatos</option>
-              </select>
-            </label>
-          </details>
+
           <small className="jarvis-footnote">
             Modo determinístico. IA desativada; nenhum consumo de inferência.
             Perguntas não são armazenadas.

@@ -1,3 +1,4 @@
+import { socialAnswer } from "../packages/contracts/jarvis-social";
 import { z } from "zod";
 import type { Env } from "./env";
 import { first, rows, stmt, OWNER } from "./db";
@@ -137,6 +138,8 @@ export async function answerJarvis(
   env: Env,
   input: { text: string; area: string; choice?: Intent; allowAI?: boolean },
 ): Promise<Answer> {
+  const social = !input.choice && socialAnswer(input.text);
+  if (social) return social;
   const p = resolvePeriod(input.text),
     interpreted = interpretQuestion(input.text, input.area, input.choice);
   const base: Answer = {

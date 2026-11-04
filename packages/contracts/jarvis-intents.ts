@@ -1,13 +1,7 @@
 import { intents, labels, type Intent, type Period } from "./jarvis";
 import Fuse from "fuse.js";
-export const normalizeQuestion = (s: string) =>
-  s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9/ -]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+import { normalizeQuestion, stripSocialEdges } from "./jarvis-social";
+export { normalizeQuestion } from "./jarvis-social";
 const terms: Record<Intent, [string[], string[]]> = {
   "opportunities.new": [
     [
@@ -68,6 +62,7 @@ const terms: Record<Intent, [string[], string[]]> = {
       "acompanhamento",
       "follow up",
       "pendente",
+      "pendentes",
       "retorno",
     ],
   ],
@@ -334,7 +329,7 @@ function has(text: string, term: string) {
   return (" " + text + " ").includes(" " + term + " ");
 }
 export function interpretQuestion(raw: string, area: string, choice?: Intent) {
-  const text = normalizeQuestion(raw);
+  const text = stripSocialEdges(raw);
   const ranked = intents
     .map((intent) => {
       const [entities, verbs] = terms[intent];

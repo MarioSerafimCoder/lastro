@@ -60,6 +60,7 @@ export type Period = {
   days: 7 | 30 | null;
 };
 export type Answer = {
+  kind?: "social";
   text: string;
   intent?: Intent;
   source: string;

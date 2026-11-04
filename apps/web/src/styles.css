@@ -3390,7 +3390,11 @@ section[aria-labelledby="feed-title"] > .filters {
 }
 .jarvis-messages {
   flex: 1;
-  min-height: 80px;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-wrap: anywhere;
+  scrollbar-gutter: stable;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 8px 18px 16px;
@@ -3453,24 +3457,24 @@ section[aria-labelledby="feed-title"] > .filters {
   line-height: 1.7;
   margin-bottom: 12px;
 }
-.jarvis-quick {
-  display: flex;
+.jarvis-chat .jarvis-quick {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   padding: 8px 18px;
-  overflow-x: auto;
   flex: none;
-  scrollbar-width: thin;
 }
-.jarvis-quick button {
-  flex: none;
-  max-width: 235px;
+.jarvis-chat .jarvis-quick button {
+  min-width: 0;
   border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 9px 12px;
+  border-radius: 12px;
+  padding: 8px 10px;
   font-size: 11px;
+  line-height: 1.4;
   text-align: left;
   white-space: normal;
-  min-height: 36px;
+  overflow-wrap: anywhere;
+  min-height: 40px;
 }
 .jarvis-chat .jarvis-query {
   flex: none;
@@ -3505,11 +3509,9 @@ section[aria-labelledby="feed-title"] > .filters {
   color: var(--muted);
   font-size: 10px;
 }
-.jarvis-settings {
-  flex: none;
-  max-height: 160px;
-  overflow-y: auto;
-  padding: 8px 18px;
+.jarvis-chat .jarvis-settings {
+  margin-top: 16px;
+  padding: 12px 0;
   border-top: 1px solid var(--line);
   font-size: 12px;
 }
@@ -3574,4 +3576,23 @@ section[aria-labelledby="feed-title"] > .filters {
 }
 .jarvis-chat .jarvis-footnote {
   font-size: 10px;
+}
+
+.jarvis-chat > * {
+  min-width: 0;
+}
+.jarvis-chat .jarvis-chat-tools {
+  flex: none;
+}
+.jarvis-chat .jarvis-message {
+  box-sizing: border-box;
+}
+.jarvis-chat .jarvis-message :is(button, a, small) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.jarvis-chat .jarvis-messages:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
 }
