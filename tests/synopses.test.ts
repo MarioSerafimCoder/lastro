@@ -276,7 +276,7 @@ test("telemetria distingue tokens observados de reserva e dados ausentes", () =>
   );
 });
 
-test("50/50 preserva pares completos quando um idioma tem sobra ou nenhum conteúdo", () => {
+test("diversidade preserva excedentes quando um idioma tem sobra ou nenhum conteúdo", () => {
   for (const pt of [0, 8]) {
     const items = Array.from({ length: pt + 9 }, (_, i) =>
       contentFixture({ id: `asymmetric-${i}`, language: i < pt ? "pt" : "en" }),
@@ -284,9 +284,9 @@ test("50/50 preserva pares completos quando um idioma tem sobra ou nenhum conte�
     const feed = balanceLanguages(
       rank(items, { interests: [], languages: [] }, defaultPolicy),
     );
-    assert.equal(feed.length, pt * 2);
+    assert.equal(feed.length, pt + 9);
     assert.equal(feed.filter((i) => i.content.language === "pt").length, pt);
-    assert.equal(feed.filter((i) => i.content.language === "en").length, pt);
+    assert.equal(feed.filter((i) => i.content.language === "en").length, 9);
     assert.equal(new Set(feed.map((i) => i.content.id)).size, feed.length);
   }
 });
@@ -507,7 +507,7 @@ test("descrição inglesa autorizada entra no gerador; rascunho factual não gan
   assert.equal(JSON.parse(row.evidence_json).text, english);
   env.AI = ai;
 });
-test("cursor antigo e busca revalidam o requisito; favoritos continuam acessíveis", async () => {
+test("cursor e busca retiram sinopse bloqueada e preservam metadados e favoritos", async () => {
   const pt = await add("pt"),
     en = await add("en");
   await processSynopsis(env);
@@ -520,9 +520,11 @@ test("cursor antigo e busca revalidam o requisito; favoritos continuam acessíve
   const next: any = await (
     await request("/api/feed?limit=1&cursor=" + page.nextCursor)
   ).json();
-  assert.equal(next.items.length, 0);
+  assert.equal(next.items.length, 1);
+  assert.equal(next.items[0].content.synopsis, null);
   const search: any = await (await request("/api/search")).json();
-  assert.equal(search.items.length, 0);
+  assert.ok(search.items.length >= 2);
+  assert.ok(search.items.every((item: any) => !item.synopsis));
   await stmt(
     env.DB,
     "INSERT INTO favorites VALUES (?,?,?)",
@@ -541,6 +543,7 @@ async function add(
   const n = id();
   const c = {
     ...fixtureCandidate,
+    publishedAt: now(),
     url: `https://fixtures.example.test/${n}`,
     identifiers: [],
     language,
@@ -607,9 +610,11 @@ test("título isolado, números inventados e cópia não passam nas verificaçõ
     ),
   );
 });
-test("português e inglês geram uma vez e só aparecem após revisão; leituras usam cache", async () => {
+test("português e inglês enriquecem uma vez após revisão; leituras usam cache", async () => {
+  const enrichedIds: string[] = [];
   for (const language of ["pt", "en"]) {
     const cid = await add(language);
+    enrichedIds.push(cid);
     assert.equal((await processSynopsis(env)).status, "review");
     assert.equal(await visible(cid), false);
     await validateSynopsis(env.DB, cid, review);
@@ -625,11 +630,22 @@ test("português e inglês geram uma vez e só aparecem após revisão; leituras
   const json: any = await feed.json();
   assert.ok(json.items.length > 0);
   assert.ok(
-    json.items.every((i: any) => i.content.synopsis?.status === "validated"),
+    enrichedIds.every((id) =>
+      json.items.some(
+        (i: any) =>
+          i.content.id === id && i.content.synopsis?.status === "validated",
+      ),
+    ),
   );
   assert.equal(
-    json.items.filter((i: any) => i.content.language === "pt").length,
-    json.items.filter((i: any) => i.content.language === "en").length,
+    json.items.filter(
+      (i: any) =>
+        enrichedIds.includes(i.content.id) && i.content.language === "pt",
+    ).length,
+    json.items.filter(
+      (i: any) =>
+        enrichedIds.includes(i.content.id) && i.content.language === "en",
+    ).length,
   );
 });
 test("sem autorização de processamento ou evidência suficiente não chama IA", async () => {

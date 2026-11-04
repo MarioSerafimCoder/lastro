@@ -160,6 +160,7 @@ export function captureStatement(
     SELECT s.id,json_extract(j.value,'$.canonicalUrl'),json_extract(j.value,'$.evidence'),json_extract(j.value,'$.materialKey'),
     json_extract(j.value,'$.permissionVersion'),json_extract(j.value,'$.blockCode'),json_extract(j.value,'$.itemRights'),?
     FROM json_each(?) j JOIN sources s ON s.id=? WHERE s.synopsis_permission_version=? AND s.status='approved'
+    AND NOT EXISTS(SELECT 1 FROM contents c WHERE c.source_id=s.id AND c.canonical_url=json_extract(j.value,'$.canonicalUrl') AND c.expired_at IS NOT NULL)
     ON CONFLICT(source_id,canonical_url) DO UPDATE SET
     evidence_json=CASE WHEN synopsis_evidence_cache.material_key=excluded.material_key THEN synopsis_evidence_cache.evidence_json ELSE excluded.evidence_json END,
     material_key=excluded.material_key,permission_version=excluded.permission_version,block_code=excluded.block_code,item_rights=excluded.item_rights,observed_at=excluded.observed_at`,

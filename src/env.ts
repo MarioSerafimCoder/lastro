@@ -1,5 +1,6 @@
 export type Env = {
   DB: D1Database;
+  RADAR_RETENTION_ENABLED?: string;
   BRAIN_DRIVE_ENABLED?: string;
   BRAIN_DRIVE_FREE_CONFIRMED?: string;
   BRAIN_DRIVE_CLIENT_ID?: string;

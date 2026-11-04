@@ -113,7 +113,7 @@ export async function processSynopsis(
     `UPDATE content_synopses SET status='processing',inference_started=0,lease_token=?,lease_until=?,updated_at=?
     WHERE content_id=(SELECT sy.content_id FROM content_synopses sy JOIN contents c ON c.id=sy.content_id JOIN sources s ON s.id=c.source_id
       LEFT JOIN synopsis_evidence_cache ec ON ec.source_id=s.id AND ec.canonical_url=c.canonical_url AND ec.permission_version=s.synopsis_permission_version
-      WHERE c.editorial_status='approved' AND s.status='approved' AND sy.status<>'processing' AND COALESCE(sy.block_code,'')<>'editorial' AND (
+      WHERE c.editorial_status='approved' AND s.status='approved' AND c.expired_at IS NULL AND sy.status<>'processing' AND COALESCE(sy.block_code,'')<>'editorial' AND (
         (sy.status='pending' AND sy.attempts=0)
         OR (json_extract(sy.evidence_json,'$.kind') IS NOT 'editorial_evidence' AND (
           (sy.status='blocked' AND s.synopsis_permission_version<>sy.observed_permission_version)
@@ -519,7 +519,7 @@ export async function synopsisOverview(db: D1Database) {
   const impact = await first(
     db,
     `SELECT COUNT(*) approved,SUM(CASE WHEN ${synopsisGate} THEN 1 ELSE 0 END) ready,SUM(CASE WHEN ${synopsisGate} AND c.language='pt' THEN 1 ELSE 0 END) portuguese,SUM(CASE WHEN ${synopsisGate} AND c.language<>'pt' THEN 1 ELSE 0 END) international,
-    SUM(CASE WHEN ${synopsisGate} AND EXISTS(SELECT 1 FROM content_synopses sy WHERE sy.content_id=c.id AND sy.validated_at>=?) THEN 1 ELSE 0 END) publishedLast7Days
+    SUM(CASE WHEN ${synopsisGate} AND c.published_at>=? THEN 1 ELSE 0 END) publishedLast7Days
     FROM contents c JOIN sources s ON s.id=c.source_id WHERE c.editorial_status='approved' AND s.status='approved'`,
     new Date(Date.now() - 7 * 86400000).toISOString(),
   );

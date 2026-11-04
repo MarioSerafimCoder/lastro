@@ -1,0 +1,336 @@
+{
+  "snapshotAt": "2026-11-04T17:21:59Z",
+  "weekStart": "2026-11-02T03:00:00Z",
+  "sources": [
+    {
+      "name": "A List Apart",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://alistapart.com/main/feed/",
+      "last_success_at": "2026-11-04T12:50:49.555Z",
+      "last_attempt_at": "2026-11-04T12:50:49.555Z",
+      "next_fetch_at": "2026-11-05T12:50:49.555Z",
+      "consecutive_failures": 0,
+      "queued": 8,
+      "last_new_reference": "2026-10-21T19:17:22.952Z",
+      "discovered_week": 0
+    },
+    {
+      "name": "BaixaCultura",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://baixacultura.org/feed/",
+      "last_success_at": "2026-11-04T10:55:49.122Z",
+      "last_attempt_at": "2026-11-04T10:55:49.122Z",
+      "next_fetch_at": "2026-11-05T10:55:49.122Z",
+      "consecutive_failures": 0,
+      "queued": 0,
+      "last_new_reference": "2026-10-24T10:14:21.587Z",
+      "discovered_week": 0
+    },
+    {
+      "name": "Creative Boom",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://www.creativeboom.com/feed/",
+      "last_success_at": "2026-11-04T12:55:49.594Z",
+      "last_attempt_at": "2026-11-04T12:55:49.594Z",
+      "next_fetch_at": "2026-11-05T12:55:49.594Z",
+      "consecutive_failures": 0,
+      "queued": 4,
+      "last_new_reference": "2026-11-04T15:20:52.874Z",
+      "discovered_week": 4
+    },
+    {
+      "name": "Creative Commons — Cultura aberta",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://creativecommons.org/feed/",
+      "last_success_at": "2026-11-04T12:35:49.329Z",
+      "last_attempt_at": "2026-11-04T12:35:49.329Z",
+      "next_fetch_at": "2026-11-05T12:35:49.329Z",
+      "consecutive_failures": 0,
+      "queued": 0,
+      "last_new_reference": "2026-10-24T12:04:06.731Z",
+      "discovered_week": 0
+    },
+    {
+      "name": "Design Studies — via OpenAlex",
+      "status": "approved",
+      "connector": "openalex",
+      "url": "https://api.openalex.org/works?filter=primary_location.source.id:S152445846&search=design&sort=publication_date:desc",
+      "last_success_at": "2026-11-03T00:00:29.222Z",
+      "last_attempt_at": "2026-11-03T00:00:29.222Z",
+      "next_fetch_at": "2027-01-01T00:00:00.000Z",
+      "consecutive_failures": 0,
+      "queued": 0,
+      "last_new_reference": "2026-10-23T15:30:18.514Z",
+      "discovered_week": 0
+    },
+    {
+      "name": "Design in government",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://designnotes.blog.gov.uk/feed/",
+      "last_success_at": "2026-11-04T10:40:49.467Z",
+      "last_attempt_at": "2026-11-04T10:40:49.467Z",
+      "next_fetch_at": "2026-11-05T10:40:49.467Z",
+      "consecutive_failures": 0,
+      "queued": 0,
+      "last_new_reference": "2026-11-03T10:40:31.717Z",
+      "discovered_week": 1
+    },
+    {
+      "name": "Escola de Dados — Cartografia e visualização",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://escoladedados.org/feed/",
+      "last_success_at": "2026-11-04T12:20:49.230Z",
+      "last_attempt_at": "2026-11-04T12:20:49.230Z",
+      "next_fetch_at": "2026-11-05T12:20:49.230Z",
+      "consecutive_failures": 0,
+      "queued": 0,
+      "last_new_reference": "2026-10-24T12:03:48.559Z",
+      "discovered_week": 0
+    },
+    {
+      "name": "InternetLab",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://internetlab.org.br/pt/feed/",
+      "last_success_at": "2026-11-04T10:50:49.035Z",
+      "last_attempt_at": "2026-11-04T10:50:49.035Z",
+      "next_fetch_at": "2026-11-05T10:50:49.035Z",
+      "consecutive_failures": 0,
+      "queued": 0,
+      "last_new_reference": "2026-10-24T10:14:40.060Z",
+      "discovered_week": 0
+    },
+    {
+      "name": "It’s Nice That",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://feeds2.feedburner.com/itsnicethat/SlXC",
+      "last_success_at": "2026-11-04T12:40:49.280Z",
+      "last_attempt_at": "2026-11-04T12:40:49.280Z",
+      "next_fetch_at": "2026-11-05T12:40:49.280Z",
+      "consecutive_failures": 0,
+      "queued": 6,
+      "last_new_reference": "2026-11-04T12:40:50.840Z",
+      "discovered_week": 2
+    },
+    {
+      "name": "Journal of Vision — via OpenAlex",
+      "status": "approved",
+      "connector": "openalex",
+      "url": "https://api.openalex.org/works?filter=primary_location.source.id:S137468011&search=visual%20perception&sort=publication_date:desc",
+      "last_success_at": "2026-11-01T00:00:28.793Z",
+      "last_attempt_at": "2026-11-01T00:00:28.793Z",
+      "next_fetch_at": "2027-01-01T00:00:00.000Z",
+      "consecutive_failures": 0,
+      "queued": 0,
+      "last_new_reference": "2026-11-01T00:00:41.854Z",
+      "discovered_week": 0
+    },
+    {
+      "name": "Plau — Entrelinha",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://plau.substack.com/feed",
+      "last_success_at": "2026-11-04T15:05:49.782Z",
+      "last_attempt_at": "2026-11-04T15:05:49.782Z",
+      "next_fetch_at": "2026-11-05T15:05:49.782Z",
+      "consecutive_failures": 0,
+      "queued": 12,
+      "last_new_reference": "2026-10-23T13:01:44.943Z",
+      "discovered_week": 0
+    },
+    {
+      "name": "Smashing Magazine",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://www.smashingmagazine.com/feed/",
+      "last_success_at": "2026-11-04T13:00:48.795Z",
+      "last_attempt_at": "2026-11-04T13:00:48.795Z",
+      "next_fetch_at": "2026-11-05T13:00:48.795Z",
+      "consecutive_failures": 0,
+      "queued": 9,
+      "last_new_reference": "2026-11-04T13:00:50.997Z",
+      "discovered_week": 1
+    },
+    {
+      "name": "UX Collective Brasil",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://brasil.uxdesign.cc/feed",
+      "last_success_at": "2026-11-04T13:35:49.102Z",
+      "last_attempt_at": "2026-11-04T13:35:49.102Z",
+      "next_fetch_at": "2026-11-05T13:35:49.102Z",
+      "consecutive_failures": 0,
+      "queued": 1,
+      "last_new_reference": "2026-11-04T13:35:50.220Z",
+      "discovered_week": 3
+    }
+  ],
+  "totals": [
+    {
+      "total": 148,
+      "approved": 82,
+      "pending": 65,
+      "published_week": 11
+    }
+  ],
+  "synopses": [
+    {
+      "status": "pending",
+      "block_code": null,
+      "n": 66
+    },
+    {
+      "status": "blocked",
+      "block_code": "rights",
+      "n": 57
+    },
+    {
+      "status": "validated",
+      "block_code": null,
+      "n": 16
+    },
+    {
+      "status": "review",
+      "block_code": "editorial_review",
+      "n": 8
+    },
+    {
+      "status": "review",
+      "block_code": "technical",
+      "n": 1
+    }
+  ],
+  "reasons": [
+    {
+      "reason": "off_topic",
+      "n": 1075
+    },
+    {
+      "reason": "duplicate_identifier",
+      "n": 367
+    },
+    {
+      "reason": "title_off_topic",
+      "n": 234
+    },
+    {
+      "reason": "too_old_for_automatic_approval",
+      "n": 99
+    },
+    {
+      "reason": "missing_author",
+      "n": 89
+    },
+    {
+      "reason": "language_unverified",
+      "n": 60
+    },
+    {
+      "reason": "outside_period",
+      "n": 28
+    },
+    {
+      "reason": "promotional_material",
+      "n": 20
+    },
+    {
+      "reason": "manual_review_required",
+      "n": 11
+    },
+    {
+      "reason": "scientific_publication_type_unverified",
+      "n": 6
+    },
+    {
+      "reason": "possible_title_duplicate",
+      "n": 1
+    }
+  ],
+  "runs": [
+    {
+      "status": "partial",
+      "error": null,
+      "n": 1121,
+      "latest": "2026-11-04T17:15:49.456Z",
+      "received": 1989
+    },
+    {
+      "status": "completed",
+      "error": null,
+      "n": 112,
+      "latest": "2026-11-04T17:20:49.138Z",
+      "received": 0
+    },
+    {
+      "status": "not_modified",
+      "error": null,
+      "n": 25,
+      "latest": "2026-11-04T10:50:49.035Z",
+      "received": 0
+    },
+    {
+      "status": "failed",
+      "error": "upstream_429",
+      "n": 4,
+      "latest": "2026-11-04T14:25:49.788Z",
+      "received": 0
+    },
+    {
+      "status": "failed",
+      "error": "ingestion_failed",
+      "n": 1,
+      "latest": "2026-11-02T00:00:28.759Z",
+      "received": 0
+    },
+    {
+      "status": "failed",
+      "error": "upstream_503",
+      "n": 1,
+      "latest": "2026-11-01T00:05:28.959Z",
+      "received": 0
+    }
+  ],
+  "week": [
+    {
+      "outcome": "approved",
+      "n": 10
+    },
+    {
+      "outcome": "duplicate",
+      "n": 177
+    },
+    {
+      "outcome": "pending",
+      "n": 1
+    },
+    {
+      "outcome": "rejected",
+      "n": 238
+    }
+  ],
+  "ready": [
+    {
+      "language": "en",
+      "n": 8,
+      "published_week": 0
+    },
+    {
+      "language": "pt",
+      "n": 8,
+      "published_week": 0
+    }
+  ],
+  "environment": "Read-only production export; aggregate metrics only",
+  "limitations": [
+    "Legacy ingestion runs do not distinguish Cron from manual execution.",
+    "Legacy last_new_reference uses approved/pending records, not all received RSS entries.",
+    "148 contents include 82 approved, 65 pending and 1 rejected; only 16 validated synopses were visible."
+  ]
+}

@@ -22,6 +22,8 @@ import { ApiFault, must } from "./errors";
 import type { Env } from "./env";
 import { canonicalUrl, normalizeCandidate, folded } from "./normalize";
 import { captureStatement } from "./synopsis-evidence";
+import { classifyRadar } from "./ranking";
+import { expireRadar, retentionDue } from "./radar-retention";
 import {
   automaticReviewReasons,
   evaluate,
@@ -64,9 +66,11 @@ export async function saveContent(
   status: "approved" | "pending",
   existingId?: string,
   reviewer: "owner" | "heuristic" = "heuristic",
+  observedAt = Date.now(),
+  firstSeenAt?: string,
 ): Promise<string> {
   const contentId = existingId ?? id(),
-    at = now(),
+    at = new Date(observedAt).toISOString(),
     publicationId = c.publication ? `pub:${folded(c.publication)}` : null;
   const statements: D1PreparedStatement[] = [];
   if (publicationId)
@@ -81,8 +85,8 @@ export async function saveContent(
   statements.push(
     stmt(
       db,
-      `INSERT INTO contents (id,source_id,publication_id,canonical_url,title,metadata_json,published_at,collected_at,kind,language,editorial_status,quality_score,quality_json)
- VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET publication_id=excluded.publication_id, canonical_url=excluded.canonical_url,title=excluded.title,metadata_json=excluded.metadata_json,published_at=excluded.published_at,kind=excluded.kind,language=excluded.language,editorial_status=excluded.editorial_status,quality_score=excluded.quality_score,quality_json=excluded.quality_json`,
+      `INSERT INTO contents (id,source_id,publication_id,canonical_url,title,metadata_json,published_at,collected_at,kind,language,editorial_status,quality_score,quality_json,first_seen_at,approved_at,radar_category)
+ VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET publication_id=excluded.publication_id, canonical_url=excluded.canonical_url,title=excluded.title,metadata_json=excluded.metadata_json,published_at=excluded.published_at,kind=excluded.kind,language=excluded.language,editorial_status=excluded.editorial_status,quality_score=excluded.quality_score,quality_json=excluded.quality_json,approved_at=COALESCE(contents.approved_at,excluded.approved_at),radar_category=excluded.radar_category`,
       contentId,
       s.id,
       publicationId,
@@ -96,6 +100,9 @@ export async function saveContent(
       status,
       q.score,
       JSON.stringify(q),
+      firstSeenAt ?? at,
+      status === "approved" ? at : null,
+      c.kind === "paper" ? null : classifyRadar(c, s),
     ),
   );
   if (existingId)
@@ -204,6 +211,8 @@ export async function processCandidate(
   runId: string,
   at = Date.now(),
   activePolicy?: Policy,
+  firstSeenAt?: string,
+  recordDiscovery = true,
 ): Promise<{ outcome: string; contentId: string | null; candidateId: string }> {
   let c = normalizeCandidate(raw);
   if (!s.summaryAllowed) c = { ...c, description: null };
@@ -235,13 +244,20 @@ export async function processCandidate(
   if (!reasons.length) {
     contentId = await duplicate(db, c, s);
     const existing = contentId
-      ? await first<{ editorial_status: string; source_id: string }>(
+      ? await first<{
+          editorial_status: string;
+          source_id: string;
+          expired_at: string | null;
+        }>(
           db,
-          "SELECT editorial_status,source_id FROM contents WHERE id=?",
+          "SELECT editorial_status,source_id,expired_at FROM contents WHERE id=?",
           contentId,
         )
       : null;
-    if (
+    if (existing?.expired_at) {
+      outcome = "expired";
+      reasons.push("expired_reference");
+    } else if (
       !contentId ||
       (existing?.editorial_status === "pending" && existing.source_id === s.id)
     ) {
@@ -267,6 +283,9 @@ export async function processCandidate(
             q,
             approved ? "approved" : "pending",
             contentId ?? undefined,
+            "heuristic",
+            at,
+            firstSeenAt,
           );
           autoApproved = approved;
         }
@@ -284,7 +303,7 @@ export async function processCandidate(
     }
   }
   const candidateId = id();
-  const recordedAt = now();
+  const recordedAt = new Date(at).toISOString();
   const statements = [
     stmt(
       db,
@@ -299,6 +318,21 @@ export async function processCandidate(
       recordedAt,
     ),
   ];
+  if (s.connector === "rss" && recordDiscovery) {
+    try {
+      statements.push(
+        stmt(
+          db,
+          "INSERT OR IGNORE INTO radar_seen VALUES (?,?,?)",
+          s.id,
+          canonicalUrl(c.url),
+          firstSeenAt ?? recordedAt,
+        ),
+      );
+    } catch {
+      /* Invalid URLs are audited, never dedup keys. */
+    }
+  }
   if (autoApproved)
     statements.push(
       stmt(
@@ -375,6 +409,7 @@ export async function ingestSource(
     error: null,
   };
   let retryAfter = 0;
+  let newReferences: number | null = null;
   try {
     await stmt(
       env.DB,
@@ -413,14 +448,18 @@ export async function ingestSource(
       ]);
       const collected = await collect(source, env, row, fetcher);
       run.received = collected.items.length;
-      await env.DB.batch([
+      const discovered = await env.DB.batch([
         ...(collected.captures?.length
           ? [captureStatement(env.DB, source, collected.captures, at)]
           : []),
         stmt(
           env.DB,
-          "INSERT OR IGNORE INTO ingestion_queue (source_id,payload_json,canonical_url) SELECT ?,json_extract(value,'$.candidate'),json_extract(value,'$.canonicalUrl') FROM json_each(?)",
+          `INSERT OR IGNORE INTO ingestion_queue (source_id,payload_json,canonical_url,first_seen_at)
+          SELECT ?,json_extract(value,'$.candidate'),json_extract(value,'$.canonicalUrl'),? FROM json_each(?) item
+          WHERE ?='openalex' OR NOT EXISTS(SELECT 1 FROM radar_seen r WHERE r.source_id=? AND r.canonical_url=json_extract(item.value,'$.canonicalUrl'))
+          OR EXISTS(SELECT 1 FROM contents c WHERE c.source_id=? AND c.canonical_url=json_extract(item.value,'$.canonicalUrl') AND c.editorial_status='pending' AND c.expired_at IS NULL)`,
           sourceId,
+          at,
           JSON.stringify(
             collected.items.map((candidate) => {
               let canonical: string | null = null;
@@ -432,6 +471,14 @@ export async function ingestSource(
               return { candidate, canonicalUrl: canonical };
             }),
           ),
+          source.connector,
+          sourceId,
+          sourceId,
+        ),
+        stmt(
+          env.DB,
+          `INSERT OR IGNORE INTO radar_seen SELECT source_id,canonical_url,first_seen_at FROM ingestion_queue WHERE source_id=? AND canonical_url IS NOT NULL`,
+          sourceId,
         ),
         stmt(
           env.DB,
@@ -445,15 +492,18 @@ export async function ingestSource(
           leaseToken,
         ),
       ]);
+      newReferences =
+        discovered[collected.captures?.length ? 2 : 1].meta.changes ?? 0;
       if (collected.notModified) run.status = "not_modified";
     }
     const queued = await rows<{
       id: number;
       payload_json: string;
       existing_pending: number;
+      first_seen_at: string | null;
     }>(
       env.DB,
-      `SELECT iq.id,iq.payload_json,EXISTS(SELECT 1 FROM contents c WHERE c.source_id=iq.source_id AND c.editorial_status='pending' AND (
+      `SELECT iq.id,iq.payload_json,iq.first_seen_at,EXISTS(SELECT 1 FROM contents c WHERE c.source_id=iq.source_id AND c.editorial_status='pending' AND (
         iq.canonical_url IS NULL OR c.canonical_url=iq.canonical_url OR EXISTS(SELECT 1 FROM content_identifiers ci JOIN json_each(iq.payload_json,'$.identifiers') j
         ON ci.scheme=json_extract(j.value,'$.scheme') AND ci.value=CASE WHEN ci.scheme='source_guid' THEN iq.source_id||':'||json_extract(j.value,'$.value') ELSE json_extract(j.value,'$.value') END
         WHERE ci.content_id=c.id))) existing_pending FROM ingestion_queue iq WHERE iq.source_id=? ORDER BY iq.id LIMIT ?`,
@@ -485,6 +535,8 @@ export async function ingestSource(
         run.id,
         clock,
         activePolicy ?? undefined,
+        queuedItem.first_seen_at ?? at,
+        false,
       );
       if (result.outcome === "approved") run.accepted++;
       else if (result.outcome === "pending") run.pending++;
@@ -523,9 +575,9 @@ export async function ingestSource(
     await env.DB.batch([
       stmt(
         env.DB,
-        "UPDATE ingestion_runs SET status=?,finished_at=?,accepted=?,pending=?,rejected=?,duplicates=?,queued_remaining=?,error=?,received=? WHERE id=?",
+        "UPDATE ingestion_runs SET status=?,finished_at=?,accepted=?,pending=?,rejected=?,duplicates=?,queued_remaining=?,error=?,received=?,new_references=? WHERE id=?",
         run.status,
-        now(),
+        new Date(clock).toISOString(),
         run.accepted,
         run.pending,
         run.rejected,
@@ -533,6 +585,7 @@ export async function ingestSource(
         run.queuedRemaining,
         run.error,
         run.received,
+        newReferences,
         run.id,
       ),
       stmt(
@@ -555,30 +608,72 @@ export async function scheduledIngest(
   clock = Date.now(),
 ): Promise<void> {
   if (env.INGEST_ENABLED !== "true") return;
-  const due = await rows<{ id: string }>(
+  const startedAt = new Date(clock).toISOString();
+  await stmt(
     env.DB,
-    "SELECT id FROM sources WHERE status='approved' AND json_extract(config_json,'$.metadataAllowed')=1 AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?) AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (last_cycle_key IS NULL OR last_cycle_key<>CASE WHEN connector='openalex' THEN ? ELSE ? END))) ORDER BY COALESCE(last_processed_at,'') ASC,id LIMIT 1",
-    new Date(clock).toISOString(),
-    new Date(clock).toISOString(),
-    new Date(clock).toISOString(),
-    cycleKey({ connector: "openalex" }, clock),
-    cycleKey({ connector: "rss" }, clock),
-  );
-  for (const s of due) {
-    try {
-      await ingestSource(env, s.id, fetcher, clock);
-    } catch (e) {
-      if (!(e instanceof ApiFault && e.status === 409))
-        console.error("scheduled_ingestion_failed");
-    }
-  }
-  if (!due.length)
-    await env.DB.batch([
-      stmt(env.DB, "DELETE FROM feed_snapshots WHERE expires_at<?", now()),
-      stmt(
+    "INSERT INTO radar_scheduler(id,last_started_at,last_status) VALUES (1,?,'running') ON CONFLICT(id) DO UPDATE SET last_started_at=excluded.last_started_at,last_status='running',last_error=NULL",
+    startedAt,
+  ).run();
+  try {
+    if (
+      env.RADAR_RETENTION_ENABLED === "true" &&
+      (await retentionDue(env.DB, clock))
+    ) {
+      await expireRadar(env.DB, clock);
+      await stmt(
         env.DB,
-        "DELETE FROM request_budgets WHERE expires_at<?",
-        Math.floor(Date.now() / 1000),
-      ),
-    ]);
+        "UPDATE radar_scheduler SET last_finished_at=?,last_status='retention' WHERE id=1",
+        startedAt,
+      ).run();
+      return;
+    }
+    let lastStatus = "idle",
+      lastError: string | null = null;
+    const due = await rows<{ id: string }>(
+      env.DB,
+      "SELECT id FROM sources WHERE status='approved' AND json_extract(config_json,'$.metadataAllowed')=1 AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?) AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (last_cycle_key IS NULL OR last_cycle_key<>CASE WHEN connector='openalex' THEN ? ELSE ? END))) ORDER BY COALESCE(last_processed_at,'') ASC,id LIMIT 1",
+      new Date(clock).toISOString(),
+      new Date(clock).toISOString(),
+      new Date(clock).toISOString(),
+      cycleKey({ connector: "openalex" }, clock),
+      cycleKey({ connector: "rss" }, clock),
+    );
+    for (const s of due) {
+      try {
+        const result = await ingestSource(env, s.id, fetcher, clock);
+        lastStatus = result.status;
+        lastError = result.error;
+      } catch (e) {
+        if (!(e instanceof ApiFault && e.status === 409))
+          console.error("scheduled_ingestion_failed");
+        lastStatus =
+          e instanceof ApiFault && e.status === 409 ? "busy" : "failed";
+        lastError =
+          lastStatus === "failed" ? "scheduled_ingestion_failed" : null;
+      }
+    }
+    if (!due.length)
+      await env.DB.batch([
+        stmt(env.DB, "DELETE FROM feed_snapshots WHERE expires_at<?", now()),
+        stmt(
+          env.DB,
+          "DELETE FROM request_budgets WHERE expires_at<?",
+          Math.floor(Date.now() / 1000),
+        ),
+      ]);
+    await stmt(
+      env.DB,
+      "UPDATE radar_scheduler SET last_finished_at=?,last_status=?,last_error=? WHERE id=1",
+      startedAt,
+      lastStatus,
+      lastError,
+    ).run();
+  } catch {
+    await stmt(
+      env.DB,
+      "UPDATE radar_scheduler SET last_finished_at=?,last_status='failed',last_error='scheduled_ingestion_failed' WHERE id=1",
+      startedAt,
+    ).run();
+    console.error("scheduled_ingestion_failed");
+  }
 }

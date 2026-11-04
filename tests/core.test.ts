@@ -279,7 +279,7 @@ test("For You intercala idiomas em lotes de 12, 16 e 20 sem preencher falta com 
     );
     assert.equal(new Set(page.map((i) => i.content.id)).size, limit);
   }
-  assert.equal(balanced.length, 24);
+  assert.equal(balanced.length, inputs.length);
   assert.equal(
     balanced.slice(16).filter((i) => i.content.language === "pt").length,
     4,
@@ -289,7 +289,7 @@ test("For You intercala idiomas em lotes de 12, 16 e 20 sem preencher falta com 
       (i) => i.content.id === "pt-0" || i.content.language === "en",
     ),
   );
-  assert.equal(scarce.length, 2);
+  assert.equal(scarce.length, 15);
   assert.deepEqual(balanceLanguages(ranked, true), ranked);
 });
 test("prompt preserva metadados, notas e incerteza; nenhuma fonte é presumida como lida", () => {

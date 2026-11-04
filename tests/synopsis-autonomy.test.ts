@@ -152,6 +152,7 @@ async function add(s: Source, lang = "pt") {
     {
       ...fixtureCandidate,
       title: "Design de informação e interfaces financeiras",
+      publishedAt: now(),
       url: `https://fixtures.example.test/article/${id()}`,
       identifiers: [],
       language: lang,
@@ -595,7 +596,15 @@ test("descoberta licenciada com duas entradas e cron permanece abaixo de 50 cons
     },
   });
   const xml = `<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Fixture</title><language>pt</language>${[1, 2].map((n) => `<item><title>Design de interfaces financeiras ${n}</title><link>https://fixtures.example.test/${s.id}/${n}</link><guid>${s.id}-${n}</guid><dc:creator>Autora de Teste</dc:creator><pubDate>Mon, 19 Oct 2026 12:00:00 GMT</pubDate><content:encoded><![CDATA[<p>${evidenceText}</p>]]></content:encoded></item>`).join("")}</channel></rss>`;
-  await scheduledIngest({ ...env, DB: db }, async () => new Response(xml));
+  await stmt(
+    env.DB,
+    "INSERT INTO radar_scheduler(id,last_retention_at) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET last_retention_at=excluded.last_retention_at",
+    now(),
+  ).run();
+  await scheduledIngest(
+    { ...env, DB: db, RADAR_RETENTION_ENABLED: "true" },
+    async () => new Response(xml),
+  );
   assert(queries <= 50, `D1: ${queries} consultas`);
   console.info(`D1 cron com captura licenciada: ${queries} consultas`);
   await stmt(

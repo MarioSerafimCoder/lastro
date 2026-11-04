@@ -2,6 +2,9 @@ import type { Content } from "../packages/contracts/index";
 import { first, rows, OWNER } from "./db";
 import { must } from "./errors";
 import { synopsisGate } from "./synopsis-evidence";
+import { radarTriage } from "../packages/contracts/radar";
+import { classifyRadar } from "./ranking";
+import { RETENTION_MS } from "./schedule";
 export async function content(
   db: D1Database,
   contentId: string,
@@ -15,7 +18,7 @@ export async function contents(
   if (!ids.length) return [];
   const data = await rows<any>(
     db,
-    `SELECT c.*,s.name source_name,
+    `SELECT c.*,s.name source_name,s.config_json source_config,
  (SELECT json_object('text',sy.text,'status',sy.status,'generatorVersion',sy.generator_version,'validatedAt',sy.validated_at,'evidenceUrl',json_extract(sy.evidence_json,'$.url'),'licenseUrl',json_extract(sy.evidence_json,'$.licenseUrl')) FROM content_synopses sy WHERE sy.content_id=c.id AND ${synopsisGate}) synopsis,
  EXISTS(SELECT 1 FROM favorites f WHERE f.content_id=c.id AND f.user_id=?) favorite,
  EXISTS(SELECT 1 FROM workshop_selection w WHERE w.content_id=c.id AND w.user_id=?) selected,
@@ -33,8 +36,12 @@ export async function contents(
   const mapped = data.map((r) => {
     const active = (t: string) =>
       (JSON.parse(r.interactions) as string[]).includes(t);
-    return {
-      ...JSON.parse(r.metadata_json),
+    const config = JSON.parse(r.source_config),
+      metadata = JSON.parse(r.metadata_json);
+    const value = {
+      ...metadata,
+      description: config.summaryAllowed ? metadata.description : null,
+      imageUrl: config.imageAllowed ? metadata.imageUrl : null,
       id: r.id,
       synopsis: r.synopsis ? JSON.parse(r.synopsis) : null,
       sourceId: r.source_id,
@@ -55,6 +62,23 @@ export async function contents(
       },
       annotations: JSON.parse(r.annotations),
     } as Content;
+    const firstSeenAt = r.first_seen_at ?? r.collected_at;
+    value.radar = {
+      firstSeenAt,
+      approvedAt: r.approved_at ?? null,
+      expiresAt:
+        r.kind === "paper" || value.state.favorite
+          ? null
+          : new Date(Date.parse(firstSeenAt) + RETENTION_MS).toISOString(),
+      expiredAt: r.expired_at ?? null,
+      country: config.country ?? null,
+      category:
+        r.radar_category ??
+        classifyRadar(value, { radarCategory: config.radarCategory ?? null }),
+      level: value.synopsis?.text ? "enriched" : "metadata",
+      triage: radarTriage(value),
+    };
+    return value;
   });
   const lookup = new Map(mapped.map((c) => [c.id, c]));
   return ids.flatMap((i) => (lookup.has(i) ? [lookup.get(i)!] : []));

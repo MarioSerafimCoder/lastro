@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { radarCategorySchema, type RadarReference } from "./radar";
+export * from "./radar";
 
 export const sourceStatusSchema = z.enum([
   "pending",
@@ -61,6 +63,12 @@ export const sourceInputSchema = z
     rightsNote: z.string().trim().min(5).max(2000),
     autoApprove: z.boolean().default(false),
     intervalMinutes: z.number().int().min(60).max(43200).default(360),
+    country: z
+      .string()
+      .regex(/^[A-Z]{2}$/)
+      .nullable()
+      .optional(),
+    radarCategory: radarCategorySchema.nullable().optional(),
   })
   .strict();
 export const sourceDecisionSchema = z
@@ -109,6 +117,12 @@ export type AdminSource = Source & {
   queued?: number;
 };
 export type RadarSourceStatus = {
+  lastNewReferenceAt?: string | null;
+  discoveredThisWeek?: number;
+  synopsisBlocked?: number;
+  expired?: number;
+  staleOver48h?: boolean;
+  alerts?: ("stale_over_48h" | "collection_failed")[];
   id: string;
   name: string;
   cycle: "daily" | "bimonthly";
@@ -138,8 +152,27 @@ export type RadarSourceStatus = {
     | "checked";
 };
 export type RadarStatus = {
+  health?: {
+    week: { start: string; end: string };
+    activeSources: number;
+    failedSources: number;
+    staleSourceIds: string[];
+    discoveredThisWeek: number;
+    visibleEditorial: number;
+    visibleScientific: number;
+    pending: number;
+    synopsisBlocked: number;
+    expired: number;
+    rejections: { reason: string; count: number }[];
+    scheduler: {
+      lastStartedAt: string | null;
+      lastFinishedAt: string | null;
+      status: string | null;
+      error: string | null;
+    } | null;
+  };
   checkedAt: string;
-  timezone: "UTC";
+  timezone: "UTC" | "America/Fortaleza";
   ingestEnabled: boolean;
   sources: RadarSourceStatus[];
   lastEditorialCheck: string | null;
@@ -281,6 +314,7 @@ export type KnowledgeAnnotation = {
   limitations: string | null;
 };
 export type Content = Candidate & {
+  radar?: RadarReference;
   synopsis?: {
     text: string;
     status: string;

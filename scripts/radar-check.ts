@@ -5,8 +5,10 @@ import { sourceInputSchema } from "../packages/contracts/index";
 import { ingestSource } from "../src/ingestion";
 import { stmt, id, first, rows } from "../src/db";
 import type { Env } from "../src/env";
+import { migrationStatements } from "../tests/migration-statements";
 if (!process.argv.includes("--live")) throw Error("Explicit --live required");
 const automatic = process.argv.includes("--auto");
+const radar2 = process.argv.includes("--radar2");
 const catalogFilter = process.argv
   .find((arg) => arg.startsWith("--catalog="))
   ?.split("=")[1]
@@ -29,24 +31,30 @@ try {
   for (const file of (await readdir("migrations"))
     .filter((f) => f.endsWith(".sql"))
     .sort())
-    for (const sql of (await readFile(`migrations/${file}`, "utf8"))
-      .split(";")
-      .map((s) => s.trim())
-      .filter(Boolean))
+    for (const sql of migrationStatements(
+      await readFile(`migrations/${file}`, "utf8"),
+    ))
       await db.prepare(sql).run();
-  const configs = await Promise.all(
-    (await readdir("examples/catalog"))
-      .filter(
-        (file) =>
-          !catalogFilter || catalogFilter.includes(file.replace(/\.json$/, "")),
+  const configs = radar2
+    ? JSON.parse(
+        await readFile("examples/radar2-catalog.json", "utf8"),
+      ).initial.map((s: { config: unknown }) =>
+        sourceInputSchema.parse(s.config),
       )
-      .sort()
-      .map(async (file) =>
-        sourceInputSchema.parse(
-          JSON.parse(await readFile(`examples/catalog/${file}`, "utf8")),
-        ),
-      ),
-  );
+    : await Promise.all(
+        (await readdir("examples/catalog"))
+          .filter(
+            (file) =>
+              !catalogFilter ||
+              catalogFilter.includes(file.replace(/\.json$/, "")),
+          )
+          .sort()
+          .map(async (file) =>
+            sourceInputSchema.parse(
+              JSON.parse(await readFile(`examples/catalog/${file}`, "utf8")),
+            ),
+          ),
+      );
   const env: Env = {
     DB: db,
     ALLOWED_FETCH_HOSTS: [
@@ -65,7 +73,10 @@ try {
       config.connector,
       config.url,
       "approved",
-      JSON.stringify({ ...config, autoApprove: automatic }),
+      JSON.stringify({
+        ...config,
+        autoApprove: radar2 ? automatic && config.autoApprove : automatic,
+      }),
       new Date().toISOString(),
     ).run();
     const fetcher: typeof fetch = async (input, init) => {
@@ -91,17 +102,41 @@ try {
     report.sources.push({
       name: config.name,
       url: config.url,
-      cycle: config.connector === "openalex" ? "bimonthly UTC" : "daily UTC",
+      cycle:
+        config.connector === "openalex"
+          ? "bimonthly UTC"
+          : "daily America/Fortaleza",
       requests,
-      runs,
+      ...(radar2
+        ? {
+            processingRuns: runs.length,
+            finalRun: runs.at(-1)
+              ? {
+                  status: runs.at(-1)!.status,
+                  queuedRemaining: runs.at(-1)!.queuedRemaining,
+                  error: runs.at(-1)!.error,
+                }
+              : null,
+          }
+        : { runs }),
       totals,
-      approvedExamples: automatic
-        ? await rows<{ title: string }>(
-            db,
-            "SELECT title FROM contents WHERE source_id=? AND editorial_status='approved' ORDER BY quality_score DESC LIMIT 3",
-            sid,
-          )
-        : [],
+      approvedExamples:
+        automatic && !radar2
+          ? await rows<{ title: string }>(
+              db,
+              "SELECT title FROM contents WHERE source_id=? AND editorial_status='approved' ORDER BY quality_score DESC LIMIT 3",
+              sid,
+            )
+          : [],
+      ...(radar2
+        ? {
+            reasons: await rows(
+              db,
+              "SELECT value reason,COUNT(*) count FROM ingestion_candidates,json_each(reasons_json) WHERE source_id=? GROUP BY value ORDER BY count DESC LIMIT 10",
+              sid,
+            ),
+          }
+        : {}),
     });
     console.log(
       config.name,
@@ -110,11 +145,13 @@ try {
     );
   }
   await writeFile(
-    catalogFilter
-      ? "docs/examples/for-you-2-source-checks.json"
-      : automatic
-        ? "docs/examples/feed-vivo-source-checks.json"
-        : "docs/examples/stage04-1-source-checks.json",
+    radar2
+      ? "docs/examples/radar2-source-checks.json"
+      : catalogFilter
+        ? "docs/examples/for-you-2-source-checks.json"
+        : automatic
+          ? "docs/examples/feed-vivo-source-checks.json"
+          : "docs/examples/stage04-1-source-checks.json",
     JSON.stringify(report, null, 2) + "\n",
   );
 } finally {

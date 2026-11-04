@@ -144,8 +144,9 @@ export function parseRss(
         publishedAt: val(e.pubDate ?? e.published ?? e["dc:date"], 100),
         language:
           val(e["dc:language"] ?? e["@xml:lang"], 20) ??
+          val(feed.language ?? feed["dc:language"] ?? feed["@xml:lang"], 20) ??
           inferTitleLanguage(title) ??
-          val(feed.language ?? feed["dc:language"] ?? feed["@xml:lang"], 20),
+          (s.languages.length === 1 ? s.languages[0] : null),
         kind,
         description: forSynopsis
           ? licensedEvidence

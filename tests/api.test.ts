@@ -396,6 +396,13 @@ test("favoritos, leitura, notas, coleções e seleção mantêm estados independ
   assert.equal((await api(`/api/collections/${col.id}/items`)).items.length, 1);
 });
 test("feed paginado preserva sequência e revalida descarte, aprovação e expiração", async () => {
+  const publication = new Date().toISOString();
+  await stmt(
+    env.DB,
+    "UPDATE contents SET published_at=?,metadata_json=json_set(metadata_json,'$.publishedAt',?) WHERE editorial_status='approved' AND kind<>'paper'",
+    publication,
+    publication,
+  ).run();
   const one = await api("/api/feed?limit=1");
   assert.equal(one.items.length, 1);
   assert.ok(one.items[0].explanation.algorithmVersion);

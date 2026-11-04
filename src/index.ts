@@ -1,3 +1,4 @@
+import { radarFeed, dailyWindowSql, dailyWindowArgs } from "./radar-feed";
 import {
   DRIVE_CALLBACK,
   beginDriveOAuth,
@@ -90,8 +91,6 @@ import {
   kindSchema,
   knowledgeSchema,
   type Preferences,
-  type FeedItem,
-  type FeedPage,
   type Source,
   type ResearchPackage,
 } from "../packages/contracts/index";
@@ -121,7 +120,6 @@ import {
   scheduledSynopses,
   enqueueSynopses,
   synopsisOverview,
-  synopsisGate,
   evidenceSchema,
   synopsisReviewSchema,
   validateSynopsis,
@@ -134,7 +132,7 @@ import {
   duplicate,
   saveContent,
 } from "./ingestion";
-import { balanceLanguages, rank } from "./ranking";
+import { rank, rankRadar } from "./ranking";
 import { radarStatus } from "./radar";
 import { createPackage, generatePrompt } from "./research";
 import { normalizeCandidate, folded } from "./normalize";
@@ -515,154 +513,21 @@ app.put("/api/preferences", async (c) => {
   return c.json(input);
 });
 app.get("/api/feed", async (c) => {
-  const query = z
-    .object({
-      limit: z.coerce.number().int().min(1).max(50).default(20),
-      cursor: z.string().max(100).optional(),
-    })
-    .parse(c.req.query());
-  const p = await policy(c.env.DB);
-  const synopsisFilter =
-    c.env.SYNOPSIS_REQUIRED === "true" ? synopsisGate : "1=1";
-  let snapshotId: string,
-    offset = 0,
-    expiresAt: string,
-    ranking: { id: string; explanation: FeedItem["explanation"] }[],
-    algorithmVersion: string;
-  if (query.cursor) {
-    const parts = query.cursor.split(":");
-    snapshotId = uuid(parts[0]);
-    offset = z.coerce.number().int().min(0).max(500).parse(parts[1]);
-    if (parts.length !== 2)
-      throw new ApiFault(400, "invalid_cursor", "Cursor inválido.");
-    const snapshot = await first<{ body_json: string; expires_at: string }>(
-      c.env.DB,
-      "SELECT * FROM feed_snapshots WHERE id=? AND user_id=?",
-      snapshotId,
-      OWNER,
-    );
-    if (!snapshot || snapshot.expires_at < now())
-      throw new ApiFault(
-        410,
-        "cursor_expired",
-        "Recarregue o feed; a sequência expirou.",
-      );
-    ({ ranking, algorithmVersion } = JSON.parse(snapshot.body_json));
-    expiresAt = snapshot.expires_at;
-  } else {
-    const preferences = await prefs(c.env.DB);
-    const ids =
-      preferences.languages.length === 1
-        ? await rows<{ id: string }>(
-            c.env.DB,
-            `SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE ${synopsisFilter} AND c.editorial_status='approved' AND s.status='approved' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 500`,
-            p.minimumQuality,
-          )
-        : [
-            ...(await rows<{ id: string }>(
-              c.env.DB,
-              `SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE ${synopsisFilter} AND c.editorial_status='approved' AND s.status='approved' AND c.language='pt' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 250`,
-              p.minimumQuality,
-            )),
-            ...(await rows<{ id: string }>(
-              c.env.DB,
-              `SELECT c.id FROM contents c JOIN sources s ON s.id=c.source_id WHERE ${synopsisFilter} AND c.editorial_status='approved' AND s.status='approved' AND c.language IS NOT NULL AND c.language<>'pt' AND c.quality_score>=? ORDER BY c.collected_at DESC,c.id LIMIT 250`,
-              p.minimumQuality,
-            )),
-          ];
-    const affinity = await rows<{ name: string }>(
-      c.env.DB,
-      `SELECT DISTINCT t.name FROM taxonomies t JOIN content_taxonomies ct ON ct.taxonomy_id=t.id WHERE t.kind='topic' AND (ct.content_id IN (SELECT content_id FROM favorites WHERE user_id=?) OR ct.content_id IN (SELECT content_id FROM output_sources))`,
-      OWNER,
-    );
-    ranking = balanceLanguages(
-      rank(
-        await contents(
-          c.env.DB,
-          ids.map((i) => i.id),
-        ),
-        preferences,
-        p,
-        Date.now(),
-        affinity.map((a) => a.name),
-      ),
-      preferences.languages.length === 1,
-    ).map((i) => ({ id: i.content.id, explanation: i.explanation }));
-    snapshotId = id();
-    expiresAt = new Date(Date.now() + 1800000).toISOString();
-    algorithmVersion = p.version;
-    await stmt(
-      c.env.DB,
-      "INSERT INTO feed_snapshots VALUES (?,?,?,?)",
-      snapshotId,
-      OWNER,
-      JSON.stringify({ ranking, algorithmVersion }),
-      expiresAt,
-    ).run();
-  }
-  const remaining = ranking.slice(offset),
-    loaded = await contents(
-      c.env.DB,
-      remaining.map((i) => i.id),
-    );
-  const currentPrefs = await prefs(c.env.DB);
-  const approvedSources = new Set(
-    (
-      await rows<{ id: string }>(
-        c.env.DB,
-        "SELECT id FROM sources WHERE status='approved'",
-      )
-    ).map((s) => s.id),
+  const affinity = await rows<{ name: string }>(
+    c.env.DB,
+    "SELECT DISTINCT t.name FROM taxonomies t JOIN content_taxonomies ct ON ct.taxonomy_id=t.id WHERE ct.content_id IN(SELECT content_id FROM favorites WHERE user_id=?) OR ct.content_id IN(SELECT content_id FROM output_sources)",
+    OWNER,
   );
-  const byId = new Map(
-    loaded
-      .filter(
-        (i) =>
-          i.editorialStatus === "approved" &&
-          (c.env.SYNOPSIS_REQUIRED !== "true" || !!i.synopsis?.text) &&
-          approvedSources.has(i.sourceId) &&
-          i.quality.score >= p.minimumQuality &&
-          !i.state.dismissed &&
-          (!currentPrefs.languages.length ||
-            (!!i.language && currentPrefs.languages.includes(i.language))),
-      )
-      .map((i) => [i.id, i]),
+  return c.json(
+    await radarFeed(
+      c.env.DB,
+      c.req.query(),
+      await prefs(c.env.DB),
+      await policy(c.env.DB),
+      Date.now(),
+      affinity.map((t) => t.name),
+    ),
   );
-  const items: FeedItem[] = [];
-  let consumed = 0;
-  if (currentPrefs.languages.length !== 1 && query.limit % 2 === 0) {
-    for (let index = 0; index + 1 < remaining.length; index += 2) {
-      const first = remaining[index],
-        second = remaining[index + 1];
-      consumed += 2;
-      const pt = byId.get(first.id),
-        other = byId.get(second.id);
-      if (pt?.language === "pt" && other?.language && other.language !== "pt") {
-        items.push({ content: pt, explanation: first.explanation });
-        items.push({ content: other, explanation: second.explanation });
-      }
-      if (items.length === query.limit) break;
-    }
-  } else {
-    for (const r of remaining) {
-      consumed++;
-      const value = byId.get(r.id);
-      if (value) items.push({ content: value, explanation: r.explanation });
-      if (items.length === query.limit) break;
-    }
-  }
-  const result: FeedPage = {
-    items,
-    nextCursor:
-      offset + consumed < ranking.length
-        ? `${snapshotId}:${offset + consumed}`
-        : null,
-    snapshotId,
-    expiresAt,
-    candidateLimit: 500,
-    algorithmVersion,
-  };
-  return c.json(result);
 });
 const searchSchema = pageQuery.extend({
   q: z.string().max(200).optional(),
@@ -681,7 +546,6 @@ async function search(
   db: D1Database,
   raw: Record<string, string>,
   favorites = false,
-  synopsisRequired = false,
 ) {
   const q = searchSchema.parse(raw),
     where: string[] = [],
@@ -690,7 +554,13 @@ async function search(
     where.push("c.id IN (SELECT content_id FROM favorites WHERE user_id=?)");
     args.push(OWNER);
   } else where.push("c.editorial_status='approved'", "s.status='approved'");
-  if (!favorites && synopsisRequired) where.push(synopsisGate);
+  if (!favorites) {
+    where.push(
+      "json_extract(s.config_json,'$.metadataAllowed')=1",
+      dailyWindowSql,
+    );
+    args.push(...dailyWindowArgs());
+  }
   if (q.q) {
     where.push(
       "(instr(lower(c.title),lower(?))>0 OR instr(lower(COALESCE(json_extract(c.metadata_json,'$.description'),'')),lower(?))>0 OR EXISTS(SELECT 1 FROM content_synopses sy WHERE sy.content_id=c.id AND sy.status='validated' AND sy.metadata_json=c.metadata_json AND instr(lower(sy.text),lower(?))>0))",
@@ -708,11 +578,19 @@ async function search(
     }
   if (q.after) {
     where.push("c.published_at>=?");
-    args.push(q.after + "T00:00:00.000Z");
+    args.push(
+      new Date(
+        q.after + (favorites ? "T00:00:00.000Z" : "T00:00:00-03:00"),
+      ).toISOString(),
+    );
   }
   if (q.before) {
     where.push("c.published_at<=?");
-    args.push(q.before + "T23:59:59.999Z");
+    args.push(
+      new Date(
+        q.before + (favorites ? "T23:59:59.999Z" : "T23:59:59.999-03:00"),
+      ).toISOString(),
+    );
   }
   if (q.topic) {
     where.push(
@@ -742,14 +620,7 @@ async function search(
   };
 }
 app.get("/api/search", async (c) =>
-  c.json(
-    await search(
-      c.env.DB,
-      c.req.query(),
-      false,
-      c.env.SYNOPSIS_REQUIRED === "true",
-    ),
-  ),
+  c.json(await search(c.env.DB, c.req.query(), false)),
 );
 app.get("/api/favorites", async (c) =>
   c.json(await search(c.env.DB, c.req.query(), true)),
@@ -761,7 +632,11 @@ app.get("/api/contents/:id/relevance", async (c) => {
   const item = await content(c.env.DB, uuid(c.req.param("id")));
   await eligible(c.env.DB, item.id);
   const p = await policy(c.env.DB);
-  const result = rank([item], await prefs(c.env.DB), p)[0];
+  const result = (item.kind === "paper" ? rank : rankRadar)(
+    [item],
+    await prefs(c.env.DB),
+    p,
+  )[0];
   return c.json({
     eligible: !!result,
     explanation: result?.explanation ?? null,

@@ -5,6 +5,7 @@ import type {
   Source,
 } from "../packages/contracts/index";
 import { folded, safeUrl } from "./normalize";
+import { classifyRadar } from "./ranking";
 export function matchedTopics(c: Candidate, s: Source): string[] {
   const tokens = (v: string) =>
     folded(v)
@@ -12,6 +13,36 @@ export function matchedTopics(c: Candidate, s: Source): string[] {
       .trim();
   const text = ` ${tokens([c.title, ...c.topics].join(" "))} `;
   const aliases: Record<string, string[]> = {
+    art: [
+      "arts",
+      "artist",
+      "artists",
+      "arte",
+      "artecontemporanea",
+      "artesvisuais",
+      "painting",
+      "museum",
+      "exhibition",
+      "exposicoes",
+      "public art",
+      "contemporary art",
+      "sculpture",
+    ],
+    photography: [
+      "photographer",
+      "photographie",
+      "fotografia",
+      "photo",
+      "fotolivros",
+    ],
+    illustration: ["illustrator", "ilustracao", "animation", "motion"],
+    architecture: [
+      "architectural",
+      "arquitetura",
+      "installation",
+      "instalacao",
+      "furniture",
+    ],
     design: [
       "designer",
       "designers",
@@ -169,7 +200,15 @@ export function automaticReviewReasons(
     { ...c, topics: [] },
     { ...s, topics: s.autoTopics?.length ? s.autoTopics : s.topics },
   );
-  if (!titleTopics.length) reasons.push("title_off_topic");
+  if (
+    !titleTopics.length &&
+    !(
+      s.connector === "rss" &&
+      s.radarCategory &&
+      classifyRadar({ ...c, title: "" })
+    )
+  )
+    reasons.push("title_off_topic");
   if (
     c.publishedAt &&
     at - Date.parse(c.publishedAt) > gate.maximumAgeDays * 86400000

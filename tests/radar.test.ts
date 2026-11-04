@@ -90,7 +90,7 @@ test("migração aditiva preserva acervo, favoritos e decisões existentes", asy
         await db.prepare(sql).run();
     };
     for (const f of (await readdir("migrations"))
-      .filter((f) => f.endsWith(".sql") && !f.startsWith("0004"))
+      .filter((f) => f.endsWith(".sql") && f < "0004")
       .sort())
       await apply(f);
     await db
@@ -487,7 +487,7 @@ test("interrupção após salvar conteúdo mantém fila e retoma sem duplicar", 
                   return (...args: unknown[]) => wrap(obj.bind(...args));
                 if (
                   k === "run" &&
-                  sql.startsWith("INSERT INTO ingestion_candidates")
+                  sql.startsWith("DELETE FROM ingestion_queue")
                 )
                   return async () => {
                     if (!failed) {

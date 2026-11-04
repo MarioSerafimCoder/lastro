@@ -251,13 +251,10 @@ test("fontes reais: ciclos sucessivos, publicação, 50/50, persistência e obse
         env,
       );
     const feed = (await (await request("/api/feed?limit=20")).json()) as any;
-    assert.equal(feed.items.length, 2);
-    assert.equal(
-      feed.items.filter((i: any) => i.content.language === "pt").length,
-      1,
-    );
+    // A new synopsis never turns these historical fixtures into this week's news.
+    assert.equal(feed.items.length, 0);
     const overview = (await synopsisOverview(db)) as any;
-    assert.equal(overview.impact.publishedLast7Days, 2);
+    assert.equal(overview.impact.publishedLast7Days, 0);
     assert.equal(
       overview.counts.find((c: any) => c.status === "validated").count,
       2,

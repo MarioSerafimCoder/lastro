@@ -1,0 +1,404 @@
+{
+  "checkedAt": "2026-11-04T17:49:15.163Z",
+  "environment": "ephemeral Miniflare, no personal or production data",
+  "sources": [
+    {
+      "name": "Colossal",
+      "url": "https://www.thisiscolossal.com/feed/",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 853,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 10,
+        "pending": 0,
+        "rejected": 0,
+        "duplicates": 0,
+        "approved": 10
+      },
+      "reasons": [],
+      "processingRuns": 5,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "Hyperallergic",
+      "url": "https://hyperallergic.com/rss/",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 99,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 15,
+        "pending": 4,
+        "rejected": 6,
+        "duplicates": 0,
+        "approved": 5
+      },
+      "reasons": [
+        {
+          "reason": "off_topic",
+          "count": 6
+        },
+        {
+          "reason": "promotional_material",
+          "count": 2
+        },
+        {
+          "reason": "missing_author",
+          "count": 2
+        }
+      ],
+      "processingRuns": 8,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "ARTnews",
+      "url": "https://www.artnews.com/feed/",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 236,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 10,
+        "pending": 0,
+        "rejected": 5,
+        "duplicates": 0,
+        "approved": 5
+      },
+      "reasons": [
+        {
+          "reason": "off_topic",
+          "count": 5
+        }
+      ],
+      "processingRuns": 5,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "It’s Nice That",
+      "url": "https://feeds2.feedburner.com/itsnicethat/SlXC",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 1489,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 20,
+        "pending": 3,
+        "rejected": 12,
+        "duplicates": 0,
+        "approved": 5
+      },
+      "reasons": [
+        {
+          "reason": "off_topic",
+          "count": 12
+        },
+        {
+          "reason": "missing_author",
+          "count": 2
+        },
+        {
+          "reason": "promotional_material",
+          "count": 1
+        }
+      ],
+      "processingRuns": 10,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "Creative Boom",
+      "url": "https://www.creativeboom.com/feed/",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 723,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 20,
+        "pending": 0,
+        "rejected": 16,
+        "duplicates": 0,
+        "approved": 4
+      },
+      "reasons": [
+        {
+          "reason": "off_topic",
+          "count": 16
+        }
+      ],
+      "processingRuns": 10,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "étapes:",
+      "url": "https://www.etapes.com/feed/",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 1394,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 20,
+        "pending": 0,
+        "rejected": 19,
+        "duplicates": 0,
+        "approved": 1
+      },
+      "reasons": [
+        {
+          "reason": "outside_period",
+          "count": 19
+        }
+      ],
+      "processingRuns": 10,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "ARTE!Brasileiros",
+      "url": "https://artebrasileiros.com.br/feed/",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 1323,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 10,
+        "pending": 0,
+        "rejected": 9,
+        "duplicates": 0,
+        "approved": 1
+      },
+      "reasons": [
+        {
+          "reason": "outside_period",
+          "count": 9
+        },
+        {
+          "reason": "off_topic",
+          "count": 4
+        }
+      ],
+      "processingRuns": 5,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "designboom",
+      "url": "https://www.designboom.com/feed/",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 702,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 10,
+        "pending": 0,
+        "rejected": 0,
+        "duplicates": 0,
+        "approved": 10
+      },
+      "reasons": [],
+      "processingRuns": 5,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "Plau — Entrelinha",
+      "url": "https://plau.substack.com/feed",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 478,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 20,
+        "pending": 0,
+        "rejected": 20,
+        "duplicates": 0,
+        "approved": 0
+      },
+      "reasons": [
+        {
+          "reason": "outside_period",
+          "count": 20
+        },
+        {
+          "reason": "off_topic",
+          "count": 18
+        }
+      ],
+      "processingRuns": 10,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "Smashing Magazine",
+      "url": "https://www.smashingmagazine.com/feed/",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 410,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 25,
+        "pending": 0,
+        "rejected": 25,
+        "duplicates": 0,
+        "approved": 0
+      },
+      "reasons": [
+        {
+          "reason": "outside_period",
+          "count": 23
+        },
+        {
+          "reason": "off_topic",
+          "count": 21
+        }
+      ],
+      "processingRuns": 13,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "Creative Commons — Cultura aberta",
+      "url": "https://creativecommons.org/feed/",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 893,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 10,
+        "pending": 0,
+        "rejected": 10,
+        "duplicates": 0,
+        "approved": 0
+      },
+      "reasons": [
+        {
+          "reason": "outside_period",
+          "count": 8
+        },
+        {
+          "reason": "off_topic",
+          "count": 5
+        }
+      ],
+      "processingRuns": 5,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    },
+    {
+      "name": "Escola de Dados — Cartografia e visualização",
+      "url": "https://escoladedados.org/feed/",
+      "cycle": "daily America/Fortaleza",
+      "requests": [
+        {
+          "status": 200,
+          "ms": 820,
+          "redirect": null
+        }
+      ],
+      "totals": {
+        "candidates": 12,
+        "pending": 0,
+        "rejected": 12,
+        "duplicates": 0,
+        "approved": 0
+      },
+      "reasons": [
+        {
+          "reason": "outside_period",
+          "count": 12
+        },
+        {
+          "reason": "off_topic",
+          "count": 10
+        }
+      ],
+      "processingRuns": 6,
+      "finalRun": {
+        "status": "completed",
+        "queuedRemaining": 0,
+        "error": null
+      }
+    }
+  ]
+}
