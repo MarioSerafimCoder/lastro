@@ -1,3 +1,4 @@
+import type { MemoryPending } from "../packages/contracts/jarvis-brain";
 import {
   brainBudget,
   executeMemoryRead,
@@ -95,7 +96,18 @@ const view = (
   id: c.id,
   revision: c.revision,
   state,
-  pending: c.pending,
+  pending:
+    c.pending ??
+    (c.memoryPending
+      ? {
+          kind: "confirmation",
+          alternatives: [],
+          question:
+            c.memoryPending.operation === "correct"
+              ? `Correção pendente para a memória ${c.memoryPending.id}, versão ${c.memoryPending.version}: “${c.memoryPending.draft.summary}”. Confirma esta alteração?`
+              : `Proposta pendente: “${c.memoryPending.title}”. Memória ${c.memoryPending.id}, versão ${c.memoryPending.version}. Aprova esta memória?`,
+        }
+      : null),
   topic: c.topic,
   metric: c.metric,
   period: c.period,
@@ -201,20 +213,32 @@ async function execute(
   env: Env,
   c: DialogueContext,
   area: string,
-): Promise<{ answer: Answer; unavailable?: boolean }> {
+): Promise<{
+  answer: Answer;
+  unavailable?: boolean;
+  memoryPending?: MemoryPending | null;
+  memoryCandidates?: string[];
+}> {
   if (c.memoryCommand) {
     await brainBudget(env);
     const m = c.memoryCommand;
-    if (m.action === "search" || m.action === "manage")
-      return { answer: await executeMemoryRead(env, m) };
+    if (
+      m.action === "search" ||
+      m.action === "manage" ||
+      m.action === "correct" ||
+      m.action === "cancelCorrection"
+    )
+      return executeMemoryRead(env, m, c.memoryCandidates);
     const text =
       m.action === "create"
         ? `Memória confirmada no D1: ${m.draft.title}. ID: ${m.id}. Arquivo no Drive depende de ação separada.`
         : m.action === "propose"
           ? `Proponho guardar: “${m.draft.summary}”. Tipo: ${m.draft.type}; natureza: ${m.draft.certainty}. Aprova esta memória? ID: ${m.id}.`
-          : m.action === "approve"
-            ? `Memória ${m.id} aprovada no D1.`
-            : `Proposta ${m.id} arquivada, sem confirmação como fato.`;
+          : m.action === "update"
+            ? `Memória ${m.id} corrigida no D1 para a versão ${m.version + 1}: ${m.draft.summary}`
+            : m.action === "approve"
+              ? `Memória ${m.id} aprovada no D1.`
+              : `Proposta ${m.id} arquivada, sem confirmação como fato.`;
     return {
       answer: {
         ...dialogueAnswer(text),
@@ -343,14 +367,23 @@ export async function advanceDialogue(
             guard,
           )
         : command &&
-            (command.action === "approve" || command.action === "reject")
+            (command.action === "approve" ||
+              command.action === "reject" ||
+              command.action === "update")
           ? await prepareMemoryChange(
               env,
               command.id,
               {
                 version: command.version,
                 operation:
-                  command.action === "approve" ? "aprovar" : "arquivar",
+                  command.action === "update"
+                    ? "corrigir"
+                    : command.action === "approve"
+                      ? "aprovar"
+                      : "arquivar",
+                ...(command.action === "update"
+                  ? { draft: command.draft }
+                  : {}),
               },
               guard,
             )

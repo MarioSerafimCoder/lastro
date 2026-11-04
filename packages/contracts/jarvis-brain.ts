@@ -83,7 +83,9 @@ export function searchMemories(memories: BrainMemory[], filter: MemorySearch) {
     memory: m,
     title: normalizeQuestion(m.title),
     summary: normalizeQuestion(m.summary),
-    keywords: m.keywords.map(normalizeQuestion),
+    keywords: [...m.keywords, ...memoryKeywords(m.summary)].map(
+      normalizeQuestion,
+    ),
     project: normalizeQuestion(m.project ?? ""),
   }));
   const fuzzy = new Fuse(normalized, {
@@ -112,12 +114,37 @@ export function searchMemories(memories: BrainMemory[], filter: MemorySearch) {
 export type MemoryCommand =
   | { action: "create" | "propose"; id: string; draft: MemoryDraft }
   | { action: "approve" | "reject"; id: string; version: number }
+  | { action: "correct"; summary: string; type?: BrainMemory["type"] }
+  | { action: "update"; id: string; version: number; draft: MemoryDraft }
+  | { action: "cancelCorrection" }
   | { action: "search"; query: string; type?: BrainMemory["type"] }
   | { action: "manage"; query: string };
-export type MemoryPending = { id: string; version: number; title: string };
+export type MemoryPending =
+  | { id: string; version: number; title: string; operation?: "approve" }
+  | {
+      id: string;
+      version: number;
+      title: string;
+      operation: "correct";
+      draft: MemoryDraft;
+    };
+// Curated vocabulary expands retrieval only; it never assigns a project or asserts a fact.
+export function memoryKeywords(summary: string) {
+  const n = normalizeQuestion(summary);
+  return /\b(textos?|tom|comunicacao|humor|informal|formal|escrita|linguagem)\b/.test(
+    n,
+  )
+    ? ["comunicação", "tom", "escrita"]
+    : [];
+}
 export function memoryIntent(raw: string): MemoryCommand | null {
   const text = raw.replace(/^\s*Jarvis[,!:\s]+/i, "").trim();
   const n = normalizeQuestion(text);
+  if (/^na verdade[, ]+/i.test(text)) {
+    const summary = text.replace(/^na verdade[, ]+/i, "").trim();
+    if (/^(eu )?prefiro\b/i.test(summary))
+      return { action: "correct", summary, type: "preferencia" };
+  }
   const explicit =
     /^(lembre(?:-se)?(?: que| de)?|guarde|salve|registre)\b/i.exec(text);
   if (
@@ -130,6 +157,14 @@ export function memoryIntent(raw: string): MemoryCommand | null {
     /^(prefiro|eu prefiro|decidimos|essa dire[cç][aã]o de arte foi aprovada)\b/i.test(
       text,
     );
+  if (
+    !explicit &&
+    preference &&
+    /\b(hoje|amanha|temporariamente|so agora|neste momento|senha|password|token|credencial|cpf|cnpj|cartao|dados bancarios|chave privada|chave api)\b/.test(
+      n,
+    )
+  )
+    return null;
   if (explicit || preference) {
     const summary = explicit ? text.slice(explicit[0].length).trim() : text;
     if (
@@ -154,7 +189,7 @@ export function memoryIntent(raw: string): MemoryCommand | null {
       type,
       title: summary.slice(0, 120),
       summary: summary.slice(0, 1600),
-      keywords: [],
+      keywords: memoryKeywords(summary),
       project: null,
       origin: "Conversa com o proprietário",
       certainty: /talvez|hipotese/.test(n)
@@ -203,7 +238,9 @@ export function memoryIntent(raw: string): MemoryCommand | null {
       .replace(/^(sobre|do|da|o|a)\s+/, "");
     return {
       action: "search",
-      query: subject,
+      query: /^(minha |a minha |meu |o meu )/.test(subject)
+        ? subject.replace(/^(a minha |o meu |minha |meu )/, "")
+        : subject,
       ...(/^qual foi a decisao/.test(n) ? { type: "decisao" as const } : {}),
     };
   }

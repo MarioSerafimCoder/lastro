@@ -39,6 +39,7 @@ export type DialogueContext = Slots & {
   socialTurn: number;
   memoryCommand?: MemoryCommand | null;
   memoryPending?: MemoryPending | null;
+  memoryCandidates?: string[] | null;
 };
 export type DialogueView = {
   id: string;

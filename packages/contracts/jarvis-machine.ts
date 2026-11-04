@@ -1,4 +1,4 @@
-import { memoryIntent } from "./jarvis-brain";
+import { memoryIntent, type MemoryPending } from "./jarvis-brain";
 import { setup, assign, createActor } from "xstate";
 import { labels, type Answer } from "./jarvis";
 import { interpretQuestion } from "./jarvis-intents";
@@ -84,7 +84,13 @@ type Message = {
 };
 type Event =
   | Message
-  | { type: "RESULT"; answer: Answer; unavailable?: boolean }
+  | {
+      type: "RESULT";
+      answer: Answer;
+      unavailable?: boolean;
+      memoryPending?: MemoryPending | null;
+      memoryCandidates?: string[];
+    }
   | { type: "FAIL" };
 
 function interpret(c: DialogueContext, event: Message): DialogueContext {
@@ -93,6 +99,7 @@ function interpret(c: DialogueContext, event: Message): DialogueContext {
     revision: c.revision + 1,
     plan: "reply" as const,
     memoryCommand: null,
+    memoryCandidates: null,
   };
   const say = (
     text: string,
@@ -114,6 +121,12 @@ function interpret(c: DialogueContext, event: Message): DialogueContext {
       memoryCommand: memory,
       plan: "query",
       response: null,
+      memoryCandidates:
+        memory.action === "correct"
+          ? c.memoryCandidates
+          : memory.action === "create" || memory.action === "propose"
+            ? [memory.id]
+            : null,
       memoryPending: proposing
         ? { id: memory.id, version: 1, title: memory.draft.title }
         : null,
@@ -130,11 +143,22 @@ function interpret(c: DialogueContext, event: Message): DialogueContext {
       memoryPending: null,
       plan: "query",
       response: null,
-      memoryCommand: {
-        action: approved ? "approve" : "reject",
-        id: c.memoryPending.id,
-        version: c.memoryPending.version,
-      },
+      memoryCandidates: [c.memoryPending.id],
+      memoryCommand:
+        c.memoryPending.operation === "correct"
+          ? approved
+            ? {
+                action: "update",
+                id: c.memoryPending.id,
+                version: c.memoryPending.version,
+                draft: c.memoryPending.draft,
+              }
+            : { action: "cancelCorrection" }
+          : {
+              action: approved ? "approve" : "reject",
+              id: c.memoryPending.id,
+              version: c.memoryPending.version,
+            },
     };
   }
   // A different substantive message cancels the scope of a bare confirmation.
@@ -335,6 +359,12 @@ export const dialogueMachine = setup({
       event.type === "RESULT"
         ? {
             response: event.answer,
+            ...(event.memoryPending !== undefined
+              ? { memoryPending: event.memoryPending }
+              : {}),
+            ...(event.memoryCandidates !== undefined
+              ? { memoryCandidates: event.memoryCandidates }
+              : {}),
             lastGrounded: event.unavailable
               ? context.lastGrounded
               : event.answer,

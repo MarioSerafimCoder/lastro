@@ -752,3 +752,125 @@ test("refresh revocation is sanitized and revocation itself does not require a w
   assert.match(calls.at(-1)!, /revoke$/);
   assert.equal((await memoryById(env, m.id)).summary, m.summary);
 });
+
+test("homologation: correction confirms one identified record and survives actual logout/new login", async () => {
+  const authEnv = {
+    ...env,
+    ENVIRONMENT: "production",
+    OWNER_PASSWORD_SHA256: "a".repeat(64),
+    SESSION_SIGNING_KEY: btoa("k".repeat(32)),
+  };
+  const { issueSession } = await import("../src/auth");
+  async function login() {
+    let cookie = (await issueSession(authEnv)).split(";")[0];
+    const response = await app.request(
+      "https://lastro.test/api/jarvis/conversation",
+      { headers: { cookie } },
+      authEnv,
+    );
+    assert.equal(response.status, 200);
+    cookie += "; " + response.headers.get("set-cookie")!.split(";")[0];
+    let view = (await response.json()) as any;
+    return {
+      cookie,
+      async send(text: string) {
+        const response = await app.request(
+          "https://lastro.test/api/jarvis/conversation",
+          {
+            method: "POST",
+            headers: {
+              cookie,
+              Origin: "https://lastro.test",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              text,
+              area: "for-you",
+              conversationId: view.id,
+              revision: view.revision,
+            }),
+          },
+          authEnv,
+        );
+        assert.equal(response.status, 200);
+        const reply = (await response.json()) as any;
+        view = reply.conversation;
+        return reply;
+      },
+    };
+  }
+  const one = await login();
+  await one.send("Jarvis, lembre que prefiro textos com humor seco.");
+  const original = (await listMemories(env, { q: "" }))[0];
+  assert.match(
+    (await one.send("O que você lembra sobre minha comunicação?")).text,
+    /humor seco/,
+  );
+  const proposal = await one.send(
+    "Na verdade, prefiro um tom um pouco mais informal.",
+  );
+  assert.match(proposal.text, /Proponho corrigir exclusivamente/);
+  assert.equal((await memoryById(env, original.id)).version, 1);
+  assert.match(
+    (await one.send("Sim.")).text,
+    /corrigida no D1 para a versão 2/,
+  );
+  assert.equal((await listMemories(env, { q: "" })).length, 1);
+  const logout = await app.request(
+    "https://lastro.test/api/auth/logout",
+    {
+      method: "POST",
+      headers: { cookie: one.cookie, Origin: "https://lastro.test" },
+    },
+    authEnv,
+  );
+  assert.equal(logout.status, 200);
+  assert.equal(
+    await env.DB.prepare(
+      "SELECT count(*) AS n FROM jarvis_conversations",
+    ).first("n"),
+    0,
+  );
+  const two = await login();
+  const recovered = await two.send(
+    "O que você lembra sobre minha comunicação?",
+  );
+  assert.match(recovered.text, /mais informal/);
+  assert.match(recovered.text, /origem:/);
+  assert.ok(recovered.text.includes(original.id));
+  await two.send("Esta é uma informação temporária sobre o dia.");
+  assert.equal((await listMemories(env, { q: "" })).length, 1);
+});
+
+test("homologation: contradictory candidates, cancelled correction and version race cannot approve vague writes", async () => {
+  const first = (await create())!,
+    second = (await create(draft("Prefiro textos sem humor.")))!;
+  const c = await chat();
+  await c.send("Mostre minhas preferências");
+  assert.match(
+    (await c.send("Na verdade, prefiro informalidade.")).text,
+    /mais de uma memória/,
+  );
+  await c.send("sim");
+  assert.equal((await memoryById(env, first.id)).version, 1);
+  assert.equal((await memoryById(env, second.id)).version, 1);
+  await c.send("O que você lembra sobre " + first.id + "?");
+  await c.send("Na verdade, prefiro um tom informal.");
+  await c.send("não");
+  assert.equal((await memoryById(env, first.id)).version, 1);
+  await c.send("O que você lembra sobre " + first.id + "?");
+  await c.send("Na verdade, prefiro um tom informal.");
+  await applyMemory(
+    env,
+    await prepareMemoryChange(env, first.id, {
+      version: 1,
+      operation: "corrigir",
+      draft: draft("Correção feita em outra aba."),
+    }),
+  );
+  await assert.rejects(() => c.send("sim"), /mudou/);
+  assert.equal(
+    (await memoryById(env, first.id)).summary,
+    "Correção feita em outra aba.",
+  );
+});

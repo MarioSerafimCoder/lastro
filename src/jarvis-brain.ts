@@ -8,6 +8,9 @@ import {
   type BrainMemory,
   type MemorySearch,
   type MemoryCommand,
+  type MemoryPending,
+  type MemoryDraft,
+  memoryKeywords,
 } from "../packages/contracts/jarvis-brain";
 import { dialogueAnswer } from "../packages/contracts/jarvis-machine";
 
@@ -222,8 +225,76 @@ export async function applyMemory(
     );
   return prepared.memory;
 }
-export async function executeMemoryRead(env: Env, command: MemoryCommand) {
-  if (command.action === "manage") return dialogueAnswer(command.query);
+export async function executeMemoryRead(
+  env: Env,
+  command: MemoryCommand,
+  candidateIds?: string[] | null,
+): Promise<{
+  answer: import("../packages/contracts/jarvis").Answer;
+  memoryPending?: MemoryPending | null;
+  memoryCandidates?: string[];
+}> {
+  if (command.action === "manage")
+    return { answer: dialogueAnswer(command.query) };
+  if (command.action === "cancelCorrection")
+    return {
+      answer: dialogueAnswer(
+        "Correção cancelada. A memória original foi preservada.",
+      ),
+      memoryPending: null,
+    };
+  if (command.action === "correct") {
+    if (candidateIds && candidateIds.length > 1)
+      return {
+        answer: dialogueAnswer(
+          "Há mais de uma memória candidata. Consulte uma pelo ID ou selecione o registro em Memória do Jarvis antes de corrigir. Nenhuma alteração foi proposta.",
+        ),
+        memoryPending: null,
+        memoryCandidates: candidateIds.slice(0, 2),
+      };
+    const candidates = (
+      await listMemories(env, {
+        q: "",
+        type: command.type,
+        state: "confirmada",
+      })
+    ).filter((m) => (candidateIds ? candidateIds.includes(m.id) : true));
+    if (candidates.length !== 1)
+      return {
+        answer: dialogueAnswer(
+          candidates.length
+            ? "Há mais de uma memória candidata. Consulte uma pelo ID ou selecione o registro em Memória do Jarvis antes de corrigir. Nenhuma alteração foi proposta."
+            : "Não identifiquei uma memória confirmada para corrigir. Consulte o registro pelo ID ou selecione-o em Memória do Jarvis.",
+        ),
+        memoryPending: null,
+        memoryCandidates: candidates.map((m) => m.id),
+      };
+    const old = candidates[0];
+    const draft: MemoryDraft = {
+      type: old.type,
+      title: command.summary.slice(0, 120),
+      summary: command.summary,
+      keywords: [
+        ...new Set([...old.keywords, ...memoryKeywords(command.summary)]),
+      ].slice(0, 16),
+      project: old.project,
+      origin: old.origin,
+      certainty: old.certainty,
+    };
+    return {
+      answer: dialogueAnswer(
+        `Proponho corrigir exclusivamente a memória ${old.id}, versão ${old.version}: “${old.summary}” → “${draft.summary}”. Confirma esta alteração?`,
+      ),
+      memoryPending: {
+        id: old.id,
+        version: old.version,
+        title: old.title,
+        operation: "correct",
+        draft,
+      },
+      memoryCandidates: [old.id],
+    };
+  }
   if (command.action !== "search")
     throw Error("Memory write must be committed with dialogue");
   const found = await listMemories(env, {
@@ -242,10 +313,13 @@ export async function executeMemoryRead(env: Env, command: MemoryCommand) {
         .join("\n\n") +
       (found.length > 5 ? "\nRefine a busca na seção Memória do Jarvis." : "");
   return {
-    ...dialogueAnswer(text),
-    kind: undefined,
-    source: "D1 · memória seletiva",
-    incomplete: found.length > 1,
-    stale: true,
+    answer: {
+      ...dialogueAnswer(text),
+      kind: undefined,
+      source: "D1 · memória seletiva",
+      incomplete: found.length > 1,
+      stale: true,
+    },
+    memoryCandidates: found.slice(0, 2).map((m) => m.id),
   };
 }
