@@ -834,7 +834,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
               />
             </a>
             <a
-              href="https://app.pagescms.org/MarioSerafimCoder/portfolio-oficial/main/collection/posts/new"
+              href="https://studio.marioserafim.com.br/"
               target="_blank"
               rel="noopener noreferrer"
             >
