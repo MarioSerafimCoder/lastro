@@ -365,7 +365,7 @@ test("all private brain/Drive endpoints require Lastro authentication and reject
   );
   assert.equal(response.status, 403);
 });
-test("Drive info and privacy pages are public and disclose only the narrow Brain archive", async () => {
+test("Drive info, privacy and terms pages are public and disclose only the narrow Brain archive", async () => {
   const info = await app.request(
     "https://lastro.test/api/jarvis/drive/info",
     {},
@@ -376,6 +376,7 @@ test("Drive info and privacy pages are public and disclose only the narrow Brain
   assert.match(infoHtml, /LASTRO — JARVIS BRAIN/);
   assert.match(infoHtml, /drive\.file/);
   assert.match(infoHtml, /\/api\/jarvis\/drive\/privacy/);
+  assert.match(infoHtml, /\/api\/jarvis\/drive\/terms/);
 
   const privacy = await app.request(
     "https://lastro.test/api/jarvis/drive/privacy",
@@ -387,6 +388,18 @@ test("Drive info and privacy pages are public and disclose only the narrow Brain
   assert.match(privacyHtml, /Nenhum arquivo do Drive é importado/);
   assert.match(privacyHtml, /refresh token OAuth cifrado com AES-GCM/);
   assert.match(privacyHtml, /não apaga documentos já arquivados/);
+  assert.match(privacyHtml, /\/api\/jarvis\/drive\/terms/);
+
+  const terms = await app.request(
+    "https://lastro.test/api/jarvis/drive/terms",
+    {},
+    env,
+  );
+  assert.equal(terms.status, 200);
+  const termsHtml = await terms.text();
+  assert.match(termsHtml, /Termos de Serviço — LASTRO — JARVIS BRAIN/);
+  assert.match(termsHtml, /drive\.file/);
+  assert.match(termsHtml, /\/api\/jarvis\/drive\/privacy/);
 });
 function enableDrive() {
   Object.assign(env, {

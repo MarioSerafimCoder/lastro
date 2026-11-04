@@ -480,6 +480,10 @@ export default function JarvisMemory() {
         <a href="/api/jarvis/drive/privacy" target="_blank" rel="noreferrer">
           Privacidade
         </a>
+        {" · "}
+        <a href="/api/jarvis/drive/terms" target="_blank" rel="noreferrer">
+          Termos
+        </a>
       </p>
       {drive?.enabled && (
         <button

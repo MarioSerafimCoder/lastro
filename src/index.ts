@@ -63,7 +63,11 @@ import {
 import { integrationRequestSchema } from "../packages/contracts/integration";
 import { Hono } from "hono";
 import { analyticsInfo, analyticsPrivacy } from "./analytics-public";
-import { jarvisDriveInfo, jarvisDrivePrivacy } from "./jarvis-drive-public";
+import {
+  jarvisDriveInfo,
+  jarvisDrivePrivacy,
+  jarvisDriveTerms,
+} from "./jarvis-drive-public";
 import {
   analyticsOverview,
   beginAnalyticsOAuth,
@@ -219,6 +223,7 @@ app.get("/api/analytics/info", () => analyticsInfo());
 app.get("/api/analytics/privacy", () => analyticsPrivacy());
 app.get("/api/jarvis/drive/info", () => jarvisDriveInfo());
 app.get("/api/jarvis/drive/privacy", () => jarvisDrivePrivacy());
+app.get("/api/jarvis/drive/terms", () => jarvisDriveTerms());
 app.use("/api/*", async (c, next) => {
   if (c.req.path.startsWith("/api/auth/")) return next();
   const origin = c.req.header("Origin"),
