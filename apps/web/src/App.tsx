@@ -32,6 +32,7 @@ import {
   Bookmark,
   BookOpen,
   Check,
+  ContactRound,
   Copy,
   ExternalLink,
   Filter,
@@ -841,6 +842,21 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
               <SquarePen size={18} aria-hidden="true" />
               <span>
                 Novo artigo<span className="sr-only"> (abre em nova aba)</span>
+              </span>
+              <ExternalLink
+                className="quick-access-external"
+                size={13}
+                aria-hidden="true"
+              />
+            </a>
+            <a
+              href="https://crm.marioserafim.com.br/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ContactRound size={18} aria-hidden="true" />
+              <span>
+                CRM<span className="sr-only"> (abre em nova aba)</span>
               </span>
               <ExternalLink
                 className="quick-access-external"
