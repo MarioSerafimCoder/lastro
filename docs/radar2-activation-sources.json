@@ -1,0 +1,284 @@
+{
+  "checkedAt": "2026-11-04T18:46:59.743Z",
+  "week": {
+    "start": "2026-11-02T03:00:00.000Z",
+    "end": "2026-11-09T03:00:00.000Z"
+  },
+  "environment": "public feed checks + isolated SQLite source merge rehearsal",
+  "sqlSha256": "016d233e35c9ca175b2f74709009032c027487067eb472f3cc1b3536292af134",
+  "before": 13,
+  "after": 19,
+  "existingPoliciesPreserved": true,
+  "foreignKeys": [],
+  "integrity": [
+    {
+      "quick_check": "ok"
+    }
+  ],
+  "observations": [
+    {
+      "id": "d4da0b6f-c6f1-4332-9df0-86a1c922dc9f",
+      "name": "Colossal",
+      "url": "https://www.thisiscolossal.com/feed/",
+      "decision": "new-approved-metadata-only",
+      "country": "US",
+      "category": "art_visual_culture",
+      "languages": ["en"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": false
+      },
+      "probe": {
+        "status": 200,
+        "totalMs": 864,
+        "bytes": 133557,
+        "entries": 10,
+        "withAuthor": 10,
+        "latestPublication": "2026-11-04T17:32:21.000Z",
+        "publicationsThisWeek": 7,
+        "noPayloadStored": true
+      }
+    },
+    {
+      "id": "fbe9bace-636c-4d38-9b5b-533d37296f7f",
+      "name": "Hyperallergic",
+      "url": "https://hyperallergic.com/rss/",
+      "decision": "new-approved-metadata-only",
+      "country": "US",
+      "category": "art_visual_culture",
+      "languages": ["en"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": false
+      },
+      "probe": {
+        "status": 200,
+        "totalMs": 258,
+        "bytes": 137059,
+        "entries": 15,
+        "withAuthor": 15,
+        "latestPublication": "2026-11-04T16:59:45.000Z",
+        "publicationsThisWeek": 15,
+        "noPayloadStored": true
+      }
+    },
+    {
+      "id": "8a9a8a86-3b95-4de5-988c-b76318c5eb97",
+      "name": "ARTnews",
+      "url": "https://www.artnews.com/feed/",
+      "decision": "new-approved-metadata-only",
+      "country": "US",
+      "category": "art_visual_culture",
+      "languages": ["en"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": false
+      },
+      "probe": {
+        "status": 200,
+        "totalMs": 964,
+        "bytes": 65655,
+        "entries": 10,
+        "withAuthor": 10,
+        "latestPublication": "2026-11-04T18:15:24.000Z",
+        "publicationsThisWeek": 10,
+        "noPayloadStored": true
+      }
+    },
+    {
+      "id": "522d9b45-375d-44ab-b3f8-7543bec4fdb0",
+      "name": "It’s Nice That",
+      "url": "https://feeds2.feedburner.com/itsnicethat/SlXC",
+      "decision": "merge-preserving-existing-policy",
+      "country": "GB",
+      "category": "graphic_design",
+      "languages": ["en"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": null
+      },
+      "existingStatus": "approved",
+      "probe": {
+        "reusedValidation": "docs/radar2-source-validation.json, same date"
+      }
+    },
+    {
+      "id": "9bee49c6-fc48-476b-bd5f-61ee94f336ba",
+      "name": "Creative Boom",
+      "url": "https://www.creativeboom.com/feed/",
+      "decision": "merge-preserving-existing-policy",
+      "country": "GB",
+      "category": "graphic_design",
+      "languages": ["en"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": null
+      },
+      "existingStatus": "approved",
+      "probe": {
+        "reusedValidation": "docs/radar2-source-validation.json, same date"
+      }
+    },
+    {
+      "id": "2f14571e-60fc-4d63-8f65-2517f362e641",
+      "name": "étapes:",
+      "url": "https://www.etapes.com/feed/",
+      "decision": "new-approved-metadata-only",
+      "country": "FR",
+      "category": "graphic_design",
+      "languages": ["fr"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": false
+      },
+      "probe": {
+        "status": 200,
+        "totalMs": 2164,
+        "bytes": 333064,
+        "entries": 20,
+        "withAuthor": 20,
+        "latestPublication": "2026-10-27T07:41:00.000Z",
+        "publicationsThisWeek": 0,
+        "noPayloadStored": true
+      }
+    },
+    {
+      "id": "f14621f2-9d76-480c-8ee8-b98edc8a3414",
+      "name": "ARTE!Brasileiros",
+      "url": "https://artebrasileiros.com.br/feed/",
+      "decision": "new-approved-metadata-only",
+      "country": "BR",
+      "category": "art_visual_culture",
+      "languages": ["pt"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": false
+      },
+      "probe": {
+        "status": 200,
+        "totalMs": 1499,
+        "bytes": 208133,
+        "entries": 10,
+        "withAuthor": 10,
+        "latestPublication": "2026-10-31T10:22:33.000Z",
+        "publicationsThisWeek": 0,
+        "noPayloadStored": true
+      }
+    },
+    {
+      "id": "c364585a-a008-4f13-9810-c0f7ae523606",
+      "name": "designboom",
+      "url": "https://www.designboom.com/feed/",
+      "decision": "new-approved-metadata-only",
+      "country": "IT",
+      "category": "architecture_objects",
+      "languages": ["en"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": false
+      },
+      "probe": {
+        "status": 200,
+        "totalMs": 1145,
+        "bytes": 146994,
+        "entries": 10,
+        "withAuthor": 10,
+        "latestPublication": "2026-11-04T16:37:13.000Z",
+        "publicationsThisWeek": 10,
+        "noPayloadStored": true
+      }
+    },
+    {
+      "id": "91b8c657-55bc-4cab-8b65-9b9096272faf",
+      "name": "Plau — Entrelinha",
+      "url": "https://plau.substack.com/feed",
+      "decision": "merge-preserving-existing-policy",
+      "country": "BR",
+      "category": "graphic_design",
+      "languages": ["pt"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": null
+      },
+      "existingStatus": "approved",
+      "probe": {
+        "reusedValidation": "docs/radar2-source-validation.json, same date"
+      }
+    },
+    {
+      "id": "b9515d27-6e3d-4c13-b3f4-ada1b09f7809",
+      "name": "Smashing Magazine",
+      "url": "https://www.smashingmagazine.com/feed/",
+      "decision": "merge-preserving-existing-policy",
+      "country": "DE",
+      "category": "creative_technology",
+      "languages": ["en"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": null
+      },
+      "existingStatus": "approved",
+      "probe": {
+        "reusedValidation": "docs/radar2-source-validation.json, same date"
+      }
+    },
+    {
+      "id": "f0973d3d-d0bf-4258-a52b-75266b46ab87",
+      "name": "Creative Commons — Cultura aberta",
+      "url": "https://creativecommons.org/feed/",
+      "decision": "merge-preserving-existing-policy",
+      "country": "US",
+      "category": "creative_technology",
+      "languages": ["en"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": true
+      },
+      "existingStatus": "approved",
+      "probe": {
+        "reusedValidation": "docs/radar2-source-validation.json, same date"
+      }
+    },
+    {
+      "id": "e01c3709-1c8e-400e-a46f-a7a5bae44378",
+      "name": "Escola de Dados — Cartografia e visualização",
+      "url": "https://escoladedados.org/feed/",
+      "decision": "merge-preserving-existing-policy",
+      "country": "BR",
+      "category": "creative_technology",
+      "languages": ["pt"],
+      "permissions": {
+        "metadata": true,
+        "summary": false,
+        "image": false,
+        "synopsis": true
+      },
+      "existingStatus": "approved",
+      "probe": {
+        "reusedValidation": "docs/radar2-source-validation.json, same date"
+      }
+    }
+  ]
+}

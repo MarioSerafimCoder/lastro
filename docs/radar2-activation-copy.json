@@ -1,0 +1,73 @@
+{
+  "snapshotAt": "2026-11-04T18:44:00.000Z",
+  "environment": "isolated SQLite copy, no production writes",
+  "passes": [
+    {
+      "expired": 50,
+      "purged": 25,
+      "statements": 11
+    },
+    {
+      "expired": 27,
+      "purged": 25,
+      "statements": 11
+    },
+    {
+      "expired": 0,
+      "purged": 23,
+      "statements": 11
+    },
+    {
+      "expired": 0,
+      "purged": 0,
+      "statements": 11
+    }
+  ],
+  "protectedMetadataPreserved": true,
+  "auditsPreserved": true,
+  "foreignKeys": [],
+  "integrity": [
+    {
+      "quick_check": "ok"
+    }
+  ],
+  "dailyBeforeCleanup": 10,
+  "dailyAfterCleanup": 10,
+  "health": {
+    "week": {
+      "start": "2026-11-02T03:00:00.000Z",
+      "end": "2026-11-09T03:00:00.000Z"
+    },
+    "activeSources": 13,
+    "failedSources": 0,
+    "staleSourceIds": [],
+    "discoveredThisWeek": 47,
+    "visibleEditorial": 10,
+    "visibleScientific": 24,
+    "pending": 35,
+    "synopsisBlocked": 38,
+    "expired": 77,
+    "rejections": [
+      {
+        "reason": "off_topic",
+        "count": 752
+      },
+      {
+        "reason": "outside_period",
+        "count": 20
+      }
+    ],
+    "scheduler": {
+      "lastStartedAt": null,
+      "lastFinishedAt": null,
+      "status": null,
+      "error": null
+    }
+  },
+  "expired": {
+    "n": 77
+  },
+  "purged": {
+    "n": 73
+  }
+}

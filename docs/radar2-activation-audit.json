@@ -1,0 +1,464 @@
+{
+  "checkedAt": "2026-11-04T18:45:38.682Z",
+  "environment": "private read-only export, local SQLite audit; production unchanged",
+  "exportSha256": "8b5a57ac2482f6849c16fae25737feadae1631cbf926b6dda9e6d9bc015bbd4e",
+  "week": {
+    "start": "2026-11-02T03:00:00.000Z",
+    "end": "2026-11-09T03:00:00.000Z"
+  },
+  "migrations": [
+    {
+      "name": "0001_initial.sql"
+    },
+    {
+      "name": "0002_ingestion_queue.sql"
+    },
+    {
+      "name": "0003_ingestion_received.sql"
+    },
+    {
+      "name": "0004_radar_cycles.sql"
+    },
+    {
+      "name": "0005_editorial_synopses.sql"
+    },
+    {
+      "name": "0006_synopsis_verification.sql"
+    },
+    {
+      "name": "0007_synopsis_autonomy.sql"
+    },
+    {
+      "name": "0008_ecosystem.sql"
+    },
+    {
+      "name": "0009_analytics.sql"
+    },
+    {
+      "name": "0010_opportunities.sql"
+    },
+    {
+      "name": "0011_jarvis_memory.sql"
+    },
+    {
+      "name": "0012_jarvis_conversations.sql"
+    },
+    {
+      "name": "0013_jarvis_brain.sql"
+    }
+  ],
+  "totals": [
+    {
+      "total": 150,
+      "approved": 82,
+      "pending": 67,
+      "rejected": 1
+    }
+  ],
+  "publicationWeek": [
+    {
+      "name": "Design in government",
+      "status": "approved",
+      "count": 1
+    },
+    {
+      "name": "It’s Nice That",
+      "status": "approved",
+      "count": 2
+    },
+    {
+      "name": "UX Collective Brasil",
+      "status": "approved",
+      "count": 3
+    },
+    {
+      "name": "Creative Boom",
+      "status": "approved",
+      "count": 3
+    },
+    {
+      "name": "Creative Boom",
+      "status": "pending",
+      "count": 1
+    },
+    {
+      "name": "Smashing Magazine",
+      "status": "approved",
+      "count": 1
+    }
+  ],
+  "sources": [
+    {
+      "name": "A List Apart",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://alistapart.com/main/feed/",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-04T12:50:49.555Z",
+      "last_attempt_at": "2026-11-04T12:50:49.555Z",
+      "next_fetch_at": "2026-11-05T12:50:49.555Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-10-21T19:17:22.952Z",
+      "queued": 5,
+      "pending": 8
+    },
+    {
+      "name": "BaixaCultura",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://baixacultura.org/feed/",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-04T10:55:49.122Z",
+      "last_attempt_at": "2026-11-04T10:55:49.122Z",
+      "next_fetch_at": "2026-11-05T10:55:49.122Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-10-24T10:14:21.587Z",
+      "queued": 0,
+      "pending": 5
+    },
+    {
+      "name": "Creative Boom",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://www.creativeboom.com/feed/",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-04T12:55:49.594Z",
+      "last_attempt_at": "2026-11-04T12:55:49.594Z",
+      "next_fetch_at": "2026-11-05T12:55:49.594Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-11-04T18:10:52.830Z",
+      "queued": 0,
+      "pending": 6
+    },
+    {
+      "name": "Creative Commons — Cultura aberta",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://creativecommons.org/feed/",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-04T12:35:49.329Z",
+      "last_attempt_at": "2026-11-04T12:35:49.329Z",
+      "next_fetch_at": "2026-11-05T12:35:49.329Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-10-24T12:04:06.731Z",
+      "queued": 0,
+      "pending": 5
+    },
+    {
+      "name": "Design Studies — via OpenAlex",
+      "status": "approved",
+      "connector": "openalex",
+      "url": "https://api.openalex.org/works?filter=primary_location.source.id:S152445846&search=design&sort=publication_date:desc",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-03T00:00:29.222Z",
+      "last_attempt_at": "2026-11-03T00:00:29.222Z",
+      "next_fetch_at": "2027-01-01T00:00:00.000Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-10-23T15:30:18.514Z",
+      "queued": 0,
+      "pending": 8
+    },
+    {
+      "name": "Design in government",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://designnotes.blog.gov.uk/feed/",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-04T10:40:49.467Z",
+      "last_attempt_at": "2026-11-04T10:40:49.467Z",
+      "next_fetch_at": "2026-11-05T10:40:49.467Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-11-03T10:40:31.717Z",
+      "queued": 0,
+      "pending": 0
+    },
+    {
+      "name": "Escola de Dados — Cartografia e visualização",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://escoladedados.org/feed/",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-04T12:20:49.230Z",
+      "last_attempt_at": "2026-11-04T12:20:49.230Z",
+      "next_fetch_at": "2026-11-05T12:20:49.230Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-10-24T12:03:48.559Z",
+      "queued": 0,
+      "pending": 2
+    },
+    {
+      "name": "InternetLab",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://internetlab.org.br/pt/feed/",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-04T10:50:49.035Z",
+      "last_attempt_at": "2026-11-04T10:50:49.035Z",
+      "next_fetch_at": "2026-11-05T10:50:49.035Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-10-24T10:14:40.060Z",
+      "queued": 0,
+      "pending": 0
+    },
+    {
+      "name": "It’s Nice That",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://feeds2.feedburner.com/itsnicethat/SlXC",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-04T12:40:49.280Z",
+      "last_attempt_at": "2026-11-04T12:40:49.280Z",
+      "next_fetch_at": "2026-11-05T12:40:49.280Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-11-04T12:40:50.840Z",
+      "queued": 1,
+      "pending": 8
+    },
+    {
+      "name": "Journal of Vision — via OpenAlex",
+      "status": "approved",
+      "connector": "openalex",
+      "url": "https://api.openalex.org/works?filter=primary_location.source.id:S137468011&search=visual%20perception&sort=publication_date:desc",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-01T00:00:28.793Z",
+      "last_attempt_at": "2026-11-01T00:00:28.793Z",
+      "next_fetch_at": "2027-01-01T00:00:00.000Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-11-01T00:00:41.854Z",
+      "queued": 0,
+      "pending": 18
+    },
+    {
+      "name": "Plau — Entrelinha",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://plau.substack.com/feed",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-04T15:05:49.782Z",
+      "last_attempt_at": "2026-11-04T15:05:49.782Z",
+      "next_fetch_at": "2026-11-05T15:05:49.782Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-10-23T13:01:44.943Z",
+      "queued": 6,
+      "pending": 0
+    },
+    {
+      "name": "Smashing Magazine",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://www.smashingmagazine.com/feed/",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-04T13:00:48.795Z",
+      "last_attempt_at": "2026-11-04T13:00:48.795Z",
+      "next_fetch_at": "2026-11-05T13:00:48.795Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-11-04T13:00:50.997Z",
+      "queued": 3,
+      "pending": 0
+    },
+    {
+      "name": "UX Collective Brasil",
+      "status": "approved",
+      "connector": "rss",
+      "url": "https://brasil.uxdesign.cc/feed",
+      "metadataAllowed": 1,
+      "summaryAllowed": 0,
+      "imageAllowed": 0,
+      "country": null,
+      "last_success_at": "2026-11-04T13:35:49.102Z",
+      "last_attempt_at": "2026-11-04T13:35:49.102Z",
+      "next_fetch_at": "2026-11-05T13:35:49.102Z",
+      "consecutive_failures": 0,
+      "lastDiscovery": "2026-11-04T13:35:50.220Z",
+      "queued": 0,
+      "pending": 7
+    }
+  ],
+  "runs": [
+    {
+      "status": "partial",
+      "error": null,
+      "count": 1135,
+      "latest": "2026-11-04T18:40:49.062Z",
+      "received": 1989
+    },
+    {
+      "status": "completed",
+      "error": null,
+      "count": 114,
+      "latest": "2026-11-04T18:10:49.185Z",
+      "received": 0
+    },
+    {
+      "status": "not_modified",
+      "error": null,
+      "count": 25,
+      "latest": "2026-11-04T10:50:49.035Z",
+      "received": 0
+    },
+    {
+      "status": "failed",
+      "error": "upstream_429",
+      "count": 4,
+      "latest": "2026-11-04T14:25:49.788Z",
+      "received": 0
+    },
+    {
+      "status": "failed",
+      "error": "ingestion_failed",
+      "count": 1,
+      "latest": "2026-11-02T00:00:28.759Z",
+      "received": 0
+    },
+    {
+      "status": "failed",
+      "error": "upstream_503",
+      "count": 1,
+      "latest": "2026-11-01T00:05:28.959Z",
+      "received": 0
+    }
+  ],
+  "synopses": [
+    {
+      "status": "pending",
+      "block_code": null,
+      "count": 68
+    },
+    {
+      "status": "blocked",
+      "block_code": "rights",
+      "count": 57
+    },
+    {
+      "status": "validated",
+      "block_code": null,
+      "count": 16
+    },
+    {
+      "status": "review",
+      "block_code": "editorial_review",
+      "count": 8
+    },
+    {
+      "status": "review",
+      "block_code": "technical",
+      "count": 1
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "approved",
+      "count": 83
+    },
+    {
+      "decision": "rejected",
+      "count": 1
+    }
+  ],
+  "reasons": [
+    {
+      "reason": "off_topic",
+      "count": 1088
+    },
+    {
+      "reason": "duplicate_identifier",
+      "count": 371
+    },
+    {
+      "reason": "title_off_topic",
+      "count": 236
+    },
+    {
+      "reason": "too_old_for_automatic_approval",
+      "count": 101
+    },
+    {
+      "reason": "missing_author",
+      "count": 90
+    },
+    {
+      "reason": "language_unverified",
+      "count": 63
+    },
+    {
+      "reason": "outside_period",
+      "count": 28
+    },
+    {
+      "reason": "promotional_material",
+      "count": 20
+    },
+    {
+      "reason": "manual_review_required",
+      "count": 11
+    },
+    {
+      "reason": "scientific_publication_type_unverified",
+      "count": 6
+    },
+    {
+      "reason": "possible_title_duplicate",
+      "count": 3
+    },
+    {
+      "reason": "possible_title_duplicate:ed85ad47-5d43-4204-8cd7-74d8d34155a7",
+      "count": 1
+    },
+    {
+      "reason": "possible_title_duplicate:c807130e-f546-4e23-8f00-ba0b99b1dedc",
+      "count": 1
+    },
+    {
+      "reason": "possible_title_duplicate:0461db3b-2414-44d3-acd7-d6f3884712cb",
+      "count": 1
+    }
+  ],
+  "priorSynopsisGate": [
+    {
+      "visible": 16,
+      "editorialPublishedWeek": 0
+    }
+  ],
+  "foreignKeys": [],
+  "integrity": [
+    {
+      "quick_check": "ok"
+    }
+  ]
+}

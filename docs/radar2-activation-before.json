@@ -1,0 +1,471 @@
+{
+  "checkedAt": "2026-11-04T18:43:35.210Z",
+  "planVerifiedInDashboard": "Workers Free — Current plan; observed 2026-11-04",
+  "settings": {
+    "usageModel": "standard",
+    "bindings": [
+      {
+        "name": "AI",
+        "type": "ai"
+      },
+      {
+        "name": "ALLOWED_FETCH_HOSTS",
+        "type": "plain_text",
+        "value": "feeds.feedburner.com,feeds2.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com,www.creativeboom.com,brasil.uxdesign.cc,plau.substack.com,designnotes.blog.gov.uk,baixacultura.org,internetlab.org.br,escoladedados.org,creativecommons.org"
+      },
+      {
+        "name": "ALLOWED_ORIGIN",
+        "type": "plain_text",
+        "value": "https://lastro.marioserafim.com.br"
+      },
+      {
+        "name": "ANALYTICS_ENABLED",
+        "type": "plain_text",
+        "value": "true"
+      },
+      {
+        "name": "ASSETS",
+        "type": "assets"
+      },
+      {
+        "name": "BRAIN_DRIVE_CLIENT_ID",
+        "type": "plain_text",
+        "value": "352771654042-p6g4ad3dnlbofbfofvsda2f0rfivcvv8.apps.googleusercontent.com"
+      },
+      {
+        "name": "BRAIN_DRIVE_CLIENT_SECRET",
+        "type": "secret_text"
+      },
+      {
+        "name": "BRAIN_DRIVE_ENABLED",
+        "type": "plain_text",
+        "value": "true"
+      },
+      {
+        "name": "BRAIN_DRIVE_FREE_CONFIRMED",
+        "type": "plain_text",
+        "value": "true"
+      },
+      {
+        "name": "BRAIN_DRIVE_REDIRECT_URI",
+        "type": "plain_text",
+        "value": "https://lastro.marioserafim.com.br/api/jarvis/drive/oauth/callback"
+      },
+      {
+        "name": "BRAIN_DRIVE_TOKEN_KEY",
+        "type": "secret_text"
+      },
+      {
+        "name": "CRM_ACCESS_CLIENT_ID",
+        "type": "secret_text"
+      },
+      {
+        "name": "CRM_ACCESS_CLIENT_SECRET",
+        "type": "secret_text"
+      },
+      {
+        "name": "CRM_INTEGRATION_SECRET",
+        "type": "secret_text"
+      },
+      {
+        "name": "CRM_ORIGIN",
+        "type": "plain_text",
+        "value": "https://crm.marioserafim.com.br"
+      },
+      {
+        "name": "DB",
+        "type": "d1",
+        "id": "b3ab414c-bdcd-4348-a942-2cb153bc9f1b"
+      },
+      {
+        "name": "ENVIRONMENT",
+        "type": "plain_text",
+        "value": "production"
+      },
+      {
+        "name": "GA4_PROPERTY_ID",
+        "type": "plain_text",
+        "value": "560757639"
+      },
+      {
+        "name": "GA4_REFRESH_TOKEN",
+        "type": "secret_text"
+      },
+      {
+        "name": "GOOGLE_OAUTH_CLIENT_ID",
+        "type": "plain_text",
+        "value": "111592653976-ant88deecg3ucvpof8e2d2h062lfsv1k.apps.googleusercontent.com"
+      },
+      {
+        "name": "GOOGLE_OAUTH_CLIENT_SECRET",
+        "type": "secret_text"
+      },
+      {
+        "name": "INGEST_ENABLED",
+        "type": "plain_text",
+        "value": "true"
+      },
+      {
+        "name": "INTEGRATION_ENABLED",
+        "type": "plain_text",
+        "value": "true"
+      },
+      {
+        "name": "OWNER_EMAIL",
+        "type": "secret_text"
+      },
+      {
+        "name": "OWNER_PASSWORD_SHA256",
+        "type": "secret_text"
+      },
+      {
+        "name": "PORTFOLIO_INTEGRATION_SECRET",
+        "type": "secret_text"
+      },
+      {
+        "name": "SESSION_SIGNING_KEY",
+        "type": "secret_text"
+      },
+      {
+        "name": "STUDIO",
+        "type": "service",
+        "service": "studio-editorial"
+      },
+      {
+        "name": "STUDIO_INTEGRATION_SECRET",
+        "type": "secret_text"
+      },
+      {
+        "name": "STUDIO_ORIGIN",
+        "type": "plain_text",
+        "value": "https://studio.marioserafim.com.br"
+      },
+      {
+        "name": "SYNOPSIS_ENABLED",
+        "type": "plain_text",
+        "value": "true"
+      },
+      {
+        "name": "SYNOPSIS_REQUIRED",
+        "type": "plain_text",
+        "value": "true"
+      }
+    ]
+  },
+  "schedules": {
+    "schedules": [
+      {
+        "cron": "17,47 * * * *",
+        "created_on": "2026-11-03T18:12:58.084211Z",
+        "modified_on": "2026-11-03T18:12:58.084211Z"
+      },
+      {
+        "cron": "2-57/5 * * * *",
+        "created_on": "2026-10-23T18:14:21.684739Z",
+        "modified_on": "2026-10-23T18:14:21.684739Z"
+      },
+      {
+        "cron": "*/5 * * * *",
+        "created_on": "2026-10-21T19:05:48.899621Z",
+        "modified_on": "2026-10-21T19:05:48.899621Z"
+      }
+    ]
+  },
+  "deployments": {
+    "deployments": [
+      {
+        "id": "dc90a8e6-d3f1-422f-a87f-ca10cc7a7d66",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "marioserafim.da@gmail.com",
+        "annotations": {
+          "workers/message": "Brain Drive real OAuth and document homologation passed; owner authorized activation; Google Billing unlinked",
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "57bc80ee-c2f4-4ccb-bce0-b6d8d4ce09d3",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-11-04T17:08:30.914365Z"
+      },
+      {
+        "id": "0066e7f7-09fc-447a-96f9-3aa4c3a038c6",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "marioserafim.da@gmail.com",
+        "annotations": {
+          "workers/message": "Controlled real Brain Drive homologation after owner-approved Billing unlink",
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "9d75246b-6176-4e62-bdd2-d0f34be1bb8b",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-11-04T16:56:54.728884Z"
+      },
+      {
+        "id": "48454825-c420-410b-b141-d39e66b82d64",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "marioserafim.da@gmail.com",
+        "annotations": {
+          "workers/message": "Fix Brain Drive Workers redirect compatibility and sanitize OAuth diagnostics; Drive remains disabled",
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "3438f34e-7686-432a-bfd8-8188af07f08f",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-11-04T16:41:40.532581Z"
+      },
+      {
+        "id": "2fd864cb-8a14-4a4f-8e6a-8f0fad08065e",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "marioserafim.da@gmail.com",
+        "annotations": {
+          "workers/message": "Temporary credential-free OAuth network diagnosis; both Drive flags false",
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "33590087-b8a0-4e76-bd90-59ac43e7a5b9",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-11-04T16:39:44.116292Z"
+      },
+      {
+        "id": "fdc8c018-8db1-4534-92b1-6b592cc18873",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "marioserafim.da@gmail.com",
+        "annotations": {
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "54cc2eb9-92ca-4abb-beff-cb6e27cdaec0",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-11-04T15:32:02.208064Z"
+      },
+      {
+        "id": "225dd0f8-a187-4bbb-8c24-1fe741fbcff9",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "marioserafim.da@gmail.com",
+        "annotations": {
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "177296a5-a504-413f-8b71-c52b1c189318",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-11-04T15:02:36.597564Z"
+      },
+      {
+        "id": "c0a24e16-58a1-4e21-b7d2-0d371f9f1ff8",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "marioserafim.da@gmail.com",
+        "annotations": {
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "1fd20786-54ef-43be-81c0-7280ec1f8a9b",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-11-04T14:48:11.231052Z"
+      },
+      {
+        "id": "f8cf916d-01ff-409a-b0ab-e5d5fc391466",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "marioserafim.da@gmail.com",
+        "annotations": {
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "76a04875-ae36-483c-b003-2fb70b22da64",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-11-04T14:29:25.579472Z"
+      },
+      {
+        "id": "d0ecae42-a0c1-4713-9479-aa044ffc6897",
+        "source": "dash",
+        "strategy": "percentage",
+        "author_email": "marioserafim.da@gmail.com",
+        "annotations": {
+          "workers/message": "Deployed version 28cce7cf",
+          "workers/triggered_by": "deployment"
+        },
+        "versions": [
+          {
+            "version_id": "28cce7cf-9b29-483a-8f5d-df5c054de07b",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-11-04T14:22:17.321419Z"
+      },
+      {
+        "id": "ab79ac4f-7904-463d-830c-88f993ec574a",
+        "source": "wrangler",
+        "strategy": "percentage",
+        "author_email": "marioserafim.da@gmail.com",
+        "annotations": {
+          "workers/triggered_by": "secret"
+        },
+        "versions": [
+          {
+            "version_id": "99059c32-8bb5-432c-a67c-ad1379441dda",
+            "percentage": 100
+          }
+        ],
+        "created_on": "2026-11-04T13:40:53.858029Z"
+      }
+    ]
+  },
+  "workers": {
+    "viewer": {
+      "accounts": [
+        {
+          "workersInvocationsAdaptive": [
+            {
+              "dimensions": {
+                "scriptName": "lastro-ecosystem-staging",
+                "status": "success"
+              },
+              "quantiles": {
+                "cpuTimeP50": 5661,
+                "cpuTimeP99": 17061
+              },
+              "sum": {
+                "errors": 0,
+                "requests": 6,
+                "subrequests": 0
+              }
+            },
+            {
+              "dimensions": {
+                "scriptName": "lastro-api",
+                "status": "success"
+              },
+              "quantiles": {
+                "cpuTimeP50": 7523,
+                "cpuTimeP99": 43799
+              },
+              "sum": {
+                "errors": 0,
+                "requests": 1019,
+                "subrequests": 114
+              }
+            },
+            {
+              "dimensions": {
+                "scriptName": "lastro-api",
+                "status": "clientDisconnected"
+              },
+              "quantiles": {
+                "cpuTimeP50": 2266,
+                "cpuTimeP99": 5898
+              },
+              "sum": {
+                "errors": 0,
+                "requests": 8,
+                "subrequests": 0
+              }
+            },
+            {
+              "dimensions": {
+                "scriptName": "studio-editorial",
+                "status": "success"
+              },
+              "quantiles": {
+                "cpuTimeP50": 3480,
+                "cpuTimeP99": 64408
+              },
+              "sum": {
+                "errors": 0,
+                "requests": 422,
+                "subrequests": 46
+              }
+            },
+            {
+              "dimensions": {
+                "scriptName": "portfolio-blog-publisher",
+                "status": "success"
+              },
+              "quantiles": {
+                "cpuTimeP50": 22464,
+                "cpuTimeP99": 53421
+              },
+              "sum": {
+                "errors": 0,
+                "requests": 73,
+                "subrequests": 876
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "d1": {
+    "viewer": {
+      "accounts": [
+        {
+          "d1AnalyticsAdaptiveGroups": [
+            {
+              "dimensions": {
+                "databaseId": "b3ab414c-bdcd-4348-a942-2cb153bc9f1b"
+              },
+              "sum": {
+                "readQueries": 5201,
+                "rowsRead": 568418,
+                "rowsWritten": 3468,
+                "writeQueries": 1999
+              }
+            },
+            {
+              "dimensions": {
+                "databaseId": "02b2c69e-3780-484c-a0d2-034ebf15ea7a"
+              },
+              "sum": {
+                "readQueries": 21,
+                "rowsRead": 117,
+                "rowsWritten": 8,
+                "writeQueries": 6
+              }
+            },
+            {
+              "dimensions": {
+                "databaseId": "51669b5c-01ea-4208-b1f1-4ca36360cbbb"
+              },
+              "sum": {
+                "readQueries": 3318,
+                "rowsRead": 26767,
+                "rowsWritten": 23,
+                "writeQueries": 9
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
