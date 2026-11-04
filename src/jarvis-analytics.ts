@@ -111,6 +111,7 @@ export async function answerDialogueAnalytics(
         .formatToParts(at)
         .find((p) => p.type === "timeZoneName")?.value;
     if (
+      p.kind !== "rolling" && p.kind !== "previous" &&
       !Array.from({ length: p.days + 1 }, (_, i) =>
         Date.parse(shiftDay(p.start, i) + "T03:00:00Z"),
       ).every((at) => offset(data.timeZone!, at) === offset(LOCAL_ZONE, at))

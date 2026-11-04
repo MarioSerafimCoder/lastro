@@ -327,3 +327,11 @@ test("bad coverage, missing timezone and no rows never become invented zeros", a
     assert.ok(!/^0 sessões/.test(a.text));
   }
 });
+
+test("rolling traffic uses the GA4 property calendar and discloses its zone",async()=>{
+ await env.DB.prepare("UPDATE analytics_cache SET body_json=json_set(body_json,'$.timeZone','America/Rio_Branco')").run();
+ const chat=await conversation();
+ const result=await chat.send("acessos do site nessa ultima semana");
+ assert.match(result.text,/70 sessões e 140 visualizações/);
+ assert.match(result.period.label,/America\/Rio_Branco/);
+});
