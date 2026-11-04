@@ -38,6 +38,7 @@ async function mockApi(
           : null,
       ...(radar2
         ? {
+            language: i % 2 ? "en" : "pt",
             publishedAt: new Date().toISOString(),
             collectedAt: new Date().toISOString(),
             radar: {
@@ -2261,9 +2262,26 @@ test("Radar 2: países, 32 cards, triagem, detalhes e Oficina", async ({
     .getByRole("button", { name: `Favoritar ${title}`, exact: true })
     .click();
   await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
+  await first
+    .getByRole("button", { name: `Descartar ${title}`, exact: true })
+    .click();
+  await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
+  await expect(board.getByRole("status")).toContainText("Remova dos Favoritos");
   await page.reload();
   await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
-  await expect(board.getByRole("combobox")).toHaveCount(0);
+  await expect(board.getByRole("combobox")).toHaveCount(7);
+  await expect(board.getByTestId("radar-card")).toHaveCount(32);
+  await board
+    .getByRole("combobox", { name: "País", exact: true })
+    .selectOption("GB");
+  await expect(board.getByTestId("radar-card")).toHaveCount(16);
+  await board
+    .getByRole("combobox", { name: "Idioma", exact: true })
+    .selectOption("en");
+  await expect(board.getByTestId("radar-card")).toHaveCount(16);
+  await board
+    .getByRole("button", { name: "Limpar filtros", exact: true })
+    .click();
   await expect(board.getByTestId("radar-card")).toHaveCount(32);
   const trigger = board
     .getByTestId("radar-card")
@@ -2326,7 +2344,7 @@ test("Radar 2: falha da API e recuperação", async ({ page }) => {
   await expect(board.getByTestId("radar-card")).toHaveCount(19);
 });
 
-test("Radar 2: expiração em nove dias preserva favorito e descarte é efetivo", async ({
+test("Radar 2: favoritos sobrevivem à expiração e itens não favoritos podem ser descartados", async ({
   page,
 }) => {
   await page.clock.install({ time: new Date() });
@@ -2337,6 +2355,12 @@ test("Radar 2: expiração em nove dias preserva favorito e descarte é efetivo"
     exact: true,
   });
   await expect(board.getByTestId("radar-card")).toHaveCount(19);
+  await board
+    .getByTestId("radar-card")
+    .last()
+    .getByRole("button", { name: /^Descartar / })
+    .click();
+  await expect(board.getByTestId("radar-card")).toHaveCount(18);
   await board
     .getByTestId("radar-card")
     .first()
@@ -2350,6 +2374,13 @@ test("Radar 2: expiração em nove dias preserva favorito e descarte é efetivo"
     .first()
     .getByRole("button", { name: /^Descartar / })
     .click();
+  await expect(board.getByTestId("radar-card")).toHaveCount(1);
+  await expect(board.getByRole("status")).toContainText("Remova dos Favoritos");
+  await board
+    .getByTestId("radar-card")
+    .first()
+    .getByRole("button", { name: /^Favoritar / })
+    .click();
   await expect(board.getByTestId("radar-card")).toHaveCount(0);
-  await expect(board.getByRole("combobox")).toHaveCount(0);
+  await expect(board.getByRole("combobox")).toHaveCount(7);
 });

@@ -57,7 +57,6 @@ import {
 } from "../../../packages/contracts/client";
 import type {
   Content,
-  FeedPage,
   PromptResponse,
   ResearchInput,
   Source,
@@ -189,15 +188,11 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     [mobileMenu, setMobileMenu] = useState(false),
     [selected, setSelected] = useState<Content[]>([]),
     [selectionOpen, setSelectionOpen] = useState(false);
-  const [feed, setFeed] = useState<FeedPage | null>(null),
-    [results, setResults] = useState<Content[]>([]),
-    [resultsKey, setResultsKey] = useState<string | null>(null),
+  const [radarItems, setRadarItems] = useState<Content[]>([]),
     [saved, setSaved] = useState<Content[]>([]),
     [next, setNext] = useState<string | null>(null),
-    [feedLoading, setFeedLoading] = useState(true),
     [savedLoading, setSavedLoading] = useState(false),
     [moreLoading, setMoreLoading] = useState(false),
-    [feedError, setFeedError] = useState(""),
     [savedError, setSavedError] = useState("");
   const [query, setQuery] = useState<SearchQuery>(() => {
       try {
@@ -235,7 +230,6 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
   );
   const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<number | null>(null);
-  const radarDirty = useRef(false);
   const positions = useRef<Partial<Record<Area, number>>>({});
   const activeArea = useRef<Area>(area);
   useDialogFocus(selectionOpen || noteTarget !== null);
@@ -305,17 +299,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const patch = (item: Content) => {
-    setFeed((p) =>
-      p
-        ? {
-            ...p,
-            items: p.items.map((i) =>
-              i.content.id === item.id ? { ...i, content: item } : i,
-            ),
-          }
-        : p,
-    );
-    setResults((p) => p.map((i) => (i.id === item.id ? item : i)));
+    setRadarItems((p) => p.map((i) => (i.id === item.id ? item : i)));
     setSaved((p) => p.map((i) => (i.id === item.id ? item : i)));
     setSelected((p) => {
       const n = p.map((i) => (i.id === item.id ? item : i));
@@ -323,19 +307,6 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
       return n;
     });
   };
-  const loadFeed = useCallback(async () => {
-    setFeedLoading(true);
-    setFeedError("");
-    try {
-      const page = await api.feed({ limit: 16 });
-      setFeed(page);
-      return page;
-    } catch (e) {
-      setFeedError(errorText(e));
-    } finally {
-      setFeedLoading(false);
-    }
-  }, []);
   const loadSaved = useCallback(async () => {
     setSavedLoading(true);
     setSavedError("");
@@ -360,7 +331,6 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     }
   }, []);
   useEffect(() => {
-    void loadFeed();
     void api
       .selection()
       .then((r) => {
@@ -383,65 +353,13 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
           "Não foi possível verificar o estado das fontes. Consulte a Curadoria.",
         ),
       );
-  }, [loadFeed]);
-  useEffect(() => {
-    if (area === "for-you" && radarDirty.current) {
-      radarDirty.current = false;
-      void loadFeed();
-    }
-  }, [area, loadFeed]);
+  }, []);
   useEffect(() => {
     if (area === "salvos") {
       void loadSaved();
       void loadCollections();
     }
   }, [area, loadSaved, loadCollections]);
-  const exploring = !!(
-    query.q?.trim() ||
-    query.topic ||
-    query.sourceId ||
-    query.kind
-  );
-  const queryKey = JSON.stringify([
-    query.q ?? "",
-    query.topic ?? "",
-    query.sourceId ?? "",
-    query.kind ?? "",
-  ]);
-  const searchPending = exploring && resultsKey !== queryKey;
-  const editorialView = !exploring || (searchPending && resultsKey === null);
-  useEffect(() => {
-    if (area !== "for-you" || !exploring) {
-      if (feed) setFeedLoading(false);
-      return;
-    }
-    let active = true;
-    setFeedLoading(true);
-    const timeout = window.setTimeout(
-      () => {
-        setFeedError("");
-        void api
-          .search({ ...query, limit: 20, offset: 0 })
-          .then((r) => {
-            if (!active) return;
-            setResults(r.items);
-            setResultsKey(queryKey);
-            setNext(r.nextCursor);
-          })
-          .catch((e) => {
-            if (active) setFeedError(errorText(e));
-          })
-          .finally(() => {
-            if (active) setFeedLoading(false);
-          });
-      },
-      query.q?.trim() ? 180 : 0,
-    );
-    return () => {
-      active = false;
-      window.clearTimeout(timeout);
-    };
-  }, [area, query.q, query.topic, query.sourceId, query.kind, exploring]);
   const more = async () => {
     setMoreLoading(true);
     try {
@@ -454,26 +372,14 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
           : await api.favorites({ ...query, limit: 20, offset: Number(next) });
         setSaved((p) => [...p, ...data.items]);
         setNext(data.nextCursor);
-      } else if (exploring) {
-        const data = await api.search({
-          ...query,
-          limit: 20,
-          offset: Number(next),
-        });
-        setResults((p) => [...p, ...data.items]);
-        setNext(data.nextCursor);
-      } else if (feed?.nextCursor) {
-        const data = await api.feed({ limit: 16, cursor: feed.nextCursor });
-        setFeed((p) =>
-          p ? { ...data, items: [...p.items, ...data.items] } : data,
-        );
       }
     } catch (e) {
       const err = e as LastroApiError;
-      if (err instanceof LastroApiError && err.status === 410) {
-        notify("A sequência mudou. Atualizando o For You.");
-        void loadFeed();
-      } else notify(errorText(e));
+      if (err instanceof LastroApiError && err.status === 410)
+        notify(
+          "A sequência mudou. Atualize a lista para carregar a página seguinte.",
+        );
+      else notify(errorText(e));
     } finally {
       setMoreLoading(false);
     }
@@ -551,15 +457,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
       ...c,
       state: { ...c.state, selected: desired.some((s) => s.id === c.id) },
     });
-    setFeed((p) =>
-      p
-        ? {
-            ...p,
-            items: p.items.map((i) => ({ ...i, content: mark(i.content) })),
-          }
-        : p,
-    );
-    setResults((p) => p.map(mark));
+    setRadarItems((p) => p.map(mark));
     setSaved((p) => p.map(mark));
     let confirmed = false;
     seq.current = seq.current
@@ -584,7 +482,6 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             const r = await api.selection();
             selectedRef.current = r.items;
             setSelected(r.items);
-            void loadFeed();
             if (area === "salvos") void loadSaved();
           } catch {}
         }
@@ -602,11 +499,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
       const updated = await api.interact(item.id, { type, active });
       patch(updated);
       if (type === "dismissed") {
-        setFeed((p) =>
-          p
-            ? { ...p, items: p.items.filter((i) => i.content.id !== item.id) }
-            : p,
-        );
+        setRadarItems((p) => p.filter((i) => i.id !== item.id));
         notify("Essa referência saiu do seu For You.");
       } else if (type === "read")
         notify(active ? "Marcado como lido." : "Marcado como não lido.");
@@ -681,11 +574,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
       navigate("for-you");
     },
   });
-  const feedItems = exploring
-    ? searchPending && resultsKey === null
-      ? (feed?.items.map((i) => i.content) ?? [])
-      : results
-    : (feed?.items.map((i) => i.content) ?? []);
+  const feedItems = radarItems;
   const visibleSaved = saved.filter((item) => {
     const q = (query.q ?? "").toLowerCase();
     return (
@@ -933,15 +822,15 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             <ArrowRight size={16} />
           </button>
           <div className="workspace-feedback">
-            {feedLoading && area === "for-you" ? (
-              <Pulso message="Carregando referências…" busy />
-            ) : (
-              toast && <Pulso message={toast} />
-            )}
+            {toast && <Pulso message={toast} />}
           </div>
         </div>
         {area === "for-you" && (
-          <RadarBoard onSelect={selection} query={query} />
+          <RadarBoard
+            onSelect={selection}
+            onItemsChange={setRadarItems}
+            query={query}
+          />
         )}
         {area === "salvos" && (
           <section className="page-section">
@@ -1369,7 +1258,6 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
           <Curation
             onOverview={(overview) => setPending(overview.pending)}
             onChanged={() => {
-              radarDirty.current = true;
               notify("Curadoria atualizada.");
             }}
           />

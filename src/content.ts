@@ -73,8 +73,8 @@ export async function contents(
       expiredAt: r.expired_at ?? null,
       country: config.country ?? null,
       category:
-        r.radar_category ??
-        classifyRadar(value, { radarCategory: config.radarCategory ?? null }),
+        classifyRadar(value, { radarCategory: config.radarCategory ?? null }) ??
+        r.radar_category,
       level: value.synopsis?.text ? "enriched" : "metadata",
       triage: radarTriage(value),
     };

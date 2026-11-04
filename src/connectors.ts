@@ -25,9 +25,13 @@ export class UpstreamError extends Error {
   }
 }
 const list = (v: any): any[] => (v == null ? [] : Array.isArray(v) ? v : [v]);
-const val = (v: any, n = 1200) => plainText(v, n);
+const feedValue = (value: unknown) =>
+  typeof value === "string"
+    ? value.replace(/^<!\[CDATA\[([\s\S]*?)\]\]>$/, "$1")
+    : value;
+const val = (v: any, n = 1200) => plainText(feedValue(v), n);
 const boundedBodyExcerpt = (value: unknown) => {
-  const body = plainText(value, 1201);
+  const body = plainText(feedValue(value), 1201);
   if (!body) return null;
   // Always leave part of the body behind, including for short RSS/Atom posts.
   return (
@@ -38,7 +42,7 @@ const boundedBodyExcerpt = (value: unknown) => {
 };
 const licensedFeedExcerpt = (entry: any) => {
   const raw = entry["content:encoded"] ?? entry.content;
-  const body = plainText(raw, 1201),
+  const body = plainText(feedValue(raw), 1201),
     summary = val(entry.description ?? entry.summary);
   return (
     boundedBodyExcerpt(raw) ??
@@ -80,6 +84,7 @@ export function parseRss(
     attributeNamePrefix: "@",
     parseTagValue: false,
     processEntities: false,
+    stopNodes: ["*.content:encoded", "*.description", "*.summary"],
   }).parse(xml);
   const feed = doc.rss?.channel ?? doc.feed ?? doc["rdf:RDF"];
   if (!feed) throw new Error("unsupported_feed");
@@ -275,26 +280,27 @@ export async function readBounded(
   }
   const reader = response.body?.getReader();
   if (!reader) return "";
-  const chunks: Uint8Array[] = [];
+  let buffer = new Uint8Array(Math.min(max, 16_384));
   let total = 0;
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      if (total + value.length > max) throw new Error("response_too_large");
+      if (total + value.length > buffer.length) {
+        const next = new Uint8Array(
+          Math.min(max, Math.max(total + value.length, buffer.length * 2)),
+        );
+        next.set(buffer.subarray(0, total));
+        buffer = next;
+      }
+      buffer.set(value, total);
       total += value.length;
-      if (total > max) throw new Error("response_too_large");
-      chunks.push(value);
     }
   } finally {
     await reader.cancel();
   }
-  const all = new Uint8Array(total);
-  let offset = 0;
-  for (const b of chunks) {
-    all.set(b, offset);
-    offset += b.length;
-  }
-  return new TextDecoder().decode(all);
+  return new TextDecoder().decode(buffer.subarray(0, total));
 }
 export async function collect(
   s: Source,

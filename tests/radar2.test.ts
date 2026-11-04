@@ -13,7 +13,12 @@ import { saveContent, ingestSource, scheduledIngest } from "../src/ingestion";
 import { evaluate } from "../src/quality";
 import { radarFeed } from "../src/radar-feed";
 import { expireRadar } from "../src/radar-retention";
-import { balanceLanguages, rank, rankRadar } from "../src/ranking";
+import {
+  balanceLanguages,
+  classifyRadar,
+  rank,
+  rankRadar,
+} from "../src/ranking";
 import { editorialWeek, cycleKey, RETENTION_MS } from "../src/schedule";
 import { radarStatus } from "../src/radar";
 import { app } from "../src/index";
@@ -127,6 +132,42 @@ test("Radar week is Monday in Fortaleza, including UTC midnight and year rollove
   assert.equal(
     cycleKey({ connector: "rss" }, Date.parse("2026-11-04T02:59:00Z")),
     "2026-11-03",
+  );
+});
+test("Radar classification keeps art installations and sculpture out of architecture", () => {
+  assert.equal(
+    classifyRadar(
+      {
+        title: "A living archive through installation and sculpture",
+        topics: [],
+      },
+      { radarCategory: "art_visual_culture" },
+    ),
+    "art_visual_culture",
+  );
+  assert.equal(
+    classifyRadar(
+      {
+        title: "A new identity system inspired by sculpture",
+        topics: ["graphic design"],
+      },
+      { radarCategory: "art_visual_culture" },
+    ),
+    "graphic_design",
+  );
+  assert.equal(
+    classifyRadar(
+      { title: "A sculpture installation inside a museum", topics: [] },
+      { radarCategory: "art_visual_culture" },
+    ),
+    "art_visual_culture",
+  );
+  assert.equal(
+    classifyRadar(
+      { title: "Architecture for a changing city", topics: [] },
+      { radarCategory: "art_visual_culture" },
+    ),
+    "architecture_objects",
   );
 });
 test("Daily ranking never fills with old evergreen articles or synopsis approval dates", () => {

@@ -92,6 +92,51 @@
   color: var(--muted);
   margin: 12px 0 26px;
 }
+.radar-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.radar-filterbar label {
+  display: grid;
+  gap: 5px;
+  min-width: 120px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.radar-filterbar select,
+.radar-filterbar input:not([type="checkbox"]) {
+  width: 100%;
+  min-height: 34px;
+  max-width: 190px;
+  padding: 6px 8px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font: inherit;
+}
+.radar-filterbar .radar-filter-check {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+.radar-filterbar button,
+.radar-load-more {
+  min-height: 34px;
+  padding: 7px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.radar-load-more {
+  justify-self: center;
+}
 .radar-carousel-controls {
   display: flex;
   align-items: center;

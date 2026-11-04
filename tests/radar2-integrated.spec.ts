@@ -311,7 +311,7 @@ test("real session, 30+ references, responsive themes, provenance and country se
     animations: "disabled",
   });
   await page.locator("#main").evaluate((el) => (el.scrollTop = 0));
-  await expect(b.getByRole("combobox")).toHaveCount(0);
+  await expect(b.getByRole("combobox")).toHaveCount(7);
   await expect(b.getByTestId("radar-card")).toHaveCount(37);
   const trigger = b.getByTestId("radar-card").first().locator(".radar-title");
   await trigger.focus();

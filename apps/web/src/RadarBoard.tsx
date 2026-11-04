@@ -5,6 +5,7 @@ import RadarCountryCarousel from "./RadarCountryCarousel";
 import type { Content, RadarStatus } from "../../../packages/contracts";
 import { radarTriage } from "../../../packages/contracts";
 import { createLastroClient } from "../../../packages/contracts/client";
+import type { SearchQuery } from "../../../packages/contracts/client";
 import { RadarHeadline } from "./RadarHeadline";
 const api = createLastroClient();
 const countries = new Intl.DisplayNames(["pt-BR"], { type: "region" });
@@ -23,6 +24,13 @@ const categories = {
   architecture_objects: "Arquitetura",
   creative_technology: "Tecnologia criativa",
 };
+const day = (v: string) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Fortaleza",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(v));
 const date = (v: string | null | undefined) =>
   v?.length === 10
     ? new Date(v + "T12:00:00Z").toLocaleDateString("pt-BR", {
@@ -43,10 +51,12 @@ const date = (v: string | null | undefined) =>
       : "Não informada";
 export default function RadarBoard({
   onSelect,
+  onItemsChange,
   query,
 }: {
   onSelect: (c: Content) => Promise<boolean>;
-  query?: { q?: string; topic?: string; sourceId?: string; kind?: string };
+  onItemsChange?: (items: Content[]) => void;
+  query?: SearchQuery;
 }) {
   const [items, setItems] = useState<Content[]>([]),
     [status, setStatus] = useState<RadarStatus | null>(null),
@@ -55,10 +65,43 @@ export default function RadarBoard({
     [feedback, setFeedback] = useState(""),
     [busy, setBusy] = useState(false);
   const scope = query?.kind === "paper" ? "scientific" : "editorial";
-  const sort = "novidade";
+  const [sort, setSort] = useState<"novidade" | "relevancia">(() =>
+    localStorage.getItem("lastro-radar-sort") === "relevancia"
+      ? "relevancia"
+      : "novidade",
+  );
+  useEffect(() => {
+    localStorage.setItem("lastro-radar-sort", sort);
+  }, [sort]);
+  const [nextFeed, setNextFeed] = useState<string | null>(null);
+  const [nextFavorites, setNextFavorites] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [filters, setFilters] = useState(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("lastro-radar-filters") ?? '{"period":"week"}',
+      ) as {
+        search?: string;
+        country?: string;
+        category?: string;
+        source?: string;
+        language?: string;
+        period?: string;
+        triage?: string;
+        unread?: boolean;
+      };
+    } catch {
+      return {};
+    }
+  });
   const [detail, setDetail] = useState<Content | null>(null);
   const search = query?.q ?? query?.topic;
   const source = query?.sourceId;
+  const useSearch = !!(search || source || query?.kind);
+  const feedTriage = filters.triage === "descartado" ? "descartado" : undefined;
+  useEffect(() => {
+    localStorage.setItem("lastro-radar-filters", JSON.stringify(filters));
+  }, [filters]);
   const dialog = useRef<HTMLDialogElement>(null),
     generation = useRef(0);
   async function load() {
@@ -66,31 +109,24 @@ export default function RadarBoard({
     setLoading(true);
     setError("");
     try {
-      let page = await api.feed({ limit: 50, scope, sort });
-      const fresh = page.items.map((i) => i.content);
-      while (page.nextCursor && fresh.length < 500) {
-        page = await api.feed({
-          limit: 50,
-          scope,
-          sort,
-          cursor: page.nextCursor,
-        });
-        fresh.push(...page.items.map((i) => i.content));
-      }
-      let saved = await api.favorites({ limit: 50, offset: 0 });
-      const favorites = [...saved.items];
-      while (saved.nextCursor && favorites.length < 500) {
-        saved = await api.favorites({
-          limit: 50,
-          offset: Number(saved.nextCursor),
-        });
-        favorites.push(...saved.items);
-      }
+      const [page, saved] = await Promise.all([
+        useSearch
+          ? api.search({ ...query, limit: 50, offset: 0 })
+          : api.feed({ limit: 50, scope, sort, triage: feedTriage }),
+        api.favorites({ limit: 50, offset: 0 }),
+      ]);
       const health = await api.radarStatus().catch(() => null);
       if (n !== generation.current) return;
       setItems([
-        ...new Map([...fresh, ...favorites].map((c) => [c.id, c])).values(),
+        ...new Map(
+          [
+            ...page.items.map((i) => ("content" in i ? i.content : i)),
+            ...saved.items,
+          ].map((c) => [c.id, c]),
+        ).values(),
       ]);
+      setNextFeed(page.nextCursor);
+      setNextFavorites(saved.nextCursor);
       setStatus(health);
     } catch (e) {
       if (n === generation.current)
@@ -104,7 +140,60 @@ export default function RadarBoard({
     return () => {
       generation.current++;
     };
-  }, [scope, sort]);
+  }, [
+    scope,
+    sort,
+    query?.q,
+    query?.topic,
+    query?.sourceId,
+    query?.kind,
+    feedTriage,
+  ]);
+  useEffect(() => onItemsChange?.(items), [items, onItemsChange]);
+  async function loadMore() {
+    if (loadingMore) return;
+    const requestGeneration = generation.current;
+    setLoadingMore(true);
+    try {
+      const [page, saved] = await Promise.all([
+        nextFeed
+          ? useSearch
+            ? api.search({ ...query, limit: 50, offset: Number(nextFeed) })
+            : api.feed({
+                limit: 50,
+                scope,
+                sort,
+                triage: feedTriage,
+                cursor: nextFeed,
+              })
+          : null,
+        nextFavorites
+          ? api.favorites({ limit: 50, offset: Number(nextFavorites) })
+          : null,
+      ]);
+      if (requestGeneration !== generation.current) return;
+      setItems((current) => [
+        ...new Map([
+          ...current.map((c) => [c.id, c] as const),
+          ...(page?.items.map((i) => {
+            const content = "content" in i ? i.content : i;
+            return [content.id, content] as const;
+          }) ?? []),
+          ...(saved?.items.map((c) => [c.id, c] as const) ?? []),
+        ]).values(),
+      ]);
+      if (page) setNextFeed(page.nextCursor);
+      if (saved) setNextFavorites(saved.nextCursor);
+    } catch (e) {
+      setFeedback(
+        e instanceof Error
+          ? e.message
+          : "Não foi possível carregar mais referências.",
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  }
   useEffect(() => {
     if (detail && !dialog.current?.open) dialog.current?.showModal();
   }, [detail?.id]);
@@ -120,6 +209,12 @@ export default function RadarBoard({
     c: Content,
     action: "favorite" | "evaluate" | "new" | "discard" | "read",
   ) {
+    if (action === "discard" && c.state.favorite) {
+      setFeedback(
+        "Remova dos Favoritos antes de descartar esta referência. Favoritos são preservados no acervo.",
+      );
+      return;
+    }
     if (action === "new" && c.state.selected) {
       setFeedback(
         "Remova a seleção da Oficina no painel de detalhes para devolver às novidades.",
@@ -137,14 +232,11 @@ export default function RadarBoard({
           updated = await api.content(c.id);
         } else updated = await api.favorite(c.id);
       } else if (action === "evaluate" || action === "new") {
-        if (c.state.favorite) await api.unfavorite(c.id);
         updated = await api.interact(c.id, {
           type: "seen",
           active: action === "evaluate",
         });
       } else {
-        if (action === "discard" && c.state.favorite)
-          await api.unfavorite(c.id);
         updated = await api.interact(c.id, {
           type: action === "discard" ? "dismissed" : "read",
           active: action === "discard" ? true : !c.state.read,
@@ -194,9 +286,7 @@ export default function RadarBoard({
     }
   }
   const available = items.filter(
-    (c) =>
-      c.radar?.country !== "DE" &&
-      (scope === "scientific") === (c.kind === "paper"),
+    (c) => (scope === "scientific") === (c.kind === "paper"),
   );
   const filtered = available.filter((c) => {
     const saved = c.state.favorite,
@@ -207,17 +297,43 @@ export default function RadarBoard({
         ).toISOString();
     if (
       !saved &&
-      (c.state.dismissed ||
+      ((c.state.dismissed && filters.triage !== "descartado") ||
         (scope === "editorial" &&
           (!!c.radar?.expiredAt || Date.parse(expires) <= Date.now())))
     )
       return false;
+    const text =
+      `${c.title} ${c.authors.map((a) => a.name).join(" ")} ${c.topics.join(" ")}`.toLocaleLowerCase();
+    const today = day(new Date().toISOString());
+    const weekStart = new Date(`${today}T00:00:00-03:00`);
+    weekStart.setUTCDate(
+      weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7),
+    );
+    const withinPeriod =
+      saved ||
+      filters.period === "all" ||
+      !filters.period ||
+      (filters.period === "today" &&
+        !!c.publishedAt &&
+        day(c.publishedAt) === today) ||
+      (filters.period === "week" &&
+        !!c.publishedAt &&
+        Date.parse(c.publishedAt) >= weekStart.getTime()) ||
+      (filters.period === "nine" &&
+        !!c.publishedAt &&
+        Date.parse(c.publishedAt) >= Date.now() - 9 * 86400000);
     return (
       (!source || c.sourceId === source) &&
-      (!search ||
-        `${c.title} ${c.authors.map((a) => a.name).join(" ")} ${c.topics.join(" ")}`
-          .toLocaleLowerCase()
-          .includes(search.toLocaleLowerCase()))
+      (!search || text.includes(search.toLocaleLowerCase())) &&
+      (!filters.search || text.includes(filters.search.toLocaleLowerCase())) &&
+      (!filters.country ||
+        (c.radar?.country ?? "unknown") === filters.country) &&
+      (!filters.category || c.radar?.category === filters.category) &&
+      (!filters.source || c.sourceId === filters.source) &&
+      (!filters.language || c.language === filters.language) &&
+      (!filters.triage || radarTriage(c) === filters.triage) &&
+      (!filters.unread || !c.state.read) &&
+      withinPeriod
     );
   });
   const byCountry = new Map<string, Content[]>();
@@ -229,8 +345,8 @@ export default function RadarBoard({
   }
   const groups = [...byCountry.entries()].sort(([a, first], [b, second]) => {
     if (a === b) return 0;
-    if (a === "BR") return 1;
-    if (b === "BR") return -1;
+    if (a === "BR") return -1;
+    if (b === "BR") return 1;
     return (
       second.length - first.length ||
       countryName(a).localeCompare(countryName(b), "pt-BR")
@@ -239,6 +355,23 @@ export default function RadarBoard({
   const editorialSources = (status?.sources ?? []).filter(
     (s) => s.cycle === "daily",
   );
+  const countryChoices = [
+    ...new Set(available.map((c) => c.radar?.country ?? "unknown")),
+  ];
+  const sourceChoices = [
+    ...new Map(available.map((c) => [c.sourceId, c.sourceName])).entries(),
+  ];
+  const languageChoices = [
+    ...new Set(
+      available.map((c) => c.language).filter((v): v is string => !!v),
+    ),
+  ];
+  const setFilter = (key: string, value: string | boolean) =>
+    setFilters((current) => ({ ...current, [key]: value }));
+  const clearFilters = () => {
+    setFilters({ period: "week" });
+    setSort("novidade");
+  };
   const actions = (c: Content) => (
     <div className="radar-card-actions">
       <button
@@ -355,6 +488,118 @@ export default function RadarBoard({
       <p className="radar-browse-hint">
         Explore por país. Arraste as matérias ou use as setas para continuar.
       </p>
+      <div className="radar-filterbar" aria-label="Filtros do Radar">
+        <label>
+          Busca textual
+          <input
+            value={filters.search ?? ""}
+            onChange={(e) => setFilter("search", e.target.value)}
+            placeholder="Título, autoria ou tag"
+          />
+        </label>
+        <label>
+          País
+          <select
+            value={filters.country ?? ""}
+            onChange={(e) => setFilter("country", e.target.value)}
+          >
+            <option value="">Todos</option>
+            {countryChoices.map((code) => (
+              <option key={code} value={code}>
+                {countryName(code === "unknown" ? null : code)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Categoria
+          <select
+            value={filters.category ?? ""}
+            onChange={(e) => setFilter("category", e.target.value)}
+          >
+            <option value="">Todas</option>
+            {Object.entries(categories).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Fonte
+          <select
+            value={filters.source ?? ""}
+            onChange={(e) => setFilter("source", e.target.value)}
+          >
+            <option value="">Todas</option>
+            {sourceChoices.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Idioma
+          <select
+            value={filters.language ?? ""}
+            onChange={(e) => setFilter("language", e.target.value)}
+          >
+            <option value="">Todos</option>
+            {languageChoices.map((value) => (
+              <option key={value} value={value}>
+                {value.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Período
+          <select
+            value={filters.period ?? "week"}
+            onChange={(e) => setFilter("period", e.target.value)}
+          >
+            <option value="today">Hoje</option>
+            <option value="week">Esta semana</option>
+            <option value="nine">Últimos nove dias</option>
+            <option value="all">Todas as datas</option>
+          </select>
+        </label>
+        <label>
+          Estado de triagem
+          <select
+            value={filters.triage ?? ""}
+            onChange={(e) => setFilter("triage", e.target.value)}
+          >
+            <option value="">Todos</option>
+            <option value="novidade">Novidade</option>
+            <option value="para_avaliar">Para avaliar</option>
+            <option value="favorito">Favorito</option>
+            <option value="descartado">Descartado</option>
+          </select>
+        </label>
+        <label>
+          Ordenação
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+          >
+            <option value="novidade">Mais recentes</option>
+            <option value="relevancia">Relevância</option>
+          </select>
+        </label>
+        <label className="radar-filter-check">
+          <input
+            type="checkbox"
+            checked={filters.unread ?? false}
+            onChange={(e) => setFilter("unread", e.target.checked)}
+          />
+          Não lidos
+        </label>
+        <button type="button" onClick={clearFilters}>
+          Limpar filtros
+        </button>
+      </div>
       <p role="status" className="radar-feedback">
         {feedback}
       </p>
@@ -446,6 +691,15 @@ export default function RadarBoard({
               ))}
             </RadarCountryCarousel>
           ))}
+          {(nextFeed || nextFavorites) && (
+            <button
+              className="radar-load-more"
+              onClick={() => void loadMore()}
+              disabled={loadingMore}
+            >
+              {loadingMore ? "Carregando…" : "Carregar mais matérias"}
+            </button>
+          )}
         </div>
       )}
       <dialog
