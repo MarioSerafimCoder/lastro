@@ -163,7 +163,15 @@ async function request(
       redirect: "error",
       signal: AbortSignal.timeout(8000),
     });
-  } catch {
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        component: "jarvis-drive",
+        event: "upstream_fetch_failed",
+        host: new URL(url).hostname,
+        errorName: error instanceof Error ? error.name : "UnknownError",
+      }),
+    );
     throw new ApiFault(
       503,
       "drive_unavailable",
