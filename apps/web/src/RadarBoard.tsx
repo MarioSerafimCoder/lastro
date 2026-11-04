@@ -2,13 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import "./radar-board.css";
 import { Heart, Clock, X, ExternalLink, Plus } from "lucide-react";
 import RadarCountryCarousel from "./RadarCountryCarousel";
-import type {
-  Content,
-  RadarStatus,
-  RadarFeedQuery,
-} from "../../../packages/contracts";
+import type { Content, RadarStatus } from "../../../packages/contracts";
 import { radarTriage } from "../../../packages/contracts";
 import { createLastroClient } from "../../../packages/contracts/client";
+import { RadarHeadline } from "./RadarHeadline";
 const api = createLastroClient();
 const countries = new Intl.DisplayNames(["pt-BR"], { type: "region" });
 const countryName = (code?: string | null) =>
@@ -26,13 +23,6 @@ const categories = {
   architecture_objects: "Arquitetura",
   creative_technology: "Tecnologia criativa",
 };
-const day = (v: string) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Fortaleza",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(v));
 const date = (v: string | null | undefined) =>
   v?.length === 10
     ? new Date(v + "T12:00:00Z").toLocaleDateString("pt-BR", {
@@ -64,25 +54,13 @@ export default function RadarBoard({
     [error, setError] = useState(""),
     [feedback, setFeedback] = useState(""),
     [busy, setBusy] = useState(false);
-  const [scope, setScope] = useState<"editorial" | "scientific">("editorial"),
-    [sort, setSort] = useState<RadarFeedQuery["sort"]>("novidade"),
-    [detail, setDetail] = useState<Content | null>(null);
-  const [period, setPeriod] = useState("week"),
-    [category, setCategory] = useState(""),
-    [country, setCountry] = useState(""),
-    [source, setSource] = useState(""),
-    [language, setLanguage] = useState(""),
-    [triage, setTriage] = useState(""),
-    [unread, setUnread] = useState(false),
-    [search, setSearch] = useState("");
+  const scope = query?.kind === "paper" ? "scientific" : "editorial";
+  const sort = "novidade";
+  const [detail, setDetail] = useState<Content | null>(null);
+  const search = query?.q ?? query?.topic;
+  const source = query?.sourceId;
   const dialog = useRef<HTMLDialogElement>(null),
     generation = useRef(0);
-  useEffect(() => {
-    setSearch(query?.q ?? query?.topic ?? "");
-    setSource(query?.sourceId ?? "");
-    if (query?.kind)
-      setScope(query.kind === "paper" ? "scientific" : "editorial");
-  }, [query?.q, query?.topic, query?.sourceId, query?.kind]);
   async function load() {
     const n = ++generation.current;
     setLoading(true);
@@ -196,16 +174,6 @@ export default function RadarBoard({
       setBusy(false);
     }
   }
-  const clear = () => {
-    setPeriod(scope === "scientific" ? "all" : "week");
-    setCategory("");
-    setCountry("");
-    setSource("");
-    setLanguage("");
-    setTriage("");
-    setUnread(false);
-    setSearch("");
-  };
   async function selectWorkshop(c: Content) {
     if (busy) return;
     setBusy(true);
@@ -243,47 +211,13 @@ export default function RadarBoard({
     )
       return false;
     return (
-      (!category || c.radar?.category === category) &&
-      (!country || (c.radar?.country ?? "unknown") === country) &&
       (!source || c.sourceId === source) &&
-      (!language || c.language === language) &&
-      (!triage || radarTriage(c) === triage) &&
-      (!unread || !c.state.read) &&
-      (period !== "week" ||
-        scope !== "scientific" ||
-        (!!c.publishedAt &&
-          (() => {
-            const d = new Date(
-              day(new Date().toISOString()) + "T00:00:00-03:00",
-            );
-            d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
-            return Date.parse(c.publishedAt) >= d.getTime();
-          })())) &&
       (!search ||
         `${c.title} ${c.authors.map((a) => a.name).join(" ")} ${c.topics.join(" ")}`
           .toLocaleLowerCase()
-          .includes(search.toLocaleLowerCase())) &&
-      (period !== "today" ||
-        (!!c.publishedAt &&
-          day(c.publishedAt) === day(new Date().toISOString()))) &&
-      (period !== "nine" ||
-        (!!c.publishedAt &&
-          Date.parse(c.publishedAt) >= Date.now() - 9 * 86400000))
+          .includes(search.toLocaleLowerCase()))
     );
   });
-  const choices = (key: "country" | "source" | "language") => [
-    ...new Map(
-      available
-        .map((c) =>
-          key === "source"
-            ? [c.sourceId, c.sourceName]
-            : key === "country"
-              ? [c.radar?.country ?? "unknown", countryName(c.radar?.country)]
-              : [c.language, c.language],
-        )
-        .filter(([v]) => v) as [string, string][],
-    ).entries(),
-  ];
   const byCountry = new Map<string, Content[]>();
   for (const c of filtered) {
     const key = c.radar?.country ?? "unknown";
@@ -308,6 +242,7 @@ export default function RadarBoard({
       <button
         disabled={busy}
         aria-pressed={c.state.favorite}
+        title={c.state.favorite ? "Remover dos favoritos" : "Favoritar"}
         aria-label={`Favoritar ${c.title}`}
         onClick={() => void act(c, "favorite")}
       >
@@ -315,6 +250,7 @@ export default function RadarBoard({
       </button>
       <button
         disabled={busy}
+        title={c.state.seen ? "Devolver às novidades" : "Avaliar depois"}
         aria-label={`Avaliar ${c.title}`}
         onClick={() => void act(c, c.state.seen ? "new" : "evaluate")}
       >
@@ -322,6 +258,7 @@ export default function RadarBoard({
       </button>
       <button
         disabled={busy}
+        title="Descartar"
         aria-label={`Descartar ${c.title}`}
         onClick={() => void act(c, "discard")}
       >
@@ -331,6 +268,7 @@ export default function RadarBoard({
         href={c.url}
         target="_blank"
         rel="noopener noreferrer"
+        title="Abrir artigo original"
         aria-label={`Abrir original: ${c.title}`}
       >
         <ExternalLink size={16} />
@@ -412,110 +350,6 @@ export default function RadarBoard({
           "Pulso indisponível. Não foi possível verificar a atualização."
         )}
       </div>
-      <div className="radar-filterbar">
-        <label>
-          Recorte
-          <select
-            value={scope}
-            onChange={(e) => {
-              setScope(e.target.value as typeof scope);
-              clear();
-              setPeriod(e.target.value === "scientific" ? "all" : "week");
-            }}
-          >
-            <option value="editorial">Radar Diário</option>
-            <option value="scientific">Radar Científico</option>
-          </select>
-        </label>
-        <label>
-          Período
-          <select value={period} onChange={(e) => setPeriod(e.target.value)}>
-            {scope === "scientific" && (
-              <option value="all">Todas as datas</option>
-            )}
-            <option value="today">Hoje</option>
-            <option value="week">Esta semana</option>
-            <option value="nine">
-              {scope === "editorial"
-                ? "Nove dias · semana atual"
-                : "Últimos nove dias"}
-            </option>
-          </select>
-        </label>
-        <label>
-          Assunto
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="">Todos os assuntos</option>
-            {Object.entries(categories).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
-        {(["country", "source", "language"] as const).map((key, i) => (
-          <label key={key}>
-            {["País", "Fonte", "Idioma"][i]}
-            <select
-              value={[country, source, language][i]}
-              onChange={(e) =>
-                [setCountry, setSource, setLanguage][i](e.target.value)
-              }
-            >
-              <option value="">Todos</option>
-              {choices(key).map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
-        <label>
-          Estado
-          <select value={triage} onChange={(e) => setTriage(e.target.value)}>
-            <option value="">Todas as referências</option>
-            <option value="novidade">Novidades</option>
-            <option value="para_avaliar">Para avaliar</option>
-            <option value="favorito">Favoritos</option>
-          </select>
-        </label>
-        <label>
-          Ordenação
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as typeof sort)}
-          >
-            <option value="novidade">Mais recentes</option>
-            <option value="relevancia">Relevância</option>
-          </select>
-        </label>
-        <label>
-          Pesquisa
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Título, autoria ou tag"
-          />
-        </label>
-        <label className="radar-check">
-          <input
-            type="checkbox"
-            checked={unread}
-            onChange={(e) => setUnread(e.target.checked)}
-          />{" "}
-          Não lidos
-        </label>
-        <button onClick={clear}>Limpar filtros</button>
-      </div>
-      <p className="radar-scope-note">
-        {scope === "editorial"
-          ? "Publicações desta semana, no horário de Fortaleza. Favoritos incluem o acervo salvo."
-          : "Pesquisas com critérios e datas próprios, sem expiração editorial."}
-      </p>
       <p className="radar-browse-hint">
         Explore por país. Arraste as matérias ou use as setas para continuar.
       </p>
@@ -559,8 +393,8 @@ export default function RadarBoard({
                   tabIndex={-1}
                 >
                   <div className="radar-origin">
-                    {c.sourceName}{" "}
-                    <span>{c.radar?.country ?? "País não informado"}</span>
+                    {c.sourceName}
+                    <span>{triageLabels[radarTriage(c)]}</span>
                   </div>
                   <button className="radar-title" onClick={() => setDetail(c)}>
                     {c.imageUrl && (
@@ -572,7 +406,9 @@ export default function RadarBoard({
                         referrerPolicy="no-referrer"
                       />
                     )}
-                    <h4>{c.title}</h4>
+                    <h4>
+                      <RadarHeadline content={c} />
+                    </h4>
                   </button>
                   <div className="radar-card-meta">
                     <span>
@@ -583,11 +419,6 @@ export default function RadarBoard({
                     <time>{date(c.publishedAt)}</time>
                   </div>
                   <div className="radar-card-state">
-                    <span
-                      className={`radar-state radar-state-${radarTriage(c)}`}
-                    >
-                      {triageLabels[radarTriage(c)]}
-                    </span>
                     {radarTriage(c) === "para_avaliar" &&
                       scope === "editorial" && (
                         <p className="radar-deadline">
@@ -665,7 +496,9 @@ export default function RadarBoard({
               {detail.sourceName} /{" "}
               {detail.radar?.country ?? "Origem não informada"}
             </span>
-            <h2 id="radar-detail-title">{detail.title}</h2>
+            <h2 id="radar-detail-title">
+              <RadarHeadline content={detail} showOriginal />
+            </h2>
             <p>
               {detail.authors.map((a) => a.name).join(", ") ||
                 "Autoria não informada"}

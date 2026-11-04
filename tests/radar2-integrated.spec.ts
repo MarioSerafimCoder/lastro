@@ -25,7 +25,7 @@ let holdFeed: Promise<void> | undefined, releaseFeed: (() => void) | undefined;
 let holdSelection: Promise<void> | undefined,
   releaseSelection: (() => void) | undefined;
 const refs: { id: string; title: string; kind: string }[] = [];
-const evidence = "docs/examples/radar-country-carousels";
+const evidence = ".wrangler/radar-reading";
 const board = (page: Page) =>
   page.getByRole("region", { name: "Mesa editorial", exact: true });
 
@@ -247,13 +247,21 @@ test.afterAll(async () => {
 });
 test.beforeEach(async ({ page }) => {
   await env.DB.prepare("DELETE FROM request_budgets").run();
+  await page.route("https://api.mymemory.translated.net/**", (route) =>
+    route.fulfill({
+      json: {
+        responseStatus: 200,
+        responseData: { translatedText: "Um título traduzido" },
+      },
+    }),
+  );
   await page.goto("/");
   await page.getByLabel("Senha de acesso").fill(password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(board(page).getByTestId("radar-card")).toHaveCount(37);
 });
 
-test("real session, 30+ references, responsive themes, provenance and combined filters", async ({
+test("real session, 30+ references, responsive themes, provenance and country sections", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -303,34 +311,7 @@ test("real session, 30+ references, responsive themes, provenance and combined f
     animations: "disabled",
   });
   await page.locator("#main").evaluate((el) => (el.scrollTop = 0));
-  await b
-    .getByRole("combobox", { name: "País", exact: true })
-    .selectOption("FR");
-  await b
-    .getByRole("combobox", { name: "Idioma", exact: true })
-    .selectOption("fr");
-  await b
-    .getByRole("combobox", { name: "Assunto", exact: true })
-    .selectOption("architecture_objects");
-  await expect(b.getByTestId("radar-card")).toHaveCount(13); // Includes the preserved favorite archive.
-  await b
-    .getByRole("combobox", { name: "Fonte", exact: true })
-    .selectOption({ label: "HOMOLOGAÇÃO — Fonte 3" });
-  await b
-    .getByRole("combobox", { name: "Período", exact: true })
-    .selectOption("today");
-  await expect(b.getByTestId("radar-card")).toHaveCount(12);
-  await b
-    .getByRole("combobox", { name: "Idioma", exact: true })
-    .selectOption("pt");
-  await expect(b.getByTestId("radar-card")).toHaveCount(0);
-  await b.getByRole("button", { name: "Limpar filtros", exact: true }).click();
-  await b.getByRole("checkbox", { name: "Não lidos" }).check();
-  await expect(b.getByTestId("radar-card")).toHaveCount(35);
-  await b.getByRole("checkbox", { name: "Não lidos" }).uncheck();
-  await b
-    .getByRole("combobox", { name: "Ordenação", exact: true })
-    .selectOption("relevancia");
+  await expect(b.getByRole("combobox")).toHaveCount(0);
   await expect(b.getByTestId("radar-card")).toHaveCount(37);
   const trigger = b.getByTestId("radar-card").first().locator(".radar-title");
   await trigger.focus();
@@ -414,28 +395,20 @@ test("country carousels: mouse drag, arrows, keyboard and sparse country", async
     .click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
-  await b.getByLabel("Pesquisa", { exact: true }).fill("HOMOLOGAÇÃO 01");
-  await expect(b.getByTestId("radar-card")).toHaveCount(1);
-  await expect(b.locator(".radar-country")).toHaveCount(1);
-  await expect(
-    b.getByRole("button", { name: /Próximas matérias/ }),
-  ).toHaveCount(0);
+
   await env.DB.prepare(
     "UPDATE sources SET config_json=json_set(config_json,'$.country',NULL) WHERE name='HOMOLOGAÇÃO — Fonte 3'",
   ).run();
   try {
-    await b
-      .getByRole("button", { name: "Limpar filtros", exact: true })
-      .click();
     await b.getByRole("button", { name: "Atualizar", exact: true }).click();
     await expect(
       b.getByRole("region", { name: "País não informado", exact: true }),
     ).toBeVisible();
-    await b
-      .getByRole("combobox", { name: "País", exact: true })
-      .selectOption("unknown");
-    await expect(b.getByTestId("radar-card")).toHaveCount(13);
-    await expect(b.locator(".radar-country")).toHaveCount(1);
+    await expect(
+      b
+        .getByRole("region", { name: "País não informado", exact: true })
+        .getByTestId("radar-card"),
+    ).toHaveCount(13);
   } finally {
     await env.DB.prepare(
       "UPDATE sources SET config_json=json_set(config_json,'$.country','FR') WHERE name='HOMOLOGAÇÃO — Fonte 3'",
@@ -546,6 +519,21 @@ test("loading, actual API database error and recovery", async ({ page }) => {
   await expect(b.getByTestId("radar-card")).toHaveCount(37);
 });
 
+test("visible foreign titles are translated and retain their original in details", async ({
+  page,
+}) => {
+  const title = board(page)
+    .getByRole("region", { name: "França", exact: true })
+    .locator(".radar-title")
+    .first();
+  await title.scrollIntoViewIfNeeded();
+  await expect(title).toHaveText("Um título traduzido");
+  await title.click();
+  await expect(
+    page.getByRole("dialog").locator(".radar-original-title"),
+  ).toContainText("HOMOLOGAÇÃO");
+});
+
 test("expiration refresh, saved history and distinct scientific window", async ({
   page,
 }) => {
@@ -560,10 +548,8 @@ test("expiration refresh, saved history and distinct scientific window", async (
   await expect(b.locator(`[data-reference-id="${refs[41].id}"]`)).toHaveCount(
     1,
   );
-  await b
-    .getByRole("combobox", { name: "Recorte", exact: true })
-    .selectOption("scientific");
-  await expect(b.getByTestId("radar-card")).toHaveCount(4);
+  const papers = await page.request.get("/api/feed?scope=scientific&limit=50");
+  expect((await papers.json()).items).toHaveLength(4);
   expect(
     (await env.DB.prepare("PRAGMA foreign_key_check").all()).results,
   ).toEqual([]);

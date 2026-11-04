@@ -2236,10 +2236,13 @@ test("Jarvis Brain: revoked Google access preserves the authenticated Lastro cha
   ).toBeVisible();
 });
 
-test("Radar 2: países, 32 cards, triagem, filtros, detalhes e Oficina", async ({
+test("Radar 2: países, 32 cards, triagem, detalhes e Oficina", async ({
   page,
 }) => {
   await mockApi(page, 40, true, false, false, true);
+  await page.route("https://api.mymemory.translated.net/**", (route) =>
+    route.abort(),
+  );
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/");
   const board = page.getByRole("region", {
@@ -2260,17 +2263,7 @@ test("Radar 2: países, 32 cards, triagem, filtros, detalhes e Oficina", async (
   await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
   await page.reload();
   await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
-  await board
-    .getByRole("combobox", { name: "País", exact: true })
-    .selectOption("GB");
-  await board
-    .getByRole("combobox", { name: "Idioma", exact: true })
-    .selectOption("pt");
-  await board.getByLabel("Pesquisa", { exact: true }).fill("inexistente");
-  await expect(board.getByTestId("radar-card")).toHaveCount(0);
-  await board
-    .getByRole("button", { name: "Limpar filtros", exact: true })
-    .click();
+  await expect(board.getByRole("combobox")).toHaveCount(0);
   await expect(board.getByTestId("radar-card")).toHaveCount(32);
   const trigger = board
     .getByTestId("radar-card")
@@ -2358,11 +2351,5 @@ test("Radar 2: expiração em nove dias preserva favorito e descarte é efetivo"
     .getByRole("button", { name: /^Descartar / })
     .click();
   await expect(board.getByTestId("radar-card")).toHaveCount(0);
-  await board
-    .getByRole("combobox", { name: "Recorte", exact: true })
-    .selectOption("scientific");
-  await expect(board.getByTestId("radar-card")).toHaveCount(5);
-  await expect(
-    board.getByRole("combobox", { name: "Período", exact: true }),
-  ).toHaveValue("all");
+  await expect(board.getByRole("combobox")).toHaveCount(0);
 });
