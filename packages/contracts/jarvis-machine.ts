@@ -1,3 +1,4 @@
+import { memoryIntent } from "./jarvis-brain";
 import { setup, assign, createActor } from "xstate";
 import { labels, type Answer } from "./jarvis";
 import { interpretQuestion } from "./jarvis-intents";
@@ -87,7 +88,12 @@ type Event =
   | { type: "FAIL" };
 
 function interpret(c: DialogueContext, event: Message): DialogueContext {
-  const next = { ...c, revision: c.revision + 1, plan: "reply" as const };
+  const next = {
+    ...c,
+    revision: c.revision + 1,
+    plan: "reply" as const,
+    memoryCommand: null,
+  };
   const say = (
     text: string,
     patch: Partial<DialogueContext> = {},
@@ -99,6 +105,40 @@ function interpret(c: DialogueContext, event: Message): DialogueContext {
   const raw = event.text,
     text = stripSocialEdges(raw),
     normalized = normalizeQuestion(raw);
+  const memory = memoryIntent(raw);
+  if (memory) {
+    const proposing = memory.action === "propose";
+    return {
+      ...next,
+      pending: null,
+      memoryCommand: memory,
+      plan: "query",
+      response: null,
+      memoryPending: proposing
+        ? { id: memory.id, version: 1, title: memory.draft.title }
+        : null,
+    };
+  }
+  if (
+    c.memoryPending &&
+    /^(sim|confirmo|aprovar|nao|rejeitar|cancelar)$/.test(normalized)
+  ) {
+    const approved = /^(sim|confirmo|aprovar)$/.test(normalized);
+    return {
+      ...next,
+      pending: null,
+      memoryPending: null,
+      plan: "query",
+      response: null,
+      memoryCommand: {
+        action: approved ? "approve" : "reject",
+        id: c.memoryPending.id,
+        version: c.memoryPending.version,
+      },
+    };
+  }
+  // A different substantive message cancels the scope of a bare confirmation.
+  next.memoryPending = null;
   const period = readPeriod(text, event.clock, c.period);
   const found = interpretQuestion(text, event.area);
   // Guards are checked before any interpretation of confirmations or context.
@@ -310,6 +350,8 @@ export const dialogueMachine = setup({
         : {},
     ),
     fail: assign({
+      memoryPending: () => null,
+      memoryCommand: () => null,
       response: () =>
         dialogueAnswer(
           "Não consegui consultar agora. Seu assunto foi preservado; tente novamente.",

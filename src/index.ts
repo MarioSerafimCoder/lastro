@@ -1,4 +1,26 @@
 import {
+  DRIVE_CALLBACK,
+  beginDriveOAuth,
+  finishDriveOAuth,
+  driveStatus,
+  syncMemory,
+  readMemoryDocument,
+  deleteMemoryDocument,
+  disconnectDrive,
+} from "./jarvis-drive";
+import {
+  memoryCreateSchema,
+  memoryChangeSchema,
+  memorySearchSchema,
+} from "../packages/contracts/jarvis-brain";
+import {
+  brainBudget,
+  listMemories,
+  prepareMemoryCreate,
+  prepareMemoryChange,
+  applyMemory,
+} from "./jarvis-brain";
+import {
   dialogueInputSchema,
   dialogueResetSchema,
 } from "../packages/contracts/jarvis-dialogue";
@@ -183,6 +205,7 @@ app.post("/api/auth/logout", async (c) => {
 });
 // Callback is authorized by the single-use state and HttpOnly nonce established
 // by the authenticated owner. Strict Lastro session cookies do not cross sites.
+app.get(DRIVE_CALLBACK, async (c) => finishDriveOAuth(c.env, c.req.raw));
 app.get(ANALYTICS_CALLBACK, async (c) =>
   finishAnalyticsOAuth(c.env, c.req.raw),
 );
@@ -264,6 +287,81 @@ app.delete("/api/jarvis/conversation", async (c) => {
   const input = await json(c, dialogueResetSchema);
   return c.json(
     await resetDialogue(c.env, scope, input.conversationId, input.revision),
+  );
+});
+app.get("/api/jarvis/drive", async (c) => c.json(await driveStatus(c.env)));
+app.post("/api/jarvis/drive/oauth", async (c) => {
+  const result = await beginDriveOAuth(c.env, c.req.raw);
+  c.header("Set-Cookie", result.cookie);
+  return c.json({ url: result.url });
+});
+app.post("/api/jarvis/drive/disconnect", async (c) => {
+  const input = await json(
+    c,
+    z.object({ confirmation: z.literal("REVOGAR DRIVE") }).strict(),
+  );
+  return c.json(await disconnectDrive(c.env, input.confirmation));
+});
+app.post("/api/jarvis/brain/:id/sync", async (c) => {
+  const input = await json(
+    c,
+    z.object({ version: z.number().int().positive() }).strict(),
+  );
+  return c.json(
+    await syncMemory(c.env, z.uuid().parse(c.req.param("id")), input.version),
+  );
+});
+app.get("/api/jarvis/brain/:id/document", async (c) =>
+  c.json(await readMemoryDocument(c.env, z.uuid().parse(c.req.param("id")))),
+);
+app.delete("/api/jarvis/brain/:id/document", async (c) => {
+  const input = await json(
+    c,
+    z
+      .object({
+        version: z.number().int().positive(),
+        confirmation: z.string().max(100),
+      })
+      .strict(),
+  );
+  return c.json(
+    await deleteMemoryDocument(
+      c.env,
+      z.uuid().parse(c.req.param("id")),
+      input.version,
+      input.confirmation,
+    ),
+  );
+});
+app.get("/api/jarvis/brain", async (c) => {
+  await brainBudget(c.env);
+  return c.json({
+    memories: await listMemories(
+      c.env,
+      memorySearchSchema.parse(c.req.query()),
+    ),
+  });
+});
+app.post("/api/jarvis/brain", async (c) => {
+  await brainBudget(c.env);
+  return c.json(
+    await applyMemory(
+      c.env,
+      await prepareMemoryCreate(c.env, await json(c, memoryCreateSchema)),
+    ),
+  );
+});
+app.patch("/api/jarvis/brain/:id", async (c) => {
+  await brainBudget(c.env);
+  return c.json(
+    await applyMemory(
+      c.env,
+      await prepareMemoryChange(
+        c.env,
+        z.uuid().parse(c.req.param("id")),
+        await json(c, memoryChangeSchema),
+      ),
+    ),
   );
 });
 app.get("/api/jarvis/state", async (c) => c.json(await jarvisState(c.env)));

@@ -2022,3 +2022,192 @@ for (const width of [1440, 1280, 390])
       }),
     ).toBeFocused();
   });
+
+test("Jarvis Brain: selective memory management, correction, archive and exact deletion confirmation", async ({
+  page,
+}) => {
+  await mockApi(page);
+  let memories: any[] = [];
+  await page.route("**/api/jarvis/drive", (route) =>
+    route.fulfill({
+      json: { enabled: false, connected: false, message: "Drive desativado." },
+    }),
+  );
+  await page.route("**/api/jarvis/brain**", async (route) => {
+    const request = route.request();
+    if (request.method() === "GET") {
+      const state = new URL(request.url()).searchParams.get("state");
+      await route.fulfill({
+        json: {
+          memories: memories.filter((m) =>
+            state ? m.state === state : m.state !== "arquivada",
+          ),
+        },
+      });
+    } else {
+      const input = request.postDataJSON();
+      if (request.method() === "POST")
+        memories.push({
+          ...input.draft,
+          id: input.id,
+          state: input.state,
+          version: 1,
+          createdAt: "2026-11-04T12:00:00Z",
+          updatedAt: "2026-11-04T12:00:00Z",
+          driveId: null,
+          driveVersion: null,
+          sync: "local",
+        });
+      else {
+        const id = new URL(request.url()).pathname.split("/").pop();
+        const memory = memories.find((m) => m.id === id);
+        expect(input.version).toBe(memory.version);
+        if (input.operation === "excluir") {
+          expect(input.confirmation).toBe(`EXCLUIR ${id}`);
+          memories = memories.filter((m) => m.id !== id);
+        } else
+          Object.assign(memory, input.draft ?? {}, {
+            version: memory.version + 1,
+            ...(input.operation === "arquivar" ? { state: "arquivada" } : {}),
+          });
+      }
+      await route.fulfill({ json: memories.at(-1) ?? null });
+    }
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Jarvis Seu próximo caminho" })
+    .click();
+  const memory = page.locator(".jarvis-memory");
+  await memory.locator("summary").click();
+  await expect(memory.getByText("Nenhuma memória neste filtro.")).toBeVisible();
+  await memory
+    .getByRole("button", { name: "Adicionar memória", exact: true })
+    .click();
+  await memory
+    .getByRole("textbox", { name: "Título", exact: true })
+    .fill("Direção do portfólio");
+  await memory
+    .getByRole("textbox", { name: "Resumo", exact: true })
+    .fill("Usar identidade minimalista no portfólio.");
+  await memory
+    .locator(".jarvis-memory-form")
+    .getByRole("combobox", { name: "Tipo", exact: true })
+    .selectOption("decisao");
+  await memory
+    .locator(".jarvis-memory-form")
+    .getByRole("combobox", { name: "Natureza", exact: true })
+    .selectOption("fato");
+  await memory
+    .locator(".jarvis-memory-form")
+    .getByRole("textbox", { name: "Projeto", exact: true })
+    .fill("Portfólio");
+  await memory
+    .getByRole("button", { name: "Salvar memória confirmada", exact: true })
+    .click();
+  await expect(memory.locator("article")).toContainText(
+    "Usar identidade minimalista",
+  );
+  await memory.getByRole("button", { name: "Corrigir", exact: true }).click();
+  await memory
+    .getByRole("textbox", { name: "Resumo", exact: true })
+    .fill("Identidade minimalista aprovada; revisar na próxima fase.");
+  await memory
+    .getByRole("button", { name: "Salvar correção", exact: true })
+    .click();
+  await expect(memory.locator("article")).toContainText("versão 2");
+  await page.screenshot({
+    path: ".wrangler/jarvis-brain-desktop.png",
+  });
+  await memory.getByRole("button", { name: "Arquivar", exact: true }).click();
+  await expect(memory.locator("article")).toHaveCount(0);
+  await memory
+    .getByRole("combobox", { name: "Estado", exact: true })
+    .selectOption("arquivada");
+  await memory
+    .getByRole("button", { name: "Buscar / atualizar", exact: true })
+    .click();
+  await expect(memory.locator("article")).toContainText("arquivada");
+  const id = memories[0].id;
+  await memory.getByRole("button", { name: "Excluir", exact: true }).click();
+  await expect(
+    memory.getByRole("button", { name: "Confirmar exclusão", exact: true }),
+  ).toBeDisabled();
+  await memory.locator("form").last().getByRole("textbox").fill("sim");
+  await expect(
+    memory.getByRole("button", { name: "Confirmar exclusão", exact: true }),
+  ).toBeDisabled();
+  await memory
+    .locator("form")
+    .last()
+    .getByRole("textbox")
+    .fill(`EXCLUIR ${id}`);
+  await memory
+    .getByRole("button", { name: "Confirmar exclusão", exact: true })
+    .click();
+  await expect(memory.locator("article")).toHaveCount(0);
+});
+
+test("Jarvis Brain: revoked Google access preserves the authenticated Lastro chat", async ({
+  page,
+}) => {
+  await mockApi(page);
+  const m = {
+    id: "12345678-1234-4234-8234-123456789099",
+    type: "preferencia",
+    certainty: "preferencia",
+    title: "Preferência de teste",
+    summary: "Usar humor seco.",
+    keywords: [],
+    project: null,
+    origin: "Proprietário",
+    state: "confirmada",
+    version: 1,
+    createdAt: "2026-11-04T12:00:00Z",
+    updatedAt: "2026-11-04T12:00:00Z",
+    driveId: "mock-drive-id",
+    driveVersion: 1,
+    sync: "sincronizada",
+  };
+  await page.route("**/api/jarvis/drive", (route) =>
+    route.fulfill({
+      json: { enabled: true, connected: true, message: "Teste de conexão." },
+    }),
+  );
+  await page.route("**/api/jarvis/brain**", (route) =>
+    route.request().url().includes("/document")
+      ? route.fulfill({
+          status: 401,
+          json: {
+            error: {
+              code: "drive_authorization",
+              message: "Reconecte o Drive.",
+            },
+          },
+        })
+      : route.fulfill({ json: { memories: [m] } }),
+  );
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Jarvis Seu próximo caminho" })
+    .click();
+  const memory = page.locator(".jarvis-memory");
+  await memory.locator("summary").click();
+  await memory
+    .getByRole("button", { name: "Ler documento", exact: true })
+    .click();
+  await expect(memory.getByRole("alert")).toHaveText("Reconecte o Drive.");
+  await expect(
+    memory.getByRole("button", {
+      name: "Reconectar Google Drive",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Painel Jarvis" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Sair", exact: true }),
+  ).toBeVisible();
+});

@@ -1,3 +1,9 @@
+import {
+  brainBudget,
+  executeMemoryRead,
+  prepareMemoryCreate,
+  prepareMemoryChange,
+} from "./jarvis-brain";
 import type { Env } from "./env";
 import { first, stmt } from "./db";
 import { ApiFault } from "./errors";
@@ -196,6 +202,27 @@ async function execute(
   c: DialogueContext,
   area: string,
 ): Promise<{ answer: Answer; unavailable?: boolean }> {
+  if (c.memoryCommand) {
+    await brainBudget(env);
+    const m = c.memoryCommand;
+    if (m.action === "search" || m.action === "manage")
+      return { answer: await executeMemoryRead(env, m) };
+    const text =
+      m.action === "create"
+        ? `Memória confirmada no D1: ${m.draft.title}. ID: ${m.id}. Arquivo no Drive depende de ação separada.`
+        : m.action === "propose"
+          ? `Proponho guardar: “${m.draft.summary}”. Tipo: ${m.draft.type}; natureza: ${m.draft.certainty}. Aprova esta memória? ID: ${m.id}.`
+          : m.action === "approve"
+            ? `Memória ${m.id} aprovada no D1.`
+            : `Proposta ${m.id} arquivada, sem confirmação como fato.`;
+    return {
+      answer: {
+        ...dialogueAnswer(text),
+        kind: undefined,
+        source: "D1 · memória seletiva",
+      },
+    };
+  }
   if (
     c.intent === "analytics.total" ||
     c.intent === "articles.top" ||
@@ -280,7 +307,7 @@ export async function advanceDialogue(
     }
     const current = actor.getSnapshot(),
       answer = current.context.response!;
-    const persisted = actor.getPersistedSnapshot() as any;
+    const persisted = structuredClone(actor.getPersistedSnapshot()) as any;
     // Persist safe context only, not customer references or the message transcript.
     for (const key of ["response", "lastGrounded"]) {
       const a = persisted.context[key];
@@ -290,6 +317,7 @@ export async function advanceDialogue(
           action: a.action ? { kind: a.action.kind } : undefined,
         };
     }
+    persisted.context.memoryCommand = null;
     const body = JSON.stringify(persisted);
     if (body.length > 16384)
       throw new ApiFault(
@@ -297,7 +325,37 @@ export async function advanceDialogue(
         "dialogue_size",
         "Contexto excedeu o limite. Limpe a conversa.",
       );
-    const saved = await stmt(
+    const command =
+      current.context.plan === "query" ? current.context.memoryCommand : null;
+    const guard = {
+      sql: "EXISTS (SELECT 1 FROM jarvis_conversations WHERE session_hash=? AND conversation_id=? AND revision=? AND snapshot_json=?)",
+      args: [scope.hash, row.conversation_id, current.context.revision, body],
+    };
+    const prepared =
+      command && (command.action === "create" || command.action === "propose")
+        ? await prepareMemoryCreate(
+            env,
+            {
+              id: command.id,
+              draft: command.draft,
+              state: command.action === "create" ? "confirmada" : "proposta",
+            },
+            guard,
+          )
+        : command &&
+            (command.action === "approve" || command.action === "reject")
+          ? await prepareMemoryChange(
+              env,
+              command.id,
+              {
+                version: command.version,
+                operation:
+                  command.action === "approve" ? "aprovar" : "arquivar",
+              },
+              guard,
+            )
+          : null;
+    const conversationUpdate = stmt(
       env.DB,
       "UPDATE jarvis_conversations SET revision=?,snapshot_json=?,expires_at=?,updated_at=? WHERE session_hash=? AND conversation_id=? AND revision=? AND expires_at>?",
       current.context.revision,
@@ -308,12 +366,46 @@ export async function advanceDialogue(
       row.conversation_id,
       row.revision,
       Date.now(),
-    ).run();
+    );
+    let committed: D1Result[];
+    try {
+      committed = await env.DB.batch([
+        conversationUpdate,
+        ...(prepared?.statement
+          ? [
+              prepared.statement,
+              stmt(
+                env.DB,
+                "INSERT INTO jarvis_brain_commit_guard(ok) VALUES (changes())",
+              ),
+              stmt(env.DB, "DELETE FROM jarvis_brain_commit_guard"),
+            ]
+          : []),
+      ]);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes("CHECK constraint failed")
+      )
+        throw new ApiFault(
+          409,
+          "memory_conflict",
+          "A conversa ou memória mudou, ou atingiu o limite. Recarregue antes de tentar novamente.",
+        );
+      throw error;
+    }
+    const saved = committed[0];
     if (!saved.meta.changes)
       throw new ApiFault(
         409,
         "dialogue_conflict",
         "Outra mensagem atualizou a conversa. Sua resposta foi descartada; recarregue o contexto.",
+      );
+    if (prepared?.statement && !committed[1]?.meta.changes)
+      throw new ApiFault(
+        409,
+        "memory_conflict",
+        "A memória mudou ou atingiu o limite de 256 registros. Recarregue e revise antes de tentar novamente.",
       );
     return {
       ...answer,

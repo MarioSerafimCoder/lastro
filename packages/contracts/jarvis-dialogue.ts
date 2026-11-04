@@ -1,3 +1,4 @@
+import type { MemoryCommand, MemoryPending } from "./jarvis-brain";
 import { z } from "zod";
 import { areas, intents, type Answer, type Intent } from "./jarvis";
 
@@ -36,6 +37,8 @@ export type DialogueContext = Slots & {
   response: Answer | null;
   plan: "query" | "reply";
   socialTurn: number;
+  memoryCommand?: MemoryCommand | null;
+  memoryPending?: MemoryPending | null;
 };
 export type DialogueView = {
   id: string;

@@ -1,6 +1,9 @@
 export class JarvisRequestError extends Error {
-  constructor(public status: number) {
-    super("Jarvis indisponível.");
+  constructor(
+    public status: number,
+    message = "Jarvis indisponível.",
+  ) {
+    super(message);
   }
 }
 export async function jarvisApi(path: string, init?: RequestInit) {
@@ -9,12 +12,24 @@ export async function jarvisApi(path: string, init?: RequestInit) {
     credentials: "same-origin",
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
-  if (response.status === 401) {
-    window.dispatchEvent(new Event("jarvis:logout"));
-    window.dispatchEvent(new Event("lastro:unauthorized"));
-    throw new Error("Sessão encerrada.");
+  if (!response.ok) {
+    const failure = await response.json().catch(() => null);
+    // A Google authorization failure does not invalidate the Lastro session.
+    if (
+      response.status === 401 &&
+      !String(failure?.error?.code ?? "").startsWith("drive_")
+    ) {
+      window.dispatchEvent(new Event("jarvis:logout"));
+      window.dispatchEvent(new Event("lastro:unauthorized"));
+      throw new Error("Sessão encerrada.");
+    }
+    throw new JarvisRequestError(
+      response.status,
+      typeof failure?.error?.message === "string"
+        ? failure.error.message
+        : undefined,
+    );
   }
-  if (!response.ok) throw new JarvisRequestError(response.status);
   return response.json();
 }
 import type { JarvisState } from "../../../packages/contracts/jarvis";

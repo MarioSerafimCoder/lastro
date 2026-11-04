@@ -1,3 +1,4 @@
+import JarvisMemory from "./JarvisMemory";
 import { jarvisApi as commercialApi } from "./jarvis-client";
 import {
   loadJarvisState,
@@ -695,6 +696,7 @@ export default function Jarvis({
                 </a>
               </p>
             )}
+            <JarvisMemory />
             <details className="jarvis-settings">
               <summary>Preferências e contexto</summary>
               <label className="jarvis-preference">
@@ -771,7 +773,8 @@ export default function Jarvis({
 
           <small className="jarvis-footnote">
             Modo determinístico. IA desativada; nenhum consumo de inferência.
-            Contexto temporário da sessão; perguntas não são armazenadas.
+            Contexto temporário da sessão; apenas memórias selecionadas são
+            persistidas.
           </small>
         </div>
       )}

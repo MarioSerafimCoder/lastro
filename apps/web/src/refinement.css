@@ -714,3 +714,77 @@ section[aria-labelledby="feed-title"] .radar-toolbar {
     transform: none !important;
   }
 }
+
+.jarvis-memory {
+  padding-block: 12px;
+}
+.jarvis-memory p {
+  margin-block: 8px;
+}
+.jarvis-memory label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+.jarvis-memory input,
+.jarvis-memory select,
+.jarvis-memory textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  color: inherit;
+  background: var(--surface, #161616);
+  border: 1px solid var(--line, #555);
+  border-radius: 6px;
+}
+.jarvis-memory textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+.jarvis-memory-filters,
+.jarvis-memory-form {
+  display: grid;
+  gap: 8px;
+  margin-block: 12px;
+}
+.jarvis-memory-list {
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.jarvis-memory-list article {
+  border-block-end: 1px solid var(--line, #555);
+  padding-block: 12px;
+  overflow-wrap: anywhere;
+}
+.jarvis-memory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 8px;
+}
+.jarvis-memory small {
+  display: block;
+  line-height: 1.6;
+}
+.jarvis-memory pre {
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.jarvis-memory-filters {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.jarvis-memory-filters > button {
+  grid-column: 1 / -1;
+}
+.jarvis-memory .secondary-button {
+  min-height: 30px;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+.jarvis-memory code {
+  overflow-wrap: anywhere;
+}
