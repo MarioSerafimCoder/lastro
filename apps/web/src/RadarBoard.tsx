@@ -231,8 +231,6 @@ export default function RadarBoard({
     if (a === b) return 0;
     if (a === "BR") return 1;
     if (b === "BR") return -1;
-    if (a === "unknown") return 1;
-    if (b === "unknown") return -1;
     return (
       second.length - first.length ||
       countryName(a).localeCompare(countryName(b), "pt-BR")
