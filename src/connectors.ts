@@ -30,8 +30,7 @@ const feedValue = (value: unknown) =>
     ? value.replace(/^<!\[CDATA\[([\s\S]*?)\]\]>$/, "$1")
     : value;
 const val = (v: any, n = 1200) => plainText(feedValue(v), n);
-const boundedBodyExcerpt = (value: unknown) => {
-  const body = plainText(feedValue(value), 1201);
+const boundedBodyExcerpt = (body: string | null) => {
   if (!body) return null;
   // Always leave part of the body behind, including for short RSS/Atom posts.
   return (
@@ -45,7 +44,7 @@ const licensedFeedExcerpt = (entry: any) => {
   const body = plainText(feedValue(raw), 1201),
     summary = val(entry.description ?? entry.summary);
   return (
-    boundedBodyExcerpt(raw) ??
+    boundedBodyExcerpt(body) ??
     (summary && (!body || !summary.includes(body)) ? summary : null)
   );
 };
@@ -88,6 +87,15 @@ export function parseRss(
   }).parse(xml);
   const feed = doc.rss?.channel ?? doc.feed ?? doc["rdf:RDF"];
   if (!feed) throw new Error("unsupported_feed");
+  const publication = val(feed.title, 300) ?? s.name;
+  const feedLanguage = val(
+    feed.language ?? feed["dc:language"] ?? feed["@xml:lang"],
+    20,
+  );
+  const feedRights = feed.rights ?? feed["dc:rights"] ?? feed.copyright;
+  const mayProcess = processingAllowed(s);
+  const licensedEvidence =
+    (forSynopsis || !!onCapture) && mayProcess && !!s.synopsisLicenseUrl;
   return list(feed.item ?? feed.entry ?? doc["rdf:RDF"]?.item)
     .slice(0, 25)
     .map((e: any) => {
@@ -122,17 +130,8 @@ export function parseRss(
       const title = val(e.title, 500) ?? "";
       // Full feed text is evidence only with an audited adaptation licence.
       // Normal ingestion still honours summaryAllowed and never stores the body.
-      const licensedEvidence =
-        (forSynopsis || !!onCapture) &&
-        processingAllowed(s) &&
-        !!s.synopsisLicenseUrl;
       const entryRights = val(
-        e.rights ??
-          e["dc:rights"] ??
-          e.copyright ??
-          feed.rights ??
-          feed["dc:rights"] ??
-          feed.copyright,
+        e.rights ?? e["dc:rights"] ?? e.copyright ?? feedRights,
         1000,
       );
       const conflictingRights = !itemRightsAllowed(
@@ -141,24 +140,25 @@ export function parseRss(
       );
       const excerpt =
         licensedEvidence && !conflictingRights ? licensedFeedExcerpt(e) : null;
+      const synopsisText = licensedEvidence
+        ? (excerpt?.match(/^[\s\S]*[.!?](?=\s|$)/u)?.[0] ?? null)
+        : (forSynopsis || onCapture) && mayProcess && !conflictingRights
+          ? val(e.description ?? e.summary)
+          : null;
       const candidate = candidateSchema.parse({
         title,
         url,
         authors: names.slice(0, 50).map((name: string) => ({ name })),
-        publication: val(feed.title, 300) ?? s.name,
+        publication,
         publishedAt: val(e.pubDate ?? e.published ?? e["dc:date"], 100),
         language:
           val(e["dc:language"] ?? e["@xml:lang"], 20) ??
-          val(feed.language ?? feed["dc:language"] ?? feed["@xml:lang"], 20) ??
+          feedLanguage ??
           inferTitleLanguage(title) ??
           (s.languages.length === 1 ? s.languages[0] : null),
         kind,
         description: forSynopsis
-          ? licensedEvidence
-            ? (excerpt?.match(/^[\s\S]*[.!?](?=\s|$)/u)?.[0] ?? null)
-            : processingAllowed(s) && !conflictingRights
-              ? val(e.description ?? e.summary)
-              : null
+          ? synopsisText
           : s.summaryAllowed && !conflictingRights
             ? val(e.description ?? e.summary)
             : null,
@@ -173,15 +173,10 @@ export function parseRss(
           "Somente metadados do feed; página original não foi consultada. Na ausência de idioma declarado, a inferência conservadora usa apenas o título.",
       });
       if (onCapture) {
-        const text = licensedEvidence
-          ? (excerpt?.match(/^[\s\S]*[.!?](?=\s|$)/u)?.[0] ?? null)
-          : processingAllowed(s) && !conflictingRights
-            ? val(e.description ?? e.summary)
-            : null;
         const captured = captureEvidence(
           s,
           url,
-          text,
+          synopsisText,
           entryRights,
           new Date().toISOString(),
         );

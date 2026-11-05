@@ -448,38 +448,43 @@ export async function ingestSource(
       ]);
       const collected = await collect(source, env, row, fetcher);
       run.received = collected.items.length;
+      const hasItems = collected.items.length > 0;
       const discovered = await env.DB.batch([
         ...(collected.captures?.length
           ? [captureStatement(env.DB, source, collected.captures, at)]
           : []),
-        stmt(
-          env.DB,
-          `INSERT OR IGNORE INTO ingestion_queue (source_id,payload_json,canonical_url,first_seen_at)
+        ...(hasItems
+          ? [
+              stmt(
+                env.DB,
+                `INSERT OR IGNORE INTO ingestion_queue (source_id,payload_json,canonical_url,first_seen_at)
           SELECT ?,json_extract(value,'$.candidate'),json_extract(value,'$.canonicalUrl'),? FROM json_each(?) item
           WHERE ?='openalex' OR NOT EXISTS(SELECT 1 FROM radar_seen r WHERE r.source_id=? AND r.canonical_url=json_extract(item.value,'$.canonicalUrl'))
           OR EXISTS(SELECT 1 FROM contents c WHERE c.source_id=? AND c.canonical_url=json_extract(item.value,'$.canonicalUrl') AND c.editorial_status='pending' AND c.expired_at IS NULL)`,
-          sourceId,
-          at,
-          JSON.stringify(
-            collected.items.map((candidate) => {
-              let canonical: string | null = null;
-              try {
-                canonical = canonicalUrl(candidate.url);
-              } catch {
-                /* Prefilter records invalid URLs. */
-              }
-              return { candidate, canonicalUrl: canonical };
-            }),
-          ),
-          source.connector,
-          sourceId,
-          sourceId,
-        ),
-        stmt(
-          env.DB,
-          `INSERT OR IGNORE INTO radar_seen SELECT source_id,canonical_url,first_seen_at FROM ingestion_queue WHERE source_id=? AND canonical_url IS NOT NULL`,
-          sourceId,
-        ),
+                sourceId,
+                at,
+                JSON.stringify(
+                  collected.items.map((candidate) => {
+                    let canonical: string | null = null;
+                    try {
+                      canonical = canonicalUrl(candidate.url);
+                    } catch {
+                      /* Prefilter records invalid URLs. */
+                    }
+                    return { candidate, canonicalUrl: canonical };
+                  }),
+                ),
+                source.connector,
+                sourceId,
+                sourceId,
+              ),
+              stmt(
+                env.DB,
+                `INSERT OR IGNORE INTO radar_seen SELECT source_id,canonical_url,first_seen_at FROM ingestion_queue WHERE source_id=? AND canonical_url IS NOT NULL`,
+                sourceId,
+              ),
+            ]
+          : []),
         stmt(
           env.DB,
           "UPDATE sources SET etag=?,last_modified=?,last_cycle_key=?,last_success_at=?,next_fetch_at=? WHERE id=? AND lease_token=?",
@@ -492,8 +497,9 @@ export async function ingestSource(
           leaseToken,
         ),
       ]);
-      newReferences =
-        discovered[collected.captures?.length ? 2 : 1].meta.changes ?? 0;
+      newReferences = hasItems
+        ? (discovered[collected.captures?.length ? 2 : 1].meta.changes ?? 0)
+        : 0;
       if (collected.notModified) run.status = "not_modified";
     }
     const queued = await rows<{
