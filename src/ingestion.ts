@@ -410,6 +410,7 @@ export async function ingestSource(
   };
   let retryAfter = 0;
   let newReferences: number | null = null;
+  let discoveryOnly = false;
   try {
     await stmt(
       env.DB,
@@ -448,6 +449,9 @@ export async function ingestSource(
       ]);
       const collected = await collect(source, env, row, fetcher);
       run.received = collected.items.length;
+      // Leave a full RSS discovery's queue for subsequent invocations. Parsing
+      // and classifying a burst in the same invocation share the CPU budget.
+      discoveryOnly = source.connector === "rss" && run.received >= 8;
       const hasItems = collected.items.length > 0;
       const discovered = await env.DB.batch([
         ...(collected.captures?.length
@@ -502,20 +506,22 @@ export async function ingestSource(
         : 0;
       if (collected.notModified) run.status = "not_modified";
     }
-    const queued = await rows<{
-      id: number;
-      payload_json: string;
-      existing_pending: number;
-      first_seen_at: string | null;
-    }>(
-      env.DB,
-      `SELECT iq.id,iq.payload_json,iq.first_seen_at,EXISTS(SELECT 1 FROM contents c WHERE c.source_id=iq.source_id AND c.editorial_status='pending' AND (
+    const queued = discoveryOnly
+      ? []
+      : await rows<{
+          id: number;
+          payload_json: string;
+          existing_pending: number;
+          first_seen_at: string | null;
+        }>(
+          env.DB,
+          `SELECT iq.id,iq.payload_json,iq.first_seen_at,EXISTS(SELECT 1 FROM contents c WHERE c.source_id=iq.source_id AND c.editorial_status='pending' AND (
         iq.canonical_url IS NULL OR c.canonical_url=iq.canonical_url OR EXISTS(SELECT 1 FROM content_identifiers ci JOIN json_each(iq.payload_json,'$.identifiers') j
         ON ci.scheme=json_extract(j.value,'$.scheme') AND ci.value=CASE WHEN ci.scheme='source_guid' THEN iq.source_id||':'||json_extract(j.value,'$.value') ELSE json_extract(j.value,'$.value') END
         WHERE ci.content_id=c.id))) existing_pending FROM ingestion_queue iq WHERE iq.source_id=? ORDER BY iq.id LIMIT ?`,
-      sourceId,
-      env.INGEST_BATCH_SIZE === "1" ? 1 : 2,
-    );
+          sourceId,
+          env.INGEST_BATCH_SIZE === "1" ? 1 : 2,
+        );
     const activePolicy = queued.length ? await policy(env.DB) : null;
     // Updating an existing reference requires extra relation writes. Limit that
     // invocation to one item without an additional D1 round trip.

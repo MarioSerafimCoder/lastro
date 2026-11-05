@@ -654,6 +654,31 @@ test("RSS failures, recovery and actual discoveries have separate health metrics
         ?.alerts?.includes("stale_over_48h"),
     );
   }));
+test("RSS bursts persist the full queue before processing it in later invocations", async () =>
+  isolated(async (env, s) => {
+    const ids = Array.from({ length: 8 }, (_, index) => `burst-${index}`);
+    const discovery = await ingestSource(
+      env,
+      s.id,
+      async () => new Response(xml(at, ids)),
+      clock,
+    );
+    assert.equal(discovery.status, "partial");
+    assert.equal(discovery.received, 8);
+    assert.equal(discovery.accepted, 0);
+    assert.equal(discovery.queuedRemaining, 8);
+    const next = await ingestSource(
+      env,
+      s.id,
+      async () => {
+        throw Error("queue processing must not fetch again");
+      },
+      clock + 5000,
+    );
+    assert.equal(next.received, 0);
+    assert.equal(next.accepted, 2);
+    assert.equal(next.queuedRemaining, 6);
+  }));
 test("Actual scheduled discovery with retention enabled stays inside 50 D1 statements", async () =>
   isolated(async (env, s) => {
     await env.DB.prepare(

@@ -92,7 +92,10 @@ export function parseRss(
     feed.language ?? feed["dc:language"] ?? feed["@xml:lang"],
     20,
   );
-  const feedRights = feed.rights ?? feed["dc:rights"] ?? feed.copyright;
+  const feedRights = val(
+    feed.rights ?? feed["dc:rights"] ?? feed.copyright,
+    1000,
+  );
   const mayProcess = processingAllowed(s);
   const licensedEvidence =
     (forSynopsis || !!onCapture) && mayProcess && !!s.synopsisLicenseUrl;
@@ -130,10 +133,9 @@ export function parseRss(
       const title = val(e.title, 500) ?? "";
       // Full feed text is evidence only with an audited adaptation licence.
       // Normal ingestion still honours summaryAllowed and never stores the body.
-      const entryRights = val(
-        e.rights ?? e["dc:rights"] ?? e.copyright ?? feedRights,
-        1000,
-      );
+      const itemRights = e.rights ?? e["dc:rights"] ?? e.copyright;
+      const entryRights =
+        itemRights == null ? feedRights : val(itemRights, 1000);
       const conflictingRights = !itemRightsAllowed(
         entryRights,
         s.synopsisLicenseUrl,
@@ -172,7 +174,7 @@ export function parseRss(
         accessNote:
           "Somente metadados do feed; página original não foi consultada. Na ausência de idioma declarado, a inferência conservadora usa apenas o título.",
       });
-      if (onCapture) {
+      if (onCapture && mayProcess) {
         const captured = captureEvidence(
           s,
           url,
