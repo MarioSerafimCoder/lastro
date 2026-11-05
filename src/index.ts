@@ -1,4 +1,12 @@
 import { radarFeed, dailyWindowSql, dailyWindowArgs } from "./radar-feed";
+import { ecosystemHealth } from "./health";
+import {
+  beginSearchOAuth,
+  finishSearchOAuth,
+  searchOverview,
+  SEARCH_CONSOLE_CALLBACK,
+} from "./search-console";
+import type { SearchDays } from "../packages/contracts/search-console";
 import {
   DRIVE_CALLBACK,
   beginDriveOAuth,
@@ -212,6 +220,9 @@ app.get(DRIVE_CALLBACK, async (c) => finishDriveOAuth(c.env, c.req.raw));
 app.get(ANALYTICS_CALLBACK, async (c) =>
   finishAnalyticsOAuth(c.env, c.req.raw),
 );
+app.get(SEARCH_CONSOLE_CALLBACK, async (c) =>
+  finishSearchOAuth(c.env, c.req.raw),
+);
 app.post(
   "/integration/v1/opportunities",
   bodyLimit({ maxSize: 8192 }),
@@ -274,6 +285,14 @@ app.get("/api/jarvis/conversation", async (c) => {
   if (!scope) throw new ApiFault(401, "unauthorized", "Sessão expirada.");
   if (scope.cookie) c.header("Set-Cookie", scope.cookie);
   return c.json((await loadDialogue(c.env, scope)).conversation);
+});
+app.get("/api/ecosystem/health", async (c) =>
+  c.json(await ecosystemHealth(c.env)),
+);
+app.post("/api/ecosystem/health/refresh", async (c) => {
+  if (c.req.header("Origin") !== new URL(c.req.url).origin)
+    throw new ApiFault(403, "origin_forbidden", "Origem não autorizada.");
+  return c.json(await ecosystemHealth(c.env, true));
 });
 app.post("/api/jarvis/conversation", async (c) => {
   const scope = await dialogueScope(c.req.raw, Date.now(), false);
@@ -455,6 +474,23 @@ app.post("/api/analytics/oauth/start", async (c) => {
   const started = await beginAnalyticsOAuth(c.env, c.req.raw);
   c.header("Set-Cookie", started.cookie);
   return c.json({ authorizationUrl: started.url });
+});
+const searchDays = (value: string | undefined) =>
+  Number(z.enum(["7", "28", "90"]).default("28").parse(value)) as SearchDays;
+app.get("/api/analytics/search-console", async (c) =>
+  c.json(await searchOverview(c.env, searchDays(c.req.query("days")))),
+);
+app.post("/api/analytics/search-console/refresh", async (c) => {
+  if (c.req.header("Origin") !== new URL(c.req.url).origin)
+    throw new ApiFault(403, "origin_forbidden", "Origem não autorizada.");
+  return c.json(
+    await searchOverview(c.env, searchDays(c.req.query("days")), true),
+  );
+});
+app.post("/api/analytics/search-console/oauth/start", async (c) => {
+  const started = await beginSearchOAuth(c.env, c.req.raw);
+  c.header("Set-Cookie", started.cookie);
+  return c.json({ authorizationUrl: started.authorizationUrl });
 });
 app.use(
   "/api/*",
@@ -1367,7 +1403,12 @@ export default {
     env: Env,
     _ctx: ExecutionContext,
   ) => {
-    if (_event.cron === INTEGRATION_CRON) return reconcile(env);
+    if (_event.cron === INTEGRATION_CRON) {
+      const result = await reconcile(env);
+      if (!result.processed && env.ECOSYSTEM_HEALTH_ENABLED === "true")
+        await ecosystemHealth(env, true);
+      return result;
+    }
     // Separate invocation keeps the existing ingestion below D1 Free's query cap.
     if (_event.cron === "2-57/5 * * * *") return scheduledSynopses(env);
     return scheduledIngest(env);

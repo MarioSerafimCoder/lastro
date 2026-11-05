@@ -2,6 +2,7 @@ import { localDay, shiftDay } from "../packages/contracts/jarvis-periods";
 import type { Env } from "./env";
 import { ApiFault } from "./errors";
 import { first, stmt } from "./db";
+import { readBounded } from "./connectors";
 import type {
   AnalyticsData,
   AnalyticsOverview,
@@ -178,6 +179,127 @@ async function jsonResponse(response: Response) {
   }
   return (await response.json()) as any;
 }
+async function analyticsAccessToken(env: Env): Promise<string> {
+  if (
+    !env.GOOGLE_OAUTH_CLIENT_ID ||
+    !env.GOOGLE_OAUTH_CLIENT_SECRET ||
+    !env.GA4_REFRESH_TOKEN
+  )
+    throw new ApiFault(
+      503,
+      "analytics_credentials_missing",
+      "Credenciais Analytics não configuradas.",
+    );
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    redirect: "manual",
+    signal: AbortSignal.timeout(10000),
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: env.GOOGLE_OAUTH_CLIENT_ID,
+      client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET,
+      refresh_token: env.GA4_REFRESH_TOKEN,
+    }),
+  });
+  if (response.status === 400 || response.status === 401)
+    throw new ApiFault(
+      401,
+      "analytics_reauthorization_required",
+      "Renove a autorização Analytics.",
+    );
+  const token = await jsonResponse(response);
+  if (typeof token.access_token !== "string")
+    throw new ApiFault(
+      503,
+      "analytics_invalid_response",
+      "Resposta OAuth inválida.",
+    );
+  return token.access_token;
+}
+
+export async function organicPageEngagement(
+  env: Env,
+  range: { start: string; end: string },
+) {
+  config(env);
+  const accessToken = await analyticsAccessToken(env);
+  const response = await fetch(
+    `https://analyticsdata.googleapis.com/v1beta/properties/${env.GA4_PROPERTY_ID}:runReport`,
+    {
+      method: "POST",
+      redirect: "error",
+      signal: AbortSignal.timeout(6000),
+      headers: {
+        Authorization: "Bearer " + accessToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dateRanges: [{ startDate: range.start, endDate: range.end }],
+        dimensions: [{ name: "pagePath" }],
+        metrics: [{ name: "sessions" }, { name: "engagementRate" }],
+        limit: 100,
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        dimensionFilter: {
+          andGroup: {
+            expressions: Object.entries({
+              hostName: "marioserafim.com.br",
+              sessionSource: "google",
+              sessionMedium: "organic",
+            }).map(([fieldName, value]) => ({
+              filter: {
+                fieldName,
+                stringFilter: { matchType: "EXACT", value },
+              },
+            })),
+          },
+        },
+      }),
+    },
+  );
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw Error("analytics_unavailable");
+  }
+  const report = JSON.parse(await readBounded(response, 65_536));
+  if (
+    report.metadata?.subjectToThresholding ||
+    report.metadata?.dataLossFromOtherRow ||
+    report.metadata?.samplingMetadatas?.length
+  )
+    throw Error("analytics_limited");
+  if (
+    !report.rows &&
+    report.kind === "analyticsData#runReport" &&
+    !report.rowCount
+  )
+    return new Map<string, { sessions: number; engagementRate: number }>();
+  if (
+    report.dimensionHeaders?.[0]?.name !== "pagePath" ||
+    report.metricHeaders
+      ?.map((value: { name: string }) => value.name)
+      .join(",") !== "sessions,engagementRate" ||
+    !Array.isArray(report.rows) ||
+    report.rows.length > 100
+  )
+    throw Error("analytics_invalid_response");
+  const pages = new Map<string, { sessions: number; engagementRate: number }>();
+  for (const row of report.rows) {
+    const path = row.dimensionValues?.[0]?.value;
+    const sessions = Number(row.metricValues?.[0]?.value);
+    const engagementRate = Number(row.metricValues?.[1]?.value);
+    if (
+      typeof path === "string" &&
+      path.startsWith("/") &&
+      Number.isSafeInteger(sessions) &&
+      sessions >= 0 &&
+      Number.isFinite(engagementRate) &&
+      engagementRate >= 0 &&
+      engagementRate <= 1
+    )
+      pages.set(path, { sessions, engagementRate });
+  }
+  return pages;
+}
 export async function runAnalyticsReports(
   accessToken: string,
   property = "560757639",
@@ -201,6 +323,7 @@ export async function runAnalyticsReports(
   const started = Date.now();
   const zones = new Set<string>();
   let completeZones = true;
+  let quota: AnalyticsData["quota"];
   for (const dimension of [
     "total",
     "date",
@@ -267,6 +390,19 @@ export async function runAnalyticsReports(
       },
     );
     const report = await jsonResponse(response);
+    const dailyQuota = report.propertyQuota?.tokensPerDay;
+    if (
+      Number.isSafeInteger(dailyQuota?.consumed) &&
+      dailyQuota.consumed >= 0 &&
+      Number.isSafeInteger(dailyQuota?.remaining) &&
+      dailyQuota.remaining >= 0
+    )
+      quota = {
+        daily: {
+          consumed: dailyQuota.consumed,
+          remaining: dailyQuota.remaining,
+        },
+      };
     try {
       const zone = report.metadata?.timeZone;
       if (typeof zone !== "string") completeZones = false;
@@ -383,6 +519,7 @@ export async function runAnalyticsReports(
     version: "analytics-1.0",
     propertyId: property,
     range: { start: `${days}daysAgo`, end: "yesterday" },
+    ...(quota ? { quota } : {}),
     ...(completeZones &&
     zones.size === 1 &&
     localDay(started, [...zones][0]) === localDay(Date.now(), [...zones][0])
@@ -454,42 +591,8 @@ export async function analyticsOverview(
   ).run();
   if (lock.meta.changes !== 1) return view(cached);
   try {
-    if (
-      !env.GOOGLE_OAUTH_CLIENT_ID ||
-      !env.GOOGLE_OAUTH_CLIENT_SECRET ||
-      !env.GA4_REFRESH_TOKEN
-    )
-      throw new ApiFault(
-        503,
-        "analytics_credentials_missing",
-        "Credenciais Analytics não configuradas.",
-      );
-    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      redirect: "manual",
-      signal: AbortSignal.timeout(10000),
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        client_id: env.GOOGLE_OAUTH_CLIENT_ID,
-        client_secret: env.GOOGLE_OAUTH_CLIENT_SECRET,
-        refresh_token: env.GA4_REFRESH_TOKEN,
-      }),
-    });
-    if (tokenResponse.status === 400 || tokenResponse.status === 401)
-      throw new ApiFault(
-        401,
-        "analytics_reauthorization_required",
-        "Renove a autorização Analytics.",
-      );
-    const token = await jsonResponse(tokenResponse);
-    if (typeof token.access_token !== "string")
-      throw new ApiFault(
-        503,
-        "analytics_invalid_response",
-        "Resposta OAuth inválida.",
-      );
     const data = await runAnalyticsReports(
-      token.access_token,
+      await analyticsAccessToken(env),
       env.GA4_PROPERTY_ID,
       days,
       newsletter,

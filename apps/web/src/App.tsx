@@ -3,6 +3,7 @@ import { clearJarvisSession } from "./jarvis-client";
 import Opportunities from "./Opportunities";
 import Newsletters from "./Newsletters";
 import Analytics from "./Analytics";
+import Health from "./Health";
 import Ecosystem, { useEcosystem, StudioDraftAction } from "./Ecosystem";
 import Select from "./Select";
 import {
@@ -23,10 +24,11 @@ import AppearanceControls, {
   transitionLayout,
   transitionCards,
 } from "./Appearance";
-import { chooseDiscovery, discoveryPool } from "./experience";
+import { chooseDiscovery, discoveryPool, type Area } from "./experience";
 import { useDialogFocus } from "./useDialogFocus";
 import {
   ArrowDownRight,
+  Activity,
   ArrowLeft,
   ArrowRight,
   Bookmark,
@@ -63,15 +65,6 @@ import type {
 } from "../../../packages/contracts";
 
 const api = createLastroClient();
-type Area =
-  | "for-you"
-  | "salvos"
-  | "oficina"
-  | "publicacoes"
-  | "curadoria"
-  | "analytics"
-  | "oportunidades"
-  | "newsletters";
 const areas: { id: Area; label: string; index: string }[] = [
   { id: "for-you", label: "For You", index: "01" },
   { id: "salvos", label: "Salvos", index: "02" },
@@ -81,6 +74,7 @@ const areas: { id: Area; label: string; index: string }[] = [
   { id: "analytics", label: "Analytics", index: "06" },
   { id: "oportunidades", label: "Oportunidades", index: "07" },
   { id: "newsletters", label: "Newsletters", index: "08" },
+  { id: "saude", label: "Saúde do Ecossistema", index: "09" },
 ];
 const navArea = (): Area => {
   const path = location.pathname.slice(1);
@@ -609,6 +603,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
   };
   const jarvisAction = (action: string) => {
     if (action === "analytics") navigate("analytics");
+    else if (action === "saude") navigate("saude");
     else if (action === "opportunities") navigate("oportunidades");
     else if (action === "newsletters") navigate("newsletters");
     else if (action === "publications") navigate("publicacoes");
@@ -693,6 +688,8 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                   <Lightbulb size={18} />
                 ) : a.id === "newsletters" ? (
                   <Mail size={18} />
+                ) : a.id === "saude" ? (
+                  <Activity size={18} />
                 ) : (
                   <BookOpen size={18} />
                 )}
@@ -787,11 +784,13 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                       ? "Curadoria editorial"
                       : area === "analytics"
                         ? "Analytics do portfólio"
-                        : area === "oportunidades"
-                          ? "Oportunidades"
-                          : area === "newsletters"
-                            ? "Newsletters"
-                            : "Publicações"}
+                        : area === "saude"
+                          ? "Saúde do Ecossistema"
+                          : area === "oportunidades"
+                            ? "Oportunidades"
+                            : area === "newsletters"
+                              ? "Newsletters"
+                              : "Publicações"}
             </h1>
             <p>
               {area === "for-you"
@@ -1264,6 +1263,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
         )}
         {area === "publicacoes" && <Ecosystem ecosystem={ecosystem} />}
         {area === "analytics" && <Analytics />}
+        {area === "saude" && <Health navigate={navigate} />}
         {area === "oportunidades" && <Opportunities />}
         {area === "newsletters" && <Newsletters />}
       </main>

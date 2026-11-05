@@ -8,7 +8,13 @@ import {
   socialAnswer,
   clarificationChoice,
 } from "./jarvis-social";
-import { readPeriod, periodOnly } from "./jarvis-periods";
+import {
+  readPeriod,
+  periodOnly,
+  localDay,
+  shiftDay,
+  windowOf,
+} from "./jarvis-periods";
 import {
   legacyIntent,
   type DialogueContext,
@@ -22,6 +28,8 @@ export const dialogueLabels: Record<DialogueIntent, string> = {
   ...labels,
   "analytics.total": "tráfego total do site",
   priorities: "prioridades do ecossistema",
+  "health.overview": "saúde do ecossistema",
+  "search.organic": "desempenho da pesquisa orgânica",
 };
 const initial = (id: string): DialogueContext => ({
   version: 1,
@@ -226,7 +234,47 @@ function interpret(c: DialogueContext, event: Message): DialogueContext {
   }
   const metric = metricFor(text);
   let explicit: DialogueIntent | null = null;
+  const organic =
+    /\b(search console|pesquisa organica|busca organica|trafego organico|cliques organicos)\b/.test(
+      text,
+    );
+  const organicDays = text.match(/\b(7|28|90) dias\b/)?.[1];
   if (
+    organic ||
+    (c.intent === "search.organic" &&
+      organicDays &&
+      /^(e )?(nos (ultimos )?)?\d+ dias$/.test(text))
+  ) {
+    if (/\b\d+ dias\b/.test(text) && !organicDays)
+      return say(
+        "Os snapshots da pesquisa orgânica cobrem 7, 28 ou 90 dias finalizados.",
+      );
+    const days = Number(organicDays ?? 28);
+    const end = shiftDay(localDay(event.clock, "America/Los_Angeles"), -2);
+    return prepare(
+      {
+        ...next,
+        intent: "search.organic",
+        topic: "search",
+        pending: null,
+        previous:
+          c.intent && c.intent !== "search.organic" ? slots(c) : c.previous,
+      },
+      windowOf(
+        shiftDay(end, -days),
+        end,
+        "rolling",
+        `Pesquisa orgânica · ${days} dias finalizados`,
+      ),
+    );
+  }
+  if (
+    /\b(saude do ecossistema|estado do ecossistema|cotas do ecossistema|monitoramento do ecossistema)\b/.test(
+      text,
+    )
+  )
+    explicit = "health.overview";
+  else if (
     /\b(importante|prioridades|prioridade|merece (?:minha )?atencao)\b/.test(
       text,
     )

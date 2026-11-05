@@ -21,6 +21,8 @@ import {
 } from "../packages/contracts/jarvis-dialogue";
 import { answerJarvis, jarvisPreferences, jarvisState } from "./jarvis";
 import { answerDialogueAnalytics } from "./jarvis-analytics";
+import { ecosystemHealth } from "./health";
+import { searchOverview } from "./search-console";
 import type { Answer } from "../packages/contracts/jarvis";
 
 export type Scope = { hash: string; expires: number; cookie?: string };
@@ -253,6 +255,63 @@ async function execute(
     c.intent === "newsletters.performance"
   )
     return answerDialogueAnalytics(env, c);
+  if (c.intent === "health.overview") {
+    const { snapshot, stale, enabled } = await ecosystemHealth(env);
+    const issues =
+      snapshot?.items.filter(
+        (item) => item.state === "failed" || item.state === "warning",
+      ) ?? [];
+    const unknown =
+      snapshot?.items.filter((item) => item.state === "unknown").length ?? 0;
+    return {
+      answer: {
+        ...dialogueAnswer(
+          snapshot
+            ? `${stale ? "Snapshot antigo. " : ""}${issues.length} indicadores em atenção ou falha. ${unknown} sem evidência suficiente.${
+                issues.length
+                  ? " " +
+                    issues
+                      .slice(0, 3)
+                      .map((item) => `${item.label}: ${item.detail}`)
+                      .join(" ")
+                  : ""
+              }`
+            : enabled
+              ? "Ainda não há snapshot da Saúde do Ecossistema."
+              : "O monitoramento do ecossistema está desativado.",
+        ),
+        kind: undefined,
+        source: "D1 · Saúde do Ecossistema",
+        syncedAt: snapshot?.checkedAt ?? null,
+        incomplete: !snapshot || unknown > 0,
+        stale,
+        action: { kind: "health.open" },
+      },
+    };
+  }
+  if (c.intent === "search.organic") {
+    const days =
+      c.period?.days === 7 || c.period?.days === 90 ? c.period.days : 28;
+    const result = await searchOverview(env, days);
+    const data = result.data;
+    const total = data?.total;
+    const format = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+    const text =
+      total && data
+        ? `${result.stale ? "Snapshot antigo. " : ""}De ${data.range.start} a ${data.range.end}, o Search Console registrou ${format.format(total.clicks)} cliques, ${format.format(total.impressions)} impressões, CTR de ${format.format(total.ctr * 100)}% e posição média ${format.format(total.position)}.`
+        : `Ainda não há métricas finalizadas disponíveis para os ${days} dias solicitados. Confira a seção Pesquisa Orgânica.`;
+    return {
+      answer: {
+        ...dialogueAnswer(text, c.period),
+        kind: undefined,
+        source: "D1 · Google Search Console",
+        syncedAt: result.fetchedAt,
+        incomplete: !total,
+        stale: result.stale,
+        action: { kind: "analytics.open" },
+      },
+    };
+  }
   if (c.intent === "priorities") {
     const state = await jarvisState(env),
       notice = state.notices[0];

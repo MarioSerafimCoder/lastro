@@ -766,6 +766,120 @@ test("Busca, filtros e estado vazio honestos", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockApi(page, 0);
+  let healthUpdates = 0;
+  let searchUpdates = 0;
+  const now = new Date().toISOString();
+  await page.route(/\/api\/ecosystem\/health(?:\/refresh)?$/, async (route) => {
+    const refresh = route.request().method() === "POST";
+    if (refresh) healthUpdates++;
+    await route.fulfill({
+      json: {
+        enabled: true,
+        nextRefresh: null,
+        stale: false,
+        snapshot: refresh
+          ? {
+              checkedAt: now,
+              metrics: [],
+              events: [],
+              items: [
+                {
+                  id: "studio",
+                  label: "Catálogo do Studio",
+                  state: "warning",
+                  kind: "integration",
+                  detail: "Sincronização atrasada.",
+                  href: "/publicacoes",
+                  pending: 2,
+                  failures: 0,
+                },
+              ],
+            }
+          : null,
+      },
+    });
+  });
+  await page.route("**/api/analytics/overview?**", (route) =>
+    route.fulfill({
+      json: {
+        version: "analytics-1.0",
+        propertyId: "test",
+        status: "pending",
+        data: null,
+        error: null,
+        freshness: { fetchedAt: null, nextAttemptAt: null, stale: true },
+      },
+    }),
+  );
+  await page.route(
+    /\/api\/analytics\/search-console(?:\/refresh)?\?days=/,
+    async (route) => {
+      const refresh = route.request().method() === "POST";
+      if (refresh) searchUpdates++;
+      const total = {
+        clicks: 34,
+        impressions: 900,
+        ctr: 0.0378,
+        position: 8.4,
+      };
+      await route.fulfill({
+        json: {
+          status: refresh ? "available" : "pending",
+          property: "sc-domain:marioserafim.com.br",
+          fetchedAt: refresh ? now : null,
+          nextAttemptAt: null,
+          stale: false,
+          error: null,
+          data: refresh
+            ? {
+                range: { start: "2026-10-07", end: "2026-11-03" },
+                previousRange: { start: "2026-09-09", end: "2026-10-06" },
+                total,
+                previous: null,
+                daily: [],
+                pages: [],
+                queries: [],
+                queryOpportunities: [],
+                opportunities: [],
+                ga4: "unavailable",
+              }
+            : null,
+        },
+      });
+    },
+  );
+  await page.goto("/saude");
+  await expect(
+    page.getByText("Aguardando o primeiro diagnóstico."),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Atualizar diagnóstico" }).click();
+  await expect(page.getByText("Sincronização atrasada.")).toBeVisible();
+  expect(healthUpdates).toBe(1);
+  await page.getByRole("button", { name: "Abrir no Lastro" }).click();
+  await expect(page).toHaveURL(/\/publicacoes$/);
+  await page.goto("/analytics");
+  const organic = page.getByRole("region", { name: "Pesquisa Orgânica" });
+  await expect(
+    organic.getByText("Conexão registrada.", { exact: false }),
+  ).toBeVisible();
+  await organic.getByRole("button", { name: "Atualizar pesquisa" }).click();
+  await expect(organic.getByText("34", { exact: true })).toBeVisible();
+  await expect(
+    organic.getByText("Cruzamento com GA4 indisponível para este snapshot."),
+  ).toBeVisible();
+  expect(searchUpdates).toBe(1);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
 test("Login e erro recuperável de rede", async ({ page }) => {
   await mockApi(page, 0, false);
   await page.goto("/");

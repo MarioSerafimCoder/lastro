@@ -5,6 +5,7 @@ import type {
   AnalyticsRow,
 } from "../../../packages/contracts/analytics";
 import { editorialDate } from "./Ecosystem";
+import SearchConsole from "./SearchConsole";
 const api = createLastroClient();
 const number = (n: number) =>
   new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(n);
@@ -233,6 +234,7 @@ export default function Analytics() {
         Campanhas incluem valores atribuídos pelo GA4 e UTMs quando disponíveis;
         “(not set)” indica atribuição ausente.
       </p>
+      <SearchConsole />
     </section>
   );
 }

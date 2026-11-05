@@ -20,6 +20,8 @@ import type {
 } from "./index";
 
 import type { AnalyticsOverview } from "./analytics";
+import type { HealthOverview } from "./health";
+import type { SearchDays, SearchOverview } from "./search-console";
 export class LastroApiError extends Error {
   constructor(
     public status: number,
@@ -226,6 +228,21 @@ export function createLastroClient(
       request<AnalyticsOverview>(`/analytics/overview?days=${days}`),
     refreshAnalytics: (days: 7 | 30 = 7) =>
       request<AnalyticsOverview>(`/analytics/refresh?days=${days}`, "POST"),
+    ecosystemHealth: (refresh = false) =>
+      request<HealthOverview>(
+        `/ecosystem/health${refresh ? "/refresh" : ""}`,
+        refresh ? "POST" : "GET",
+      ),
+    searchConsole: (days: SearchDays, refresh = false) =>
+      request<SearchOverview>(
+        `/analytics/search-console${refresh ? "/refresh" : ""}?days=${days}`,
+        refresh ? "POST" : "GET",
+      ),
+    connectSearchConsole: () =>
+      request<{ authorizationUrl: string }>(
+        "/analytics/search-console/oauth/start",
+        "POST",
+      ),
     preferences: () => request<Preferences>("/preferences"),
     setPreferences: (input: Preferences) =>
       request<Preferences>("/preferences", "PUT", input),

@@ -8,7 +8,8 @@ export type Area =
   | "curadoria"
   | "analytics"
   | "oportunidades"
-  | "newsletters";
+  | "newsletters"
+  | "saude";
 export type Suggestion = {
   title: string;
   body: string;

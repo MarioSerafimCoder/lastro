@@ -6,6 +6,8 @@ export const dialogueIntents = [
   ...intents,
   "analytics.total",
   "priorities",
+  "health.overview",
+  "search.organic",
 ] as const;
 export type DialogueIntent = (typeof dialogueIntents)[number];
 export type Metric = "traffic" | "sessions" | "views" | "users" | "engagement";

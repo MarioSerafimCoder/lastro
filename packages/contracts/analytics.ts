@@ -16,6 +16,7 @@ export type AnalyticsData = {
   range: { start: string; end: string };
   timeZone?: string;
   effectiveRange?: { start: string; end: string };
+  quota?: { daily: { consumed: number; remaining: number } };
   reports: Array<{
     dimension:
       | "total"

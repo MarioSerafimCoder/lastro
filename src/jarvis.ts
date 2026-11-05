@@ -19,6 +19,7 @@ import {
   resolvePeriod,
 } from "../packages/contracts/jarvis-intents";
 import type { AnalyticsData } from "../packages/contracts/analytics";
+import { ecosystemHealth } from "./health";
 export const aiPolicy = {
   enabled: false as const,
   reason:
@@ -401,6 +402,26 @@ export async function jarvisNotices(env: Env): Promise<Notice[]> {
       changedAt,
     });
   };
+  if (env.ECOSYSTEM_HEALTH_ENABLED === "true") {
+    const health = await ecosystemHealth(env);
+    if (!health.stale && health.snapshot) {
+      for (const item of health.snapshot.items) {
+        if (!["warning", "failed"].includes(item.state)) continue;
+        const changed = health.snapshot.events.find(
+          (event) => event.id === item.id,
+        );
+        if (changed?.state === item.state)
+          await add(
+            `health-${item.id}`,
+            changed.at,
+            changed.at,
+            item.state === "failed" ? 100 : 75,
+            `${item.label}. ${item.detail}`,
+            { kind: "health.open" },
+          );
+      }
+    }
+  }
   for (const o of s.opportunities) {
     if (
       ["novo", "em_conversa", "proposta_enviada"].includes(o.status) &&
@@ -648,6 +669,9 @@ export async function resolveAction(env: Env, input: unknown) {
       break;
     case "analytics.open":
       navigation = "analytics";
+      break;
+    case "health.open":
+      navigation = "saude";
       break;
     case "newsletters.open":
       navigation = "newsletters";

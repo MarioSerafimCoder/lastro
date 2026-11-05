@@ -8,6 +8,7 @@ export const areas = [
   "analytics",
   "oportunidades",
   "newsletters",
+  "saude",
 ] as const;
 export const intents = [
   "opportunities.new",
@@ -31,6 +32,7 @@ export const actionNames = [
   "workshop.prepare",
   "integration.review",
   "references.open",
+  "health.open",
 ] as const;
 export const actionSchema = z
   .object({ kind: z.enum(actionNames), target: z.string().max(160).optional() })
