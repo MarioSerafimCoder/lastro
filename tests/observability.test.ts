@@ -168,6 +168,13 @@ test("Search Console authorizes an allowed property, encrypts credentials, cache
     "https://marioserafim.com.br/",
   );
   assert.equal((await searchOverview(env, 28)).status, "disconnected");
+  const setupEnv = {
+    ...env,
+    SEARCH_CONSOLE_ENABLED: "false",
+    SEARCH_CONSOLE_SETUP: "true",
+  };
+  assert.equal((await searchOverview(setupEnv, 28)).status, "disconnected");
+  assert.equal((await searchOverview(setupEnv, 28, true)).status, "disabled");
   const request = new Request(
     origin + "/api/analytics/search-console/oauth/start",
     { method: "POST", headers: { Origin: origin } },
@@ -178,7 +185,7 @@ test("Search Console authorizes an allowed property, encrypts credentials, cache
       request,
     ),
   );
-  const started = await beginSearchOAuth(env, request);
+  const started = await beginSearchOAuth(setupEnv, request);
   const consent = new URL(started.authorizationUrl);
   assert.equal(consent.searchParams.get("scope"), SEARCH_CONSOLE_SCOPE);
   assert.equal(consent.searchParams.get("code_challenge_method"), "S256");
@@ -195,13 +202,7 @@ test("Search Console authorizes an allowed property, encrypts credentials, cache
   const windows: Record<string, string>[] = [];
   globalThis.fetch = async (input, init) => {
     googleCalls++;
-    assert.equal(
-      init?.redirect,
-      String(input).includes("oauth2.googleapis.com") &&
-        String(init?.body).includes("client_id=ga4-test")
-        ? "manual"
-        : "error",
-    );
+    assert.equal(init?.redirect, "manual");
     const url = String(input);
     if (url === "https://oauth2.googleapis.com/token") {
       const grant = new URLSearchParams(String(init?.body));
@@ -274,7 +275,7 @@ test("Search Console authorizes an allowed property, encrypts credentials, cache
   const authorized = await app.request(
     callback,
     { headers: { Cookie: started.cookie.split(";")[0] } },
-    env,
+    setupEnv,
   );
   assert.equal(authorized.status, 303);
   assert.match(
@@ -296,6 +297,7 @@ test("Search Console authorizes an allowed property, encrypts credentials, cache
     "SELECT token_cipher FROM search_console_connection",
   ).first<string>("token_cipher");
   assert.ok(cipher && !cipher.includes("gsc-private-test-token"));
+  assert.equal((await searchOverview(setupEnv, 28)).status, "disabled");
   assert.equal((await searchOverview(env, 28)).status, "pending");
   assert.equal(googleCalls, 2);
   await Promise.all([

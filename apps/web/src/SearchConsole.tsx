@@ -142,6 +142,13 @@ export default function SearchConsole() {
     }
   }
   const snapshot = data?.data;
+  const hasResults = Boolean(
+    snapshot &&
+    (snapshot.total ||
+      snapshot.daily.length ||
+      snapshot.pages.length ||
+      snapshot.queries.length),
+  );
   const refreshable =
     data && ["pending", "available", "unavailable"].includes(data.status);
   const canConnect =
@@ -203,7 +210,9 @@ export default function SearchConsole() {
         {busy
           ? "Consultando Pesquisa Orgânica…"
           : data
-            ? statuses[data.status]
+            ? data.status === "available" && !hasResults
+              ? "O Search Console ainda não retornou dados finalizados para este período."
+              : statuses[data.status]
             : "Sem snapshot."}
         {data?.fetchedAt
           ? ` Última atualização ${editorialDate(data.fetchedAt)}${data.stale ? " · Dados antigos" : ""}.`

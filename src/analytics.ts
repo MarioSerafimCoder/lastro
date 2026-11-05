@@ -227,7 +227,7 @@ export async function organicPageEngagement(
     `https://analyticsdata.googleapis.com/v1beta/properties/${env.GA4_PROPERTY_ID}:runReport`,
     {
       method: "POST",
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(6000),
       headers: {
         Authorization: "Bearer " + accessToken,

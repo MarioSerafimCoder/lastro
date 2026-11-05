@@ -46,6 +46,13 @@ const fault = (code: string, status = 503) =>
         "A conta Google não tem uma propriedade autorizada para o portfólio.",
       gsc_reauthorization: "Renove a autorização do Search Console.",
       gsc_quota: "A cota do Search Console está temporariamente indisponível.",
+      gsc_token_response:
+        "Não foi possível ler a resposta de autorização do Google.",
+      gsc_sites_response:
+        "Não foi possível ler a lista de propriedades do Google.",
+      gsc_setup_storage: "Não foi possível salvar a conexão no Lastro.",
+      gsc_setup_state:
+        "Não foi possível validar esta tentativa. Inicie uma nova conexão.",
     }[code] ?? "Search Console temporariamente indisponível.",
   );
 
@@ -81,7 +88,11 @@ function configuration(env: Env) {
 }
 type Config = NonNullable<ReturnType<typeof configuration>>;
 function requireConfig(env: Env) {
-  if (env.SEARCH_CONSOLE_ENABLED !== "true") throw fault("gsc_disabled");
+  if (
+    env.SEARCH_CONSOLE_ENABLED !== "true" &&
+    env.SEARCH_CONSOLE_SETUP !== "true"
+  )
+    throw fault("gsc_disabled");
   const config = configuration(env);
   if (!config) throw fault("gsc_config");
   return config;
@@ -147,7 +158,7 @@ export async function beginSearchOAuth(env: Env, request: Request) {
 async function googleJson(url: string, init: RequestInit, max = 131072) {
   const response = await fetch(url, {
     ...init,
-    redirect: "error",
+    redirect: "manual",
     signal: AbortSignal.timeout(7000),
   });
   if (!response.ok) {
@@ -234,6 +245,21 @@ export function selectProperty(sites: unknown) {
 }
 
 export async function finishSearchOAuth(env: Env, request: Request) {
+  let stage = "gsc_setup_state";
+  try {
+    return await completeSearchOAuth(env, request, (next) => (stage = next));
+  } catch (error) {
+    if (error instanceof ApiFault) throw error;
+    console.warn(JSON.stringify({ component: "search-console", stage }));
+    throw fault(stage);
+  }
+}
+
+async function completeSearchOAuth(
+  env: Env,
+  request: Request,
+  stage: (code: string) => void,
+) {
   const config = requireConfig(env);
   const url = new URL(request.url);
   const state = url.searchParams.get("state") ?? "";
@@ -262,13 +288,15 @@ export async function finishSearchOAuth(env: Env, request: Request) {
   const code = url.searchParams.get("code");
   if (url.searchParams.has("error") || !code || code.length > 4096)
     throw fault("gsc_denied", 400);
+  const verifier = await decrypt(config.key, "pkce", record.verifier_cipher);
+  stage("gsc_token_response");
   const token = await exchange(
     config,
     {
       grant_type: "authorization_code",
       code,
       redirect_uri: config.redirect,
-      code_verifier: await decrypt(config.key, "pkce", record.verifier_cipher),
+      code_verifier: verifier,
     },
     true,
   );
@@ -278,11 +306,13 @@ export async function finishSearchOAuth(env: Env, request: Request) {
     token.refresh_token.length > 4096
   )
     throw fault("gsc_denied", 400);
+  stage("gsc_sites_response");
   const data = await googleJson(apiRoot, {
     headers: { Authorization: "Bearer " + token.access_token },
   });
   const property = selectProperty(data?.siteEntry);
   if (!property) throw fault("gsc_property", 403);
+  stage("gsc_setup_storage");
   await env.DB.batch([
     stmt(
       env.DB,
@@ -497,7 +527,9 @@ export async function searchOverview(
   days: SearchDays,
   refresh = false,
 ): Promise<SearchOverview> {
-  if (env.SEARCH_CONSOLE_ENABLED !== "true") return empty("disabled");
+  const enabled = env.SEARCH_CONSOLE_ENABLED === "true";
+  if (!enabled && (env.SEARCH_CONSOLE_SETUP !== "true" || refresh))
+    return empty("disabled");
   const config = configuration(env);
   if (!config) return empty("unconfigured");
   const connection = () =>
@@ -507,6 +539,7 @@ export async function searchOverview(
     );
   const current = await connection();
   if (!current) return empty("disconnected");
+  if (!enabled) return empty("disabled");
   const id = `gsc-${days}`,
     now = Date.now();
   const cache = () =>

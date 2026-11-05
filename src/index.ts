@@ -71,7 +71,13 @@ import {
 } from "./integration";
 import { integrationRequestSchema } from "../packages/contracts/integration";
 import { Hono } from "hono";
-import { analyticsInfo, analyticsPrivacy } from "./analytics-public";
+import {
+  analyticsInfo,
+  analyticsPrivacy,
+  searchConsoleInfo,
+  searchConsolePrivacy,
+  searchConsoleTerms,
+} from "./analytics-public";
 import {
   jarvisDriveInfo,
   jarvisDrivePrivacy,
@@ -230,6 +236,9 @@ app.post(
 );
 app.get("/api/analytics/info", () => analyticsInfo());
 app.get("/api/analytics/privacy", () => analyticsPrivacy());
+app.get("/api/analytics/search-console/info", () => searchConsoleInfo());
+app.get("/api/analytics/search-console/privacy", () => searchConsolePrivacy());
+app.get("/api/analytics/search-console/terms", () => searchConsoleTerms());
 app.get("/api/jarvis/drive/info", () => jarvisDriveInfo());
 app.get("/api/jarvis/drive/privacy", () => jarvisDrivePrivacy());
 app.get("/api/jarvis/drive/terms", () => jarvisDriveTerms());
