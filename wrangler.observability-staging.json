@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lastro-ecosystem-staging",
+  "account_id": "7bfc908c25ef636aade196a09572a11c",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "assets": {
+    "directory": "./dist/web",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/integration/*", "/health"]
+  },
+  "vars": {
+    "ENVIRONMENT": "production",
+    "ALLOWED_ORIGIN": "https://lastro-ecosystem-staging.marioserafim-da.workers.dev",
+    "ECOSYSTEM_STAGING": "true",
+    "INTEGRATION_ENABLED": "true",
+    "STUDIO_ORIGIN": "https://studio-ecosystem-staging.marioserafim-da.workers.dev",
+    "CRM_ORIGIN": "https://crm-ecosystem-staging.pages.dev",
+    "INGEST_ENABLED": "false",
+    "SYNOPSIS_ENABLED": "false",
+    "RADAR_RETENTION_ENABLED": "false",
+    "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,feeds2.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com,www.creativeboom.com,brasil.uxdesign.cc,plau.substack.com,designnotes.blog.gov.uk,baixacultura.org,internetlab.org.br,escoladedados.org,creativecommons.org,www.thisiscolossal.com,hyperallergic.com,www.artnews.com,www.etapes.com,artebrasileiros.com.br,www.designboom.com",
+    "ANALYTICS_ENABLED": "true",
+    "GA4_PROPERTY_ID": "560757639",
+    "GOOGLE_OAUTH_CLIENT_ID": "111592653976-o7sun1q4h7e9q87rqqaus763okhh2kfe.apps.googleusercontent.com",
+    "ECOSYSTEM_HEALTH_ENABLED": "true",
+    "HEALTH_CF_ACCOUNT_ID": "7bfc908c25ef636aade196a09572a11c",
+    "HEALTH_CF_WORKER_NAME": "lastro-ecosystem-staging",
+    "HEALTH_CF_D1_ID": "02b2c69e-3780-484c-a0d2-034ebf15ea7a",
+    "HEALTH_CF_FREE_CONFIRMED": "true",
+    "HEALTH_QUOTA_THRESHOLDS": "70,85,95",
+    "SEARCH_CONSOLE_ENABLED": "true"
+  },
+  "services": [{ "binding": "STUDIO", "service": "studio-ecosystem-staging" }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lastro-ecosystem-stage03",
+      "database_id": "02b2c69e-3780-484c-a0d2-034ebf15ea7a",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
