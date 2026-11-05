@@ -13,6 +13,7 @@ type Summary = {
     }>;
     limited: boolean;
     fetchedAt: number;
+    stale?: boolean;
   };
 };
 export default function Newsletters() {
@@ -156,6 +157,7 @@ export default function Newsletters() {
               <p>
                 Snapshot CRM:{" "}
                 {new Date(data.crm.fetchedAt).toLocaleString("pt-BR")}
+                {data.crm.stale ? " · Dados desatualizados." : ""}
               </p>
             )}
             {!data.crm ? (

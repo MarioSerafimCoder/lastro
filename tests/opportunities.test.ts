@@ -299,4 +299,10 @@ test("private recommendations read real rows and CRM backoff never represents st
     .bind(JSON.stringify({ campaigns: [{ id: "old" }] }))
     .run();
   assert.equal(await newsletterSummary(env), null);
+  await env.DB.prepare(
+    "UPDATE analytics_cache SET fetched_at=? WHERE id='newsletter-crm-v1'",
+  )
+    .bind(Date.now() - 86400000)
+    .run();
+  assert.equal((await newsletterSummary(env))?.stale, true);
 });

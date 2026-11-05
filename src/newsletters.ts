@@ -15,10 +15,15 @@ export async function newsletterSummary(env: Env) {
     fetched_at: number;
     error: string | null;
   }>(env.DB, "SELECT * FROM analytics_cache WHERE id=?", id);
-  if (cached && cached.next_at > Date.now())
-    return cached.body_json && !cached.error
-      ? { ...JSON.parse(cached.body_json), fetchedAt: cached.fetched_at }
+  const view = (stale = false) =>
+    cached?.body_json && cached.fetched_at > 0
+      ? {
+          ...JSON.parse(cached.body_json),
+          fetchedAt: cached.fetched_at,
+          stale: stale || !!cached.error,
+        }
       : null;
+  if (cached && cached.next_at > Date.now()) return view();
   const lock = await stmt(
     env.DB,
     "UPDATE analytics_cache SET lease_until=? WHERE id=? AND lease_until<? AND next_at<=?",
@@ -27,7 +32,7 @@ export async function newsletterSummary(env: Env) {
     Date.now(),
     Date.now(),
   ).run();
-  if (lock.meta.changes !== 1) return null;
+  if (lock.meta.changes !== 1) return view(true);
   try {
     const data = (await remote(
       env,
@@ -48,7 +53,7 @@ export async function newsletterSummary(env: Env) {
       Date.now() + 43200000,
       id,
     ).run();
-    return { ...data, fetchedAt: Date.now() };
+    return { ...data, fetchedAt: Date.now(), stale: false };
   } catch {
     await stmt(
       env.DB,
@@ -56,7 +61,7 @@ export async function newsletterSummary(env: Env) {
       Date.now() + 3600000,
       id,
     ).run();
-    return null;
+    return view(true);
   }
 }
 export async function commercialRecommendations(env: Env) {
