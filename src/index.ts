@@ -1,3 +1,4 @@
+import { synopsisGate } from "./synopsis-evidence";
 import { radarFeed, dailyWindowSql, dailyWindowArgs } from "./radar-feed";
 import { ecosystemHealth } from "./health";
 import {
@@ -603,14 +604,28 @@ async function search(
     where.push(
       "json_extract(s.config_json,'$.metadataAllowed')=1",
       dailyWindowSql,
+      "(c.kind='paper' OR (json_extract(s.config_json,'$.country') IN ('BR','US') AND c.language IN ('pt','en')))",
+      "(EXISTS(SELECT 1 FROM favorites f WHERE f.content_id=c.id AND f.user_id='owner') OR NOT EXISTS(SELECT 1 FROM interactions i WHERE i.content_id=c.id AND i.user_id='owner' AND i.type='dismissed' AND i.active=1))",
     );
     args.push(...dailyWindowArgs());
   }
   if (q.q) {
-    where.push(
-      "(instr(lower(c.title),lower(?))>0 OR instr(lower(COALESCE(json_extract(c.metadata_json,'$.description'),'')),lower(?))>0 OR EXISTS(SELECT 1 FROM content_synopses sy WHERE sy.content_id=c.id AND sy.status='validated' AND sy.metadata_json=c.metadata_json AND instr(lower(sy.text),lower(?))>0))",
-    );
-    args.push(q.q, q.q, q.q);
+    where.push(`(
+      instr(lower(c.title),lower(?))>0
+      OR instr(lower(s.name),lower(?))>0
+      OR instr(lower(COALESCE(json_extract(c.metadata_json,'$.publication'),'')),lower(?))>0
+      OR EXISTS(SELECT 1 FROM json_each(c.metadata_json,'$.authors') a
+        WHERE instr(lower(json_extract(a.value,'$.name')),lower(?))>0)
+      OR EXISTS(SELECT 1 FROM json_each(c.metadata_json,'$.topics') t
+        WHERE instr(lower(t.value),lower(?))>0)
+      OR EXISTS(SELECT 1 FROM content_taxonomies ct JOIN taxonomies t ON t.id=ct.taxonomy_id
+        WHERE ct.content_id=c.id AND (? <> '' AND instr(t.name,?)>0))
+      OR (json_extract(s.config_json,'$.summaryAllowed')=1
+        AND instr(lower(COALESCE(json_extract(c.metadata_json,'$.description'),'')),lower(?))>0)
+      OR (${synopsisGate} AND EXISTS(SELECT 1 FROM content_synopses sy WHERE sy.content_id=c.id
+        AND instr(lower(sy.text),lower(?))>0))
+    )`);
+    args.push(q.q, q.q, q.q, q.q, q.q, folded(q.q), folded(q.q), q.q, q.q);
   }
   for (const [value, column] of [
     [q.sourceId, "c.source_id"],

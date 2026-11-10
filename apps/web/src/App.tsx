@@ -852,6 +852,11 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             onSelect={selection}
             onItemsChange={setRadarItems}
             query={query}
+            onClearSearch={() => {
+              setSearchText("");
+              setQuery({});
+              document.getElementById("global-search")?.focus();
+            }}
           />
         )}
         {area === "salvos" && (

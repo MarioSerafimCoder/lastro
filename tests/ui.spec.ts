@@ -2324,7 +2324,7 @@ test("Jarvis Brain: revoked Google access preserves the authenticated Lastro cha
   ).toBeVisible();
 });
 
-test("Radar 2: países, 32 cards, triagem, detalhes e Oficina", async ({
+test("Radar 2: grade, 32 cards, triagem, detalhes e Oficina", async ({
   page,
 }) => {
   await mockApi(page, 40, true, false, false, true);
@@ -2339,19 +2339,18 @@ test("Radar 2: países, 32 cards, triagem, detalhes e Oficina", async ({
   });
   await expect(board.getByTestId("radar-card")).toHaveCount(32);
   const first = board.getByTestId("radar-card").first();
-  const title = await first.locator("h4").innerText();
+  await first.getByLabel(/^Mais ações:/).click();
   await first
-    .getByRole("button", { name: `Avaliar ${title}`, exact: true })
+    .getByRole("button", { name: "Avaliar depois", exact: true })
     .click();
   await expect(board.locator('[data-triage="para_avaliar"]')).toHaveCount(1);
   await board
     .locator('[data-triage="para_avaliar"]')
-    .getByRole("button", { name: `Favoritar ${title}`, exact: true })
+    .getByRole("button", { name: /^Salvar / })
     .click();
   await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
-  await first
-    .getByRole("button", { name: `Descartar ${title}`, exact: true })
-    .click();
+  await first.getByLabel(/^Mais ações:/).click();
+  await first.getByRole("button", { name: "Descartar", exact: true }).click();
   await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
   await expect(board.getByRole("status")).toContainText("Remova dos Favoritos");
   await page.reload();
@@ -2385,9 +2384,7 @@ test("Radar 2: países, 32 cards, triagem, detalhes e Oficina", async ({
     path: ".wrangler/radar-country-mock/desktop-light.png",
     fullPage: true,
   });
-  await expect(
-    board.getByRole("region", { name: "Brasil", exact: true }),
-  ).toBeVisible();
+  await expect(board.locator(".radar-grid")).toBeVisible();
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(board).toBeVisible();
   expect(
@@ -2430,31 +2427,29 @@ test("Radar 2: favoritos sobrevivem à expiração e itens não favoritos podem 
     exact: true,
   });
   await expect(board.getByTestId("radar-card")).toHaveCount(19);
-  await board
-    .getByTestId("radar-card")
-    .last()
-    .getByRole("button", { name: /^Descartar / })
-    .click();
+  const last = board.getByTestId("radar-card").last();
+  await last.getByLabel(/^Mais ações:/).click();
+  await last.getByRole("button", { name: "Descartar", exact: true }).click();
   await expect(board.getByTestId("radar-card")).toHaveCount(18);
+  await board.getByRole("button", { name: "Desfazer descarte" }).click();
+  await expect(board.getByTestId("radar-card")).toHaveCount(19);
   await board
     .getByTestId("radar-card")
     .first()
-    .getByRole("button", { name: /^Favoritar / })
+    .getByRole("button", { name: /^Salvar / })
     .click();
   await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
   await page.clock.fastForward(9 * 86400000 + 60001);
   await expect(board.getByTestId("radar-card")).toHaveCount(1);
-  await board
-    .getByTestId("radar-card")
-    .first()
-    .getByRole("button", { name: /^Descartar / })
-    .click();
+  const saved = board.getByTestId("radar-card").first();
+  await saved.getByLabel(/^Mais ações:/).click();
+  await saved.getByRole("button", { name: "Descartar", exact: true }).click();
   await expect(board.getByTestId("radar-card")).toHaveCount(1);
   await expect(board.getByRole("status")).toContainText("Remova dos Favoritos");
   await board
     .getByTestId("radar-card")
     .first()
-    .getByRole("button", { name: /^Favoritar / })
+    .getByRole("button", { name: /^Remover dos salvos / })
     .click();
   await expect(board.getByTestId("radar-card")).toHaveCount(0);
   await expect(board.getByRole("combobox")).toHaveCount(0);
@@ -2474,7 +2469,7 @@ test("Busca única no topo abre resultados no Radar sem controles de filtro", as
     page
       .getByRole("region", { name: "Mesa editorial" })
       .getByTestId("radar-card"),
-  ).toHaveCount(5);
+  ).toHaveCount(6);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(search).toBeVisible();
   expect(

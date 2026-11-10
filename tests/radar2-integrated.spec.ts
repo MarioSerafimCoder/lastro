@@ -261,7 +261,7 @@ test.beforeEach(async ({ page }) => {
   await expect(board(page).getByTestId("radar-card")).toHaveCount(37);
 });
 
-test("real session, 30+ references, responsive themes, provenance and country sections", async ({
+test("real session, 30+ references, responsive themes, provenance and editorial grid", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -273,6 +273,7 @@ test("real session, 30+ references, responsive themes, provenance and country se
     [1280, "light"],
     [1024, "dark"],
     [1920, "light"],
+    [390, "dark"],
   ] as const) {
     await page.setViewportSize({ width, height: 1000 });
     if ((await page.locator("html").getAttribute("data-theme")) !== theme)
@@ -292,17 +293,12 @@ test("real session, 30+ references, responsive themes, provenance and country se
       fullPage: true,
       animations: "disabled",
     });
-    const countryRow = b.getByRole("region", { name: "Brasil", exact: true });
-    const geometry = await countryRow
-      .locator(".radar-carousel-track")
-      .evaluate((el) => {
-        const bounds = el.getBoundingClientRect();
-        return [...el.children].filter((card) => {
-          const r = card.getBoundingClientRect();
-          return r.left >= bounds.left - 1 && r.right <= bounds.right + 1;
-        }).length;
-      });
-    expect(geometry).toBe(3);
+    const columns = await b
+      .locator(".radar-grid")
+      .evaluate(
+        (grid) => getComputedStyle(grid).gridTemplateColumns.split(" ").length,
+      );
+    expect(columns).toBe(width <= 680 ? 1 : width <= 1200 ? 2 : 3);
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.locator("#main").evaluate((el) => (el.scrollTop = 420));
@@ -342,74 +338,41 @@ test("real session, 30+ references, responsive themes, provenance and country se
   expect(errors).toEqual([]);
 });
 
-test("country carousels: mouse drag, arrows, keyboard and sparse country", async ({
+test("global search finds authors, sources, subjects and scientific formats", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  const b = board(page),
-    country = b.getByRole("region", { name: "Brasil", exact: true });
-  const track = country.getByRole("region", {
-    name: "Matérias de Brasil",
-    exact: true,
-  });
-  await expect(b.locator(".radar-country")).toHaveCount(2);
-  await expect(country.getByTestId("radar-card")).toHaveCount(12);
-  await expect(
-    country.getByRole("button", { name: "Matérias anteriores — Brasil" }),
-  ).toBeDisabled();
-  await country
-    .getByRole("button", { name: "Próximas matérias — Brasil" })
-    .click();
-  await expect
-    .poll(() => track.evaluate((el) => el.scrollLeft))
-    .toBeGreaterThan(500);
-  await track.focus();
-  await page.keyboard.press("Home");
-  await expect.poll(() => track.evaluate((el) => el.scrollLeft)).toBe(0);
-  await track.scrollIntoViewIfNeeded();
-  const target = await country
-    .getByTestId("radar-card")
-    .nth(1)
-    .locator(".radar-title")
-    .boundingBox();
-  await page.mouse.move(target!.x + target!.width * 0.8, target!.y + 25);
-  await page.mouse.down();
-  await page.mouse.move(target!.x - 240, target!.y + 25, { steps: 12 });
-  await page.mouse.up();
-  await expect
-    .poll(() => track.evaluate((el) => el.scrollLeft))
-    .toBeGreaterThan(100);
-  await expect(page.getByRole("dialog")).not.toBeVisible();
-  await track.focus();
-  await page.keyboard.press("End");
-  await expect(
-    country.getByRole("button", { name: "Próximas matérias — Brasil" }),
-  ).toBeDisabled();
-  await page.keyboard.press("Home");
-  await expect.poll(() => track.evaluate((el) => el.scrollLeft)).toBe(0);
-  await country
-    .getByTestId("radar-card")
-    .first()
-    .locator(".radar-title")
-    .click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await page.keyboard.press("Escape");
-
-  await env.DB.prepare(
-    "UPDATE sources SET config_json=json_set(config_json,'$.country',NULL) WHERE name='HOMOLOGAÇÃO — Fonte 3'",
-  ).run();
-  try {
-    await b.getByRole("button", { name: "Atualizar", exact: true }).click();
-    await expect(
-      b.getByRole("region", { name: "País não informado", exact: true }),
-    ).toHaveCount(0);
-    await expect(b.getByTestId("radar-card")).toHaveCount(25);
-  } finally {
-    await env.DB.prepare(
-      "UPDATE sources SET config_json=json_set(config_json,'$.country','US') WHERE name='HOMOLOGAÇÃO — Fonte 3'",
-    ).run();
-  }
+  const b = board(page);
+  const search = page.getByRole("searchbox", { name: "Buscar no Lastro" });
+  await search.fill("Autoria sintética");
+  await search.press("Enter");
+  await expect(b.getByText("Resultados para")).toContainText(
+    "Autoria sintética",
+  );
+  await expect(b.getByText("Estudo científico", { exact: true })).toHaveCount(
+    4,
+  );
+  const firstPage = await (
+    await page.request.get("/api/search?q=Fonte%202&limit=1")
+  ).json();
+  const secondPage = await (
+    await page.request.get(
+      `/api/search?q=Fonte%202&limit=1&offset=${firstPage.nextCursor}`,
+    )
+  ).json();
+  expect(firstPage.items).toHaveLength(1);
+  expect(secondPage.items).toHaveLength(1);
+  expect(secondPage.items[0].id).not.toBe(firstPage.items[0].id);
+  await search.fill("design");
+  await search.press("Enter");
+  await expect(b.getByText("Resultados para")).toContainText("design");
+  await expect(b.locator(`[data-reference-id="${refs[8].id}"]`)).toBeVisible();
+  await search.fill("termo-inexistente-123");
+  await search.press("Enter");
+  await expect(b.getByText(/Nenhum resultado/)).toBeVisible();
+  await b.getByRole("button", { name: "Limpar pesquisa" }).click();
+  await expect(search).toHaveValue("");
+  await expect(search).toBeFocused();
+  await expect(b.getByTestId("radar-card")).toHaveCount(37);
 });
 
 test("favorite and Workshop persist through API and details reopen", async ({
@@ -417,13 +380,12 @@ test("favorite and Workshop persist through API and details reopen", async ({
 }) => {
   const b = board(page),
     c = b.locator(`[data-reference-id="${refs[0].id}"]`);
-  await c.getByRole("button", { name: /^Favoritar / }).click();
+  await c.getByRole("button", { name: /^Salvar / }).click();
   await expect(b.locator('[data-triage="favorito"]')).toHaveCount(4);
   await page.reload();
-  await expect(c.getByRole("button", { name: /^Favoritar / })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(
+    c.getByRole("button", { name: /^Remover dos salvos / }),
+  ).toHaveAttribute("aria-pressed", "true");
   await c.locator(".radar-title").click();
   holdSelection = new Promise<void>((resolve) => {
     releaseSelection = resolve;
@@ -452,7 +414,7 @@ test("favorite and Workshop persist through API and details reopen", async ({
   await c.locator(".radar-title").click();
   await expect(page.getByRole("dialog")).toContainText(refs[0].title);
   await page.keyboard.press("Escape");
-  await c.getByRole("button", { name: /^Favoritar / }).click();
+  await c.getByRole("button", { name: /^Remover dos salvos / }).click();
   await c.locator(".radar-title").click();
   await page
     .getByRole("button", { name: "Selecionar / remover da Oficina" })
@@ -519,7 +481,7 @@ test("visible foreign titles are translated and retain their original in details
   page,
 }) => {
   const title = board(page)
-    .getByRole("region", { name: "Estados Unidos", exact: true })
+    .locator(`[data-reference-id="${refs[1].id}"]`)
     .locator(".radar-title")
     .first();
   await title.scrollIntoViewIfNeeded();

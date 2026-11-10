@@ -1,22 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import "./radar-board.css";
-import { Heart, Clock, X, ExternalLink, Plus } from "lucide-react";
-import RadarCountryCarousel from "./RadarCountryCarousel";
+import { Heart, Ellipsis, X, ExternalLink, Plus } from "lucide-react";
 import type { Content, RadarStatus } from "../../../packages/contracts";
 import { radarTriage } from "../../../packages/contracts";
 import { createLastroClient } from "../../../packages/contracts/client";
 import type { SearchQuery } from "../../../packages/contracts/client";
 import { RadarHeadline } from "./RadarHeadline";
 const api = createLastroClient();
-const countries = new Intl.DisplayNames(["pt-BR"], { type: "region" });
-const countryName = (code?: string | null) =>
-  code ? (countries.of(code) ?? code) : "País não informado";
-const triageLabels = {
-  novidade: "Novidade",
-  para_avaliar: "Para avaliar",
-  favorito: "Favorito",
-  descartado: "Descartado",
+const formats = {
+  news: "Notícia",
+  article: "Artigo",
+  opinion: "Opinião",
+  paper: "Estudo científico",
+  case_study: "Estudo de caso",
+  visual_reference: "Referência visual",
+  post: "Publicação",
+  magazine: "Revista",
+  other: "Referência",
 };
+const format = (c: Content) =>
+  (c.kind === "article" || c.kind === "post") &&
+  c.topics.some((topic) =>
+    /^(blog|blog post|post de blog)$/i.test(topic.trim()),
+  )
+    ? "Blog"
+    : formats[c.kind];
 const categories = {
   art_visual_culture: "Arte",
   graphic_design: "Design",
@@ -24,7 +32,7 @@ const categories = {
   architecture_objects: "Arquitetura",
   creative_technology: "Tecnologia criativa",
 };
-const date = (v: string | null | undefined) =>
+const date = (v: string | null | undefined, dateOnly = false) =>
   v?.length === 10
     ? new Date(v + "T12:00:00Z").toLocaleDateString("pt-BR", {
         timeZone: "America/Fortaleza",
@@ -38,18 +46,19 @@ const date = (v: string | null | undefined) =>
           day: "2-digit",
           month: "short",
           year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
+          ...(dateOnly ? {} : { hour: "2-digit", minute: "2-digit" }),
         })
       : "Não informada";
 export default function RadarBoard({
   onSelect,
   onItemsChange,
   query,
+  onClearSearch,
 }: {
   onSelect: (c: Content) => Promise<boolean>;
   onItemsChange?: (items: Content[]) => void;
   query?: SearchQuery;
+  onClearSearch: () => void;
 }) {
   const [items, setItems] = useState<Content[]>([]),
     [status, setStatus] = useState<RadarStatus | null>(null),
@@ -61,6 +70,8 @@ export default function RadarBoard({
   const [nextFeed, setNextFeed] = useState<string | null>(null);
   const [nextFavorites, setNextFavorites] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [discarded, setDiscarded] = useState<Content | null>(null);
+  const undoButton = useRef<HTMLButtonElement>(null);
   const [detail, setDetail] = useState<Content | null>(null);
   const search = query?.q ?? query?.topic;
   const source = query?.sourceId;
@@ -75,8 +86,8 @@ export default function RadarBoard({
       const [page, saved, health] = await Promise.all([
         useSearch
           ? api.search({ ...query, limit: 50, offset: 0 })
-          : api.feed({ limit: 50, scope, sort: "novidade" }),
-        api.favorites({ limit: 50, offset: 0 }),
+          : api.feed({ limit: 50, scope, sort: "relevancia" }),
+        useSearch ? null : api.favorites({ limit: 50, offset: 0 }),
         api.radarStatus().catch(() => null),
       ]);
       if (n !== generation.current) return;
@@ -84,12 +95,12 @@ export default function RadarBoard({
         ...new Map(
           [
             ...page.items.map((i) => ("content" in i ? i.content : i)),
-            ...saved.items,
+            ...(saved?.items ?? []),
           ].map((c) => [c.id, c]),
         ).values(),
       ]);
       setNextFeed(page.nextCursor);
-      setNextFavorites(saved.nextCursor);
+      setNextFavorites(saved?.nextCursor ?? null);
       setStatus(health);
     } catch (e) {
       if (n === generation.current)
@@ -106,7 +117,7 @@ export default function RadarBoard({
   }, [scope, query?.q, query?.topic, query?.sourceId, query?.kind]);
   useEffect(() => onItemsChange?.(items), [items, onItemsChange]);
   async function loadMore() {
-    if (loadingMore) return;
+    if (loading || loadingMore) return;
     const requestGeneration = generation.current;
     setLoadingMore(true);
     try {
@@ -117,7 +128,7 @@ export default function RadarBoard({
             : api.feed({
                 limit: 50,
                 scope,
-                sort: "novidade",
+                sort: "relevancia",
                 cursor: nextFeed,
               })
           : null,
@@ -137,7 +148,7 @@ export default function RadarBoard({
         ]).values(),
       ]);
       if (page) setNextFeed(page.nextCursor);
-      if (saved) setNextFavorites(saved.nextCursor);
+      if (saved) setNextFavorites(saved?.nextCursor ?? null);
     } catch (e) {
       setFeedback(
         e instanceof Error
@@ -161,7 +172,7 @@ export default function RadarBoard({
   };
   async function act(
     c: Content,
-    action: "favorite" | "evaluate" | "new" | "discard" | "read",
+    action: "favorite" | "evaluate" | "new" | "discard" | "undo" | "read",
   ) {
     if (action === "discard" && c.state.favorite) {
       setFeedback(
@@ -178,12 +189,24 @@ export default function RadarBoard({
     if (busy) return;
     setBusy(true);
     setFeedback("");
+    const optimistic = action === "favorite" || action === "undo";
+    if (optimistic) {
+      patch({
+        ...c,
+        state: {
+          ...c.state,
+          favorite:
+            action === "favorite" ? !c.state.favorite : c.state.favorite,
+          dismissed: action === "undo" ? false : c.state.dismissed,
+        },
+      });
+    }
     try {
       let updated: Content;
       if (action === "favorite") {
         if (c.state.favorite) {
           await api.unfavorite(c.id);
-          updated = await api.content(c.id);
+          updated = { ...c, state: { ...c.state, favorite: false } };
         } else updated = await api.favorite(c.id);
       } else if (action === "evaluate" || action === "new") {
         updated = await api.interact(c.id, {
@@ -192,30 +215,47 @@ export default function RadarBoard({
         });
       } else {
         updated = await api.interact(c.id, {
-          type: action === "discard" ? "dismissed" : "read",
-          active: action === "discard" ? true : !c.state.read,
+          type: action === "read" ? "read" : "dismissed",
+          active: action === "read" ? !c.state.read : action === "discard",
         });
       }
       patch(updated);
+      if (action === "discard") {
+        setDiscarded(updated);
+        if (detail?.id === c.id) dialog.current?.close();
+        requestAnimationFrame(() => undoButton.current?.focus());
+      }
+      if (action === "undo") {
+        setDiscarded(null);
+        if (!items.some((item) => item.id === c.id)) void load();
+        requestAnimationFrame(() =>
+          document
+            .getElementById(`content-${c.id}`)
+            ?.querySelector<HTMLButtonElement>(".radar-title")
+            ?.focus(),
+        );
+      }
       setFeedback(
         action === "discard"
           ? "Referência descartada."
-          : action === "evaluate"
-            ? "Movida para avaliar. O prazo de retenção continua."
-            : action === "new"
-              ? "Devolvida às novidades."
-              : action === "read"
-                ? "Estado de leitura atualizado."
-                : updated.state.favorite
-                  ? "Preservada nos Favoritos e Salvos."
-                  : "Removida dos Favoritos.",
+          : action === "undo"
+            ? "Referência restaurada."
+            : action === "evaluate"
+              ? "Movida para avaliar. O prazo de retenção continua."
+              : action === "new"
+                ? "Devolvida às novidades."
+                : action === "read"
+                  ? "Estado de leitura atualizado."
+                  : updated.state.favorite
+                    ? "Preservada nos Favoritos e Salvos."
+                    : "Removida dos Favoritos.",
       );
     } catch (e) {
+      if (optimistic) patch(c);
       setFeedback(
         "Ação não concluída. " +
           (e instanceof Error ? e.message : "Tente novamente."),
       );
-      void load();
     } finally {
       setBusy(false);
     }
@@ -240,44 +280,18 @@ export default function RadarBoard({
     }
   }
   const available = items.filter(
-    (c) => (scope === "scientific") === (c.kind === "paper"),
+    (c) => useSearch || (scope === "scientific") === (c.kind === "paper"),
   );
-  const filtered = available.filter((c) => {
-    const expires =
-      c.radar?.expiresAt ??
-      new Date(
-        Date.parse(c.radar?.firstSeenAt ?? c.collectedAt) + 9 * 86400000,
-      ).toISOString();
-    if (
-      !c.state.favorite &&
-      (c.state.dismissed ||
-        (scope === "editorial" &&
-          (c.radar?.expiredAt || Date.parse(expires) <= Date.now())))
-    )
-      return false;
-    const text =
-      `${c.title} ${c.authors.map((author) => author.name).join(" ")} ${c.topics.join(" ")}`.toLocaleLowerCase();
-    return (
-      (!source || c.sourceId === source) &&
-      (!search || text.includes(search.toLocaleLowerCase()))
-    );
-  });
-  const byCountry = new Map<string, Content[]>();
-  for (const c of filtered) {
-    const key = c.radar?.country ?? "unknown";
-    const group = byCountry.get(key) ?? [];
-    group.push(c);
-    byCountry.set(key, group);
-  }
-  const groups = [...byCountry.entries()].sort(([a, first], [b, second]) => {
-    if (a === b) return 0;
-    if (a === "BR") return -1;
-    if (b === "BR") return 1;
-    return (
-      second.length - first.length ||
-      countryName(a).localeCompare(countryName(b), "pt-BR")
-    );
-  });
+  const visible = available.filter(
+    (c) =>
+      c.state.favorite ||
+      (!c.state.dismissed &&
+        (c.kind === "paper" ||
+          (!c.radar?.expiredAt &&
+            (c.radar?.expiresAt
+              ? Date.parse(c.radar.expiresAt)
+              : Date.parse(c.collectedAt) + 9 * 86400000) > Date.now()))),
+  );
   const editorialSources = (status?.sources ?? []).filter(
     (s) => s.cycle === "daily",
   );
@@ -286,37 +300,57 @@ export default function RadarBoard({
       <button
         disabled={busy}
         aria-pressed={c.state.favorite}
-        title={c.state.favorite ? "Remover dos favoritos" : "Favoritar"}
-        aria-label={`Favoritar ${c.title}`}
+        aria-label={`${c.state.favorite ? "Remover dos salvos" : "Salvar"} ${c.title}`}
         onClick={() => void act(c, "favorite")}
       >
-        <Heart size={16} />
+        <Heart size={16} aria-hidden="true" />
+        {c.state.favorite ? "Salvo" : "Salvar"}
       </button>
-      <button
-        disabled={busy}
-        title={c.state.seen ? "Devolver às novidades" : "Avaliar depois"}
-        aria-label={`Avaliar ${c.title}`}
-        onClick={() => void act(c, c.state.seen ? "new" : "evaluate")}
-      >
-        <Clock size={16} />
-      </button>
-      <button
-        disabled={busy}
-        title="Descartar"
-        aria-label={`Descartar ${c.title}`}
-        onClick={() => void act(c, "discard")}
-      >
-        <X size={16} />
-      </button>
-      <a
-        href={c.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Abrir artigo original"
-        aria-label={`Abrir original: ${c.title}`}
-      >
-        <ExternalLink size={16} />
+      <a href={c.url} target="_blank" rel="noopener noreferrer">
+        Ler original <ExternalLink size={14} aria-hidden="true" />
       </a>
+      <details
+        className="radar-more"
+        onKeyDown={(event) => {
+          if (event.key !== "Escape" || !event.currentTarget.open) return;
+          event.stopPropagation();
+          event.preventDefault();
+          event.currentTarget.open = false;
+          event.currentTarget.querySelector("summary")?.focus();
+        }}
+      >
+        <summary aria-label={`Mais ações: ${c.title}`}>
+          <Ellipsis size={18} aria-hidden="true" />
+        </summary>
+        <div>
+          <button
+            disabled={busy}
+            onClick={(event) => {
+              event.currentTarget
+                .closest("details")
+                ?.querySelector("summary")
+                ?.focus();
+              event.currentTarget.closest("details")?.removeAttribute("open");
+              void act(c, c.state.seen ? "new" : "evaluate");
+            }}
+          >
+            {c.state.seen ? "Devolver às novidades" : "Avaliar depois"}
+          </button>
+          <button
+            disabled={busy}
+            onClick={(event) => {
+              event.currentTarget
+                .closest("details")
+                ?.querySelector("summary")
+                ?.focus();
+              event.currentTarget.closest("details")?.removeAttribute("open");
+              void act(c, "discard");
+            }}
+          >
+            Descartar
+          </button>
+        </div>
+      </details>
     </div>
   );
   return (
@@ -394,100 +428,101 @@ export default function RadarBoard({
           "Pulso indisponível. Não foi possível verificar a atualização."
         )}
       </div>
-      <p className="radar-browse-hint">
-        Explore por país. Arraste as matérias ou use as setas para continuar.
-      </p>
-      <p role="status" className="radar-feedback">
-        {feedback}
-      </p>
+      {useSearch && (
+        <div className="radar-search-context">
+          <span>
+            Resultados para{" "}
+            <strong>
+              {search ??
+                status?.sources.find((s) => s.id === source)?.name ??
+                "referências"}
+            </strong>
+          </span>
+          <button onClick={onClearSearch}>Limpar pesquisa</button>
+        </div>
+      )}
+      <div className="radar-feedback">
+        <span role="status">{feedback}</span>
+        {discarded && (
+          <button
+            ref={undoButton}
+            disabled={busy}
+            onClick={() => void act(discarded, "undo")}
+          >
+            Desfazer descarte
+          </button>
+        )}
+      </div>
       {error ? (
         <div role="alert" className="radar-empty">
           {error}
           <button onClick={() => void load()}>Tentar novamente</button>
         </div>
       ) : loading ? (
-        <div
-          className="radar-carousel-loading"
-          aria-label="Carregando referências"
-        >
+        <div className="radar-grid" aria-label="Carregando referências">
           {[0, 1, 2].map((n) => (
             <div key={n} className="radar-skeleton" />
           ))}
         </div>
       ) : (
-        <div className="radar-countries">
-          {!groups.length && (
-            <div className="radar-empty">Nenhuma referência neste recorte.</div>
+        <>
+          {!visible.length && (
+            <div className="radar-empty">
+              {useSearch
+                ? "Nenhum resultado. Tente outro título, autor, fonte ou assunto."
+                : "Nenhuma referência disponível no momento."}
+            </div>
           )}
-          {groups.map(([code, cards]) => (
-            <RadarCountryCarousel
-              key={code}
-              code={code}
-              name={countryName(code === "unknown" ? null : code)}
-              count={cards.length}
-            >
-              {cards.map((c) => (
-                <article
-                  key={c.id}
-                  className="radar-compact"
-                  data-testid="radar-card"
-                  data-reference-id={c.id}
-                  data-triage={radarTriage(c)}
-                  id={`content-${c.id}`}
-                  tabIndex={-1}
-                >
-                  <div className="radar-origin">
-                    {c.sourceName}
-                    <span>{triageLabels[radarTriage(c)]}</span>
-                  </div>
+          <div className="radar-grid">
+            {visible.map((c) => (
+              <article
+                key={c.id}
+                className="radar-compact"
+                data-testid="radar-card"
+                data-reference-id={c.id}
+                data-triage={radarTriage(c)}
+                id={`content-${c.id}`}
+                tabIndex={-1}
+              >
+                <div className="radar-origin">
+                  {c.sourceName}
+                  <span>{format(c)}</span>
+                </div>
+                <h3>
                   <button className="radar-title" onClick={() => setDetail(c)}>
                     {c.imageUrl && (
                       <img
-                        draggable={false}
                         src={c.imageUrl}
                         alt=""
                         loading="lazy"
                         referrerPolicy="no-referrer"
                       />
                     )}
-                    <h4>
-                      <RadarHeadline content={c} />
-                    </h4>
+                    <RadarHeadline content={c} />
                   </button>
-                  <div className="radar-card-meta">
-                    <span>
-                      {c.radar?.category
+                </h3>
+                <div className="radar-card-meta">
+                  <span>
+                    {c.topics[0] ??
+                      (c.radar?.category
                         ? categories[c.radar.category]
-                        : (c.topics[0] ?? "Assunto não informado")}
-                    </span>
-                    <time>{date(c.publishedAt)}</time>
-                  </div>
-                  <div className="radar-card-state">
-                    {radarTriage(c) === "para_avaliar" &&
-                      scope === "editorial" && (
-                        <p className="radar-deadline">
-                          {Math.max(
-                            0,
-                            Math.ceil(
-                              (Date.parse(
-                                c.radar?.expiresAt ??
-                                  new Date(
-                                    Date.parse(c.collectedAt) + 9 * 86400000,
-                                  ).toISOString(),
-                              ) -
-                                Date.now()) /
-                                86400000,
-                            ),
-                          )}{" "}
-                          dias restantes · não preservado
-                        </p>
-                      )}
-                  </div>
-                  {actions(c)}
-                </article>
-              ))}
-            </RadarCountryCarousel>
-          ))}
+                        : "Assunto não informado")}
+                  </span>
+                  {c.publishedAt ? (
+                    <time dateTime={c.publishedAt}>
+                      {date(c.publishedAt, true)}
+                    </time>
+                  ) : (
+                    <span>Data não informada</span>
+                  )}
+                </div>
+                {radarTriage(c) === "para_avaliar" && (
+                  <p className="radar-deadline">Para avaliar</p>
+                )}
+                {actions(c)}
+              </article>
+            ))}
+          </div>
           {(nextFeed || nextFavorites) && (
             <button
               className="radar-load-more"
@@ -497,7 +532,7 @@ export default function RadarBoard({
               {loadingMore ? "Carregando…" : "Carregar mais matérias"}
             </button>
           )}
-        </div>
+        </>
       )}
       <dialog
         ref={dialog}
@@ -521,7 +556,7 @@ export default function RadarBoard({
           if (e.key !== "Tab") return;
           const controls = [
             ...e.currentTarget.querySelectorAll<HTMLElement>(
-              'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),[tabindex="0"]',
+              'button:not(:disabled),a[href],summary,input:not(:disabled),select:not(:disabled),[tabindex="0"]',
             ),
           ].filter((el) => el.getClientRects().length > 0);
           const first = controls[0],
