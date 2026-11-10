@@ -18,6 +18,7 @@ export const SEARCH_CONSOLE_CALLBACK =
   "/api/analytics/search-console/oauth/callback";
 export const SEARCH_CONSOLE_SCOPE =
   "https://www.googleapis.com/auth/webmasters.readonly";
+export const SEARCH_CONSOLE_CRON = "13,43 * * * *";
 const cookieName = "lastro_gsc_setup";
 const site = "marioserafim.com.br";
 const apiRoot = "https://www.googleapis.com/webmasters/v3/sites";
@@ -521,6 +522,29 @@ const empty = (status: SearchOverview["status"]): SearchOverview => ({
   error: null,
   data: null,
 });
+
+export async function scheduledSearchConsole(env: Env) {
+  if (env.SEARCH_CONSOLE_ENABLED !== "true" || !configuration(env)) return;
+  const now = Date.now();
+  // Refresh one report per invocation. The normal refresh acquires the shared
+  // lease again so opening Analytics and the cron cannot duplicate the work.
+  const due = await first<{ days: SearchDays }>(
+    env.DB,
+    `WITH periods(days) AS (VALUES (28), (7), (90))
+     SELECT days FROM periods
+     LEFT JOIN analytics_cache c ON c.id='gsc-' || periods.days
+     WHERE COALESCE(c.next_at,0)<=?
+     AND EXISTS(SELECT 1 FROM search_console_connection WHERE id=1 AND error IS NULL)
+     AND NOT EXISTS(SELECT 1 FROM analytics_cache WHERE id IN ('gsc-7','gsc-28','gsc-90')
+       AND (lease_until>? OR (error='gsc_quota' AND next_at>?)))
+     ORDER BY COALESCE(c.next_at,0), CASE days WHEN 28 THEN 0 ELSE days END
+     LIMIT 1`,
+    now,
+    now,
+    now,
+  );
+  if (due) await searchOverview(env, due.days, true);
+}
 
 export async function searchOverview(
   env: Env,

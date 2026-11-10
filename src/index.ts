@@ -5,8 +5,10 @@ import { ecosystemHealth } from "./health";
 import {
   beginSearchOAuth,
   finishSearchOAuth,
+  scheduledSearchConsole,
   searchOverview,
   SEARCH_CONSOLE_CALLBACK,
+  SEARCH_CONSOLE_CRON,
 } from "./search-console";
 import type { SearchDays } from "../packages/contracts/search-console";
 import {
@@ -1429,6 +1431,7 @@ export default {
     env: Env,
     _ctx: ExecutionContext,
   ) => {
+    if (_event.cron === SEARCH_CONSOLE_CRON) return scheduledSearchConsole(env);
     if (_event.cron === INTEGRATION_CRON) {
       const result = await reconcile(env);
       if (!result.processed && env.ECOSYSTEM_HEALTH_ENABLED === "true")

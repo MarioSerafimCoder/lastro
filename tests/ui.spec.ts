@@ -974,10 +974,6 @@ test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
     ),
   ).toBe(true);
   const organic = page.getByRole("region", { name: "Pesquisa Orgânica" });
-  await expect(
-    organic.getByText("Conexão registrada.", { exact: false }),
-  ).toBeVisible();
-  await organic.getByRole("button", { name: "Atualizar pesquisa" }).click();
   await expect(organic.getByText("34", { exact: true })).toBeVisible();
   await expect(
     organic.getByText("Cruzamento com GA4 indisponível para este snapshot."),

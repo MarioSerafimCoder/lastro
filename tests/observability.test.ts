@@ -11,9 +11,10 @@ import {
   searchOverview,
   selectProperty,
   SEARCH_CONSOLE_CALLBACK,
+  SEARCH_CONSOLE_CRON,
   SEARCH_CONSOLE_SCOPE,
 } from "../src/search-console";
-import { app } from "../src/index";
+import worker, { app } from "../src/index";
 import {
   advanceDialogue,
   dialogueScope,
@@ -425,13 +426,45 @@ test("Search Console authorizes an allowed property, encrypts credentials, cache
   const afterQuota = googleCalls;
   assert.equal((await searchOverview(env, 7, true)).error, "gsc_quota");
   assert.equal(googleCalls, afterQuota);
+  const runScheduled = () =>
+    worker.scheduled(
+      { cron: SEARCH_CONSOLE_CRON } as ScheduledController,
+      env,
+      {} as ExecutionContext,
+    );
+  await runScheduled();
+  assert.equal(googleCalls, afterQuota);
   await env.DB.prepare(
     "UPDATE analytics_cache SET next_at=0 WHERE id='gsc-90'",
   ).run();
+  quota = false;
+  windows.length = 0;
+  await runScheduled();
+  assert.equal((await searchOverview(env, 7)).status, "available");
+  assert.equal((await searchOverview(env, 90)).status, "unavailable");
+  windows.length = 0;
+  await runScheduled();
+  assert.equal((await searchOverview(env, 90)).status, "available");
+  const afterRefresh = googleCalls;
+  await runScheduled();
+  assert.equal(googleCalls, afterRefresh);
+
+  await env.DB.prepare(
+    "UPDATE analytics_cache SET next_at=0 WHERE id='gsc-7'",
+  ).run();
   revoked = true;
-  assert.equal((await searchOverview(env, 7, true)).status, "reauthorize");
+  await runScheduled();
   const stale = await searchOverview(env, 28);
   assert.equal(stale.status, "reauthorize");
   assert.equal(stale.stale, true);
   assert.equal(stale.data?.total?.clicks, 50);
+  const afterRevoked = googleCalls;
+  await runScheduled();
+  assert.equal(googleCalls, afterRevoked);
+
+  globalThis.fetch = async () => new Response(null, { status: 200 });
+  const health = await ecosystemHealth(env, true);
+  const gsc = health.snapshot?.items.find((item) => item.id === "gsc");
+  assert.equal(gsc?.state, "failed");
+  assert.equal(gsc?.auth, "reauthorize");
 });

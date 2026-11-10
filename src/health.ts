@@ -284,6 +284,7 @@ async function collect(
       env.DB,
       `SELECT
       (SELECT MAX(received_at) FROM opportunities) lastIntake,
+      (SELECT error FROM search_console_connection WHERE id=1) gscConnectionError,
       COALESCE(brain.drivePending,0) drivePending,COALESCE(brain.driveFailures,0) driveFailures,
       COALESCE(brain.driveSynced,0) driveSynced,
       (SELECT retry_at FROM jarvis_brain_drive WHERE owner='owner') driveRetry
@@ -300,6 +301,9 @@ async function collect(
   const ga4 = lookup("analytics-");
   const crm = lookup("newsletter-crm");
   const gsc = lookup("gsc-");
+  const gscFailure = analytics.results.find(
+    (row) => String(row.id).startsWith("gsc-") && row.error,
+  );
   const stats = local.results[0];
   const catalog = catalogue.results[0];
   const integrations = env.INTEGRATION_ENABLED === "true";
@@ -375,7 +379,11 @@ async function collect(
   const gscItem = cacheItem(
     "gsc",
     "Google Search Console",
-    gsc,
+    {
+      ...gsc,
+      error: stats.gscConnectionError ?? gscFailure?.error,
+      next_at: gscFailure?.next_at ?? gsc?.next_at,
+    },
     env.SEARCH_CONSOLE_ENABLED === "true",
     env.SEARCH_CONSOLE_CLIENT_ID && env.SEARCH_CONSOLE_CLIENT_SECRET
       ? "configured"

@@ -87,6 +87,9 @@ function SearchTable({
   );
 }
 
+const refreshableStatus = (status: SearchOverview["status"]) =>
+  status === "available" || status === "pending" || status === "unavailable";
+
 export default function SearchConsole() {
   const [days, setDays] = useState<SearchDays>(28);
   const [data, setData] = useState<SearchOverview | null>(null);
@@ -99,7 +102,18 @@ export default function SearchConsole() {
     setError("");
     try {
       const result = await api.searchConsole(days, refresh);
-      if (id === sequence.current) setData(result);
+      if (id !== sequence.current) return;
+      setData(result);
+      if (
+        !refresh &&
+        refreshableStatus(result.status) &&
+        (result.status !== "available" || result.stale) &&
+        (!result.nextAttemptAt ||
+          Date.parse(result.nextAttemptAt) <= Date.now())
+      ) {
+        const updated = await api.searchConsole(days, true);
+        if (id === sequence.current) setData(updated);
+      }
     } catch (e) {
       if (id === sequence.current)
         setError(
@@ -149,8 +163,7 @@ export default function SearchConsole() {
       snapshot.pages.length ||
       snapshot.queries.length),
   );
-  const refreshable =
-    data && ["pending", "available", "unavailable"].includes(data.status);
+  const refreshable = data && refreshableStatus(data.status);
   const canConnect =
     data?.status === "disconnected" || data?.status === "reauthorize";
   return (
