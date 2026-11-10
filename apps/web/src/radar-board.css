@@ -145,6 +145,17 @@
   margin-left: 12px;
   border-radius: 3px;
 }
+.radar-card-summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
 .radar-card-meta {
   display: flex;
   flex-wrap: wrap;

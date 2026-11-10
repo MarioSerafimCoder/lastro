@@ -25,6 +25,8 @@ const format = (c: Content) =>
   )
     ? "Blog"
     : formats[c.kind];
+const summary = (c: Content) =>
+  c.synopsis?.text.trim() || c.description?.trim();
 const categories = {
   art_visual_culture: "Arte",
   graphic_design: "Design",
@@ -453,60 +455,64 @@ export default function RadarBoard({
               </div>
             )}
             <div className="radar-grid">
-              {visible.map((c) => (
-                <article
-                  key={c.id}
-                  className="radar-compact"
-                  data-testid="radar-card"
-                  data-reference-id={c.id}
-                  data-triage={radarTriage(c)}
-                  id={`content-${c.id}`}
-                  tabIndex={-1}
-                >
-                  <div className="radar-origin">
-                    {c.sourceName}
-                    <span>{format(c)}</span>
-                  </div>
-                  <h3>
-                    <button
-                      className="radar-title"
-                      onClick={() => {
-                        setFeedback("");
-                        setDetail(c);
-                      }}
-                    >
-                      {c.imageUrl && (
-                        <img
-                          src={c.imageUrl}
-                          alt=""
-                          loading="lazy"
-                          referrerPolicy="no-referrer"
-                        />
+              {visible.map((c) => {
+                const preview = summary(c);
+                return (
+                  <article
+                    key={c.id}
+                    className="radar-compact"
+                    data-testid="radar-card"
+                    data-reference-id={c.id}
+                    data-triage={radarTriage(c)}
+                    id={`content-${c.id}`}
+                    tabIndex={-1}
+                  >
+                    <div className="radar-origin">
+                      {c.sourceName}
+                      <span>{format(c)}</span>
+                    </div>
+                    <h3>
+                      <button
+                        className="radar-title"
+                        onClick={() => {
+                          setFeedback("");
+                          setDetail(c);
+                        }}
+                      >
+                        {c.imageUrl && (
+                          <img
+                            src={c.imageUrl}
+                            alt=""
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                        <RadarHeadline content={c} />
+                      </button>
+                    </h3>
+                    {preview && <p className="radar-card-summary">{preview}</p>}
+                    <div className="radar-card-meta">
+                      <span>
+                        {c.topics[0] ??
+                          (c.radar?.category
+                            ? categories[c.radar.category]
+                            : "Assunto não informado")}
+                      </span>
+                      {c.publishedAt ? (
+                        <time dateTime={c.publishedAt}>
+                          {date(c.publishedAt, true)}
+                        </time>
+                      ) : (
+                        <span>Data não informada</span>
                       )}
-                      <RadarHeadline content={c} />
-                    </button>
-                  </h3>
-                  <div className="radar-card-meta">
-                    <span>
-                      {c.topics[0] ??
-                        (c.radar?.category
-                          ? categories[c.radar.category]
-                          : "Assunto não informado")}
-                    </span>
-                    {c.publishedAt ? (
-                      <time dateTime={c.publishedAt}>
-                        {date(c.publishedAt, true)}
-                      </time>
-                    ) : (
-                      <span>Data não informada</span>
+                    </div>
+                    {radarTriage(c) === "para_avaliar" && (
+                      <p className="radar-deadline">Para avaliar</p>
                     )}
-                  </div>
-                  {radarTriage(c) === "para_avaliar" && (
-                    <p className="radar-deadline">Para avaliar</p>
-                  )}
-                  {actions(c)}
-                </article>
-              ))}
+                    {actions(c)}
+                  </article>
+                );
+              })}
             </div>
             {(nextFeed || nextFavorites) && (
               <button
@@ -595,8 +601,7 @@ export default function RadarBoard({
               </p>
             )}
             <p className="radar-description">
-              {detail.synopsis?.text ||
-                detail.description ||
+              {summary(detail) ||
                 "Resumo indisponível. Consulte a publicação original."}
             </p>
             {actions(detail, true)}
