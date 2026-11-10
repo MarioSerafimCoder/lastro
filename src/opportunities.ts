@@ -2,6 +2,18 @@ import { z } from "zod";
 import type { Env } from "./env";
 import { ApiFault } from "./errors";
 import { stmt, rows, now } from "./db";
+import { readBounded } from "./connectors";
+
+const encoder = new TextEncoder();
+const probeInput = z.object({ probe: z.string().uuid() }).strict();
+const hmacKey = (secret: string, usage: "sign" | "verify") =>
+  crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    [usage],
+  );
 const text = (max: number) =>
   z
     .string()
@@ -21,7 +33,7 @@ export const opportunityInput = z
     project_type: text(80).min(2),
     area: text(100).optional().default(""),
     budget: text(100).optional().default(""),
-    description: text(1200).min(20),
+    description: text(1200),
     received_at: z.iso.datetime(),
     source: z.literal("portfolio"),
   })
@@ -78,13 +90,7 @@ export async function receiveOpportunity(request: Request, env: Env) {
   const raw = await request.text();
   if (new TextEncoder().encode(raw).length > 8192)
     throw new ApiFault(413, "payload_too_large", "Solicitação muito grande.");
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["verify"],
-  );
+  const key = await hmacKey(secret, "verify");
   const bytes = Uint8Array.from(signature.match(/../g)!, (x) =>
     parseInt(x, 16),
   );
@@ -99,7 +105,14 @@ export async function receiveOpportunity(request: Request, env: Env) {
     ))
   )
     throw new ApiFault(401, "invalid_signature", "Assinatura inválida.");
-  const input = opportunityInput.parse(JSON.parse(raw));
+  const payload: unknown = JSON.parse(raw);
+  const probe = probeInput.safeParse(payload);
+  if (probe.success) {
+    // Verify the authenticated receiver and its storage without storing a lead.
+    await env.DB.prepare("SELECT 1 FROM opportunities LIMIT 1").first();
+    return probe.data;
+  }
+  const input = opportunityInput.parse(payload);
   if (Math.abs(Date.now() - Date.parse(input.received_at)) > 86400000)
     throw new ApiFault(400, "invalid_date", "Data inválida.");
   await purgeOpportunities(env);
@@ -129,6 +142,66 @@ export async function receiveOpportunity(request: Request, env: Env) {
     ),
   ]);
   return { accepted: true };
+}
+
+export async function probeOpportunityDelivery(
+  endpoint: string,
+  secret: string,
+) {
+  const url = new URL(endpoint);
+  if (
+    url.origin !== "https://script.google.com" ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    !/^\/macros\/s\/[\w-]+\/exec$/.test(url.pathname)
+  )
+    throw Error("invalid_contact_endpoint");
+  const probe = crypto.randomUUID();
+  const timestamp = String(Date.now());
+  const signature = Array.from(
+    new Uint8Array(
+      await crypto.subtle.sign(
+        "HMAC",
+        await hmacKey(secret, "sign"),
+        encoder.encode(`lastro-portfolio-probe\n${timestamp}\n${probe}`),
+      ),
+    ),
+    (byte) => byte.toString(16).padStart(2, "0"),
+  ).join("");
+  const signal = AbortSignal.timeout(10000);
+  let response = await fetch(url, {
+    method: "POST",
+    redirect: "manual",
+    signal,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ probe, timestamp, signature }),
+  });
+  if ([302, 303].includes(response.status)) {
+    const location = response.headers.get("location");
+    await response.body?.cancel();
+    const result = location ? new URL(location, url) : null;
+    // Apps Script serves ContentService responses from this separate origin.
+    if (
+      result?.origin !== "https://script.googleusercontent.com" ||
+      result.username ||
+      result.password
+    )
+      throw Error("invalid_contact_redirect");
+    response = await fetch(result, { redirect: "manual", signal });
+  }
+  if (
+    !response.ok ||
+    !response.headers.get("content-type")?.includes("application/json")
+  ) {
+    await response.body?.cancel();
+    throw Error("contact_probe_unavailable");
+  }
+  const result = probeInput.parse(
+    JSON.parse(await readBounded(response, 1024)),
+  );
+  if (result.probe !== probe) throw Error("contact_probe_mismatch");
 }
 export async function listOpportunities(env: Env) {
   await purgeOpportunities(env);

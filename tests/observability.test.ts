@@ -4,6 +4,7 @@ import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { readFile, readdir } from "node:fs/promises";
 import { migrationStatements } from "./migration-statements";
 import { ecosystemHealth } from "../src/health";
+import { seal } from "../src/jarvis-drive";
 import { quotaLevel } from "../src/health-metrics";
 import {
   beginSearchOAuth,
@@ -82,7 +83,7 @@ test("health keeps one bounded snapshot, preserves unknown states, and records q
   const clock = Date.parse("2026-11-05T14:00:00Z");
   let probes = 0;
   globalThis.fetch = async (url, options) => {
-    assert.equal(url, "https://marioserafim.com.br/");
+    assert.match(String(url), /^https:\/\/marioserafim\.com\.br\/(blog)?$/);
     assert.equal(options?.method, "HEAD");
     probes++;
     return new Response(null, { status: 200 });
@@ -107,10 +108,10 @@ test("health keeps one bounded snapshot, preserves unknown states, and records q
   ]);
   const { snapshot } = await ecosystemHealth(env, false, clock);
   assert.ok(snapshot);
-  assert.equal(probes, 1);
+  assert.equal(probes, 2);
   assert.equal(
     snapshot.items.find((x) => x.id === "portfolio")?.state,
-    "unknown",
+    "healthy",
   );
   assert.equal(snapshot.items.find((x) => x.id === "rss")?.state, "unknown");
   assert.equal(snapshot.items.find((x) => x.id === "lastro")?.state, "healthy");
@@ -147,6 +148,93 @@ test("health keeps one bounded snapshot, preserves unknown states, and records q
     env,
   );
   assert.equal(response.status, 403);
+});
+
+test("health verifies the contact path and connected Drive without creating contacts or documents", async () => {
+  const endpoint = "https://script.google.com/macros/s/test-deployment/exec";
+  const content = "https://script.googleusercontent.com/macros/echo?test=1";
+  const configured = {
+    ...env,
+    PORTFOLIO_INTEGRATION_SECRET: "s".repeat(40),
+    PORTFOLIO_CONTACT_ENDPOINT: endpoint,
+    BRAIN_DRIVE_ENABLED: "true",
+    BRAIN_DRIVE_FREE_CONFIRMED: "true",
+    BRAIN_DRIVE_CLIENT_ID: "drive-test-client",
+    BRAIN_DRIVE_CLIENT_SECRET: "drive-test-secret",
+    BRAIN_DRIVE_TOKEN_KEY: Buffer.alloc(32, 3).toString("base64url"),
+    BRAIN_DRIVE_REDIRECT_URI: origin + "/api/jarvis/drive/oauth/callback",
+    OWNER_EMAIL: "owner@example.test",
+  };
+  await env.DB.prepare(
+    "INSERT INTO jarvis_brain_drive(owner,token_cipher) VALUES ('owner',?)",
+  )
+    .bind(await seal(configured, "test-refresh-token"))
+    .run();
+  let probe: string | undefined;
+  let refreshes = 0;
+  let recovered = false;
+  globalThis.fetch = async (url, init) => {
+    switch (String(url)) {
+      case "https://marioserafim.com.br/":
+        return new Response(null, { status: 200 });
+      case "https://marioserafim.com.br/blog":
+        return new Response(null, { status: recovered ? 200 : 503 });
+      case endpoint:
+        assert.equal(init?.method, "POST");
+        probe = JSON.parse(String(init.body)).probe;
+        return Response.redirect(
+          recovered ? "https://unexpected.example.test/" : content,
+        );
+      case content:
+        assert.equal(init?.method, undefined);
+        return Response.json({ probe });
+      case "https://oauth2.googleapis.com/token":
+        refreshes++;
+        return recovered
+          ? Response.json({ error: "invalid_grant" }, { status: 400 })
+          : Response.json({ access_token: "drive-test-token" });
+      case "https://www.googleapis.com/drive/v3/about?fields=kind":
+        assert.equal(init?.method, undefined);
+        assert.equal(
+          new Headers(init?.headers).get("Authorization"),
+          "Bearer drive-test-token",
+        );
+        return Response.json({ kind: "drive#about" });
+      default:
+        assert.fail("unexpected upstream request");
+    }
+  };
+  const clock = Date.now();
+  const first = await ecosystemHealth(configured, true, clock);
+  const byId = (result: typeof first, id: string) =>
+    result.snapshot?.items.find((item) => item.id === id);
+  assert.equal(byId(first, "portfolio")?.state, "warning");
+  assert.equal(byId(first, "intake")?.state, "healthy");
+  assert.match(byId(first, "intake")?.detail ?? "", /Nenhum contato/);
+  assert.equal(byId(first, "drive")?.auth, "verified");
+  assert.match(byId(first, "drive")?.detail ?? "", /Nenhuma memória/);
+  await ecosystemHealth(configured, true, clock + 31 * 60000);
+  assert.equal(refreshes, 1);
+  recovered = true;
+  const later = await ecosystemHealth(configured, true, clock + 4 * 3600000);
+  assert.equal(byId(later, "portfolio")?.state, "healthy");
+  assert.equal(byId(later, "intake")?.state, "warning");
+  assert.equal(byId(later, "drive")?.auth, "reauthorize");
+  assert.equal(byId(later, "drive")?.state, "failed");
+  assert.equal(
+    await env.DB.prepare("SELECT count(*) AS n FROM opportunities").first("n"),
+    0,
+  );
+  assert.equal(
+    await env.DB.prepare("SELECT count(*) AS n FROM jarvis_brain").first("n"),
+    0,
+  );
+  assert.equal(
+    await env.DB.prepare("SELECT count(*) AS n FROM jarvis_brain_drive").first(
+      "n",
+    ),
+    1,
+  );
 });
 
 test("Search Console authorizes an allowed property, encrypts credentials, caches and distinguishes revoked access", async () => {

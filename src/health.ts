@@ -8,6 +8,9 @@ import { first, stmt } from "./db";
 import type { Env } from "./env";
 import { cloudflareMetrics, quotaLevel } from "./health-metrics";
 import { localDay } from "../packages/contracts/jarvis-periods";
+import { ApiFault } from "./errors";
+import { probeDriveConnection } from "./jarvis-drive";
+import { probeOpportunityDelivery } from "./opportunities";
 
 const interval = 30 * 60000;
 const iso = (time: number) => new Date(time).toISOString();
@@ -25,6 +28,217 @@ type Activity = {
   consecutiveFailures?: number | null;
   stale?: number;
 };
+
+async function portfolioHealth(
+  at: string,
+  previous?: HealthItem,
+): Promise<HealthItem> {
+  const href = "https://marioserafim.com.br/";
+  const started = Date.now();
+  const signal = AbortSignal.timeout(4000);
+  const checks = await Promise.allSettled(
+    [href, new URL("blog", href).href].map(async (url) => {
+      const response = await fetch(url, {
+        method: "HEAD",
+        redirect: "manual",
+        signal,
+      });
+      await response.body?.cancel();
+      if (!response.ok) throw Error("page_unavailable");
+    }),
+  );
+  const [home, blog] = checks.map((check) => check.status === "fulfilled");
+  const healthy = home && blog;
+  return {
+    id: "portfolio",
+    label: "Blog e Portfólio",
+    kind: "service",
+    href,
+    state: healthy ? "healthy" : home || blog ? "warning" : "failed",
+    detail: healthy
+      ? "O Blog e o Portfólio estão acessíveis."
+      : home
+        ? "O Portfólio respondeu, mas o Blog está indisponível."
+        : blog
+          ? "O Blog respondeu, mas a página inicial do Portfólio está indisponível."
+          : "O Blog e o Portfólio não responderam à verificação.",
+    lastAttempt: at,
+    lastSuccess: healthy ? at : previous?.lastSuccess,
+    durationMs: Date.now() - started,
+  };
+}
+
+async function intakeHealth(
+  env: Env,
+  lastReceived: unknown,
+  at: string,
+  previous?: HealthItem,
+): Promise<HealthItem> {
+  const lastIntake =
+    typeof lastReceived === "string" ? lastReceived : undefined;
+  const item: HealthItem = {
+    id: "intake",
+    label: "Portfólio → Oportunidades",
+    kind: "integration",
+    href: "/oportunidades",
+    state: lastIntake ? "healthy" : "unknown",
+    detail: lastIntake
+      ? "Há contatos recebidos pelo Lastro."
+      : "Nenhum contato foi recebido pelo Lastro até agora.",
+    lastSuccess: lastIntake,
+  };
+  const secret = env.PORTFOLIO_INTEGRATION_SECRET;
+  if (!secret || secret.length < 32)
+    return {
+      ...item,
+      state: "disabled",
+      auth: "missing",
+      detail: "O recebimento de contatos está desativado neste ambiente.",
+    };
+  if (!env.PORTFOLIO_CONTACT_ENDPOINT) return item;
+  try {
+    await probeOpportunityDelivery(env.PORTFOLIO_CONTACT_ENDPOINT, secret);
+    return {
+      ...item,
+      state: "healthy",
+      auth: "verified",
+      lastAttempt: at,
+      lastSuccess: at,
+      detail: lastIntake
+        ? "O caminho do formulário até Oportunidades foi confirmado. Há contatos recebidos."
+        : "O caminho do formulário até Oportunidades foi confirmado. Nenhum contato recebido até agora.",
+    };
+  } catch {
+    return {
+      ...item,
+      state: "warning",
+      auth: "configured",
+      lastAttempt: at,
+      lastSuccess: [lastIntake, previous?.lastSuccess]
+        .filter(Boolean)
+        .sort()
+        .at(-1),
+      detail:
+        "Não foi possível confirmar a entrega do formulário ao Lastro. Revise a integração do formulário.",
+    };
+  }
+}
+
+async function driveHealth(
+  env: Env,
+  stats: Record<string, unknown>,
+  clock: number,
+  previous?: HealthItem,
+): Promise<HealthItem> {
+  const pending = Number(stats.drivePending);
+  const failures = Number(stats.driveFailures);
+  const item: HealthItem = {
+    id: "drive",
+    label: "Google Drive do Jarvis",
+    kind: "integration",
+    pending,
+    failures,
+    state: "unknown",
+    detail: "Autorize o Google Drive na seção Memória do Jarvis.",
+    auth: "missing",
+  };
+  if (
+    env.BRAIN_DRIVE_ENABLED !== "true" ||
+    env.BRAIN_DRIVE_FREE_CONFIRMED !== "true"
+  )
+    return {
+      ...item,
+      state: "disabled",
+      detail: "Integração desativada.",
+      auth: undefined,
+    };
+  if (stats.driveRetry == null) return item;
+  const retryAt = Number(stats.driveRetry);
+  const at = iso(clock);
+  const previousAttempt = previous?.lastAttempt;
+  // Avoid competing with document sync for the daily request/byte budget.
+  const interval = (previous?.auth === "verified" ? 4 : 1) * 3600000;
+  let connection: Pick<
+    HealthItem,
+    "auth" | "lastAttempt" | "lastSuccess" | "state" | "detail"
+  >;
+  if (
+    previousAttempt &&
+    clock - Date.parse(previousAttempt) < interval &&
+    previous?.auth === "verified"
+  ) {
+    connection = {
+      auth: "verified",
+      lastAttempt: previousAttempt,
+      lastSuccess: previous.lastSuccess,
+      state: "healthy",
+      detail: "A conexão com o Drive foi confirmada.",
+    };
+  } else if (
+    previousAttempt &&
+    clock - Date.parse(previousAttempt) < interval &&
+    previous
+  ) {
+    connection = {
+      auth: previous.auth,
+      lastAttempt: previousAttempt,
+      lastSuccess: previous.lastSuccess,
+      state: previous.state,
+      detail: previous.detail,
+    };
+  } else if (retryAt > clock) {
+    connection = {
+      auth: "configured",
+      state: "warning",
+      detail: "O Drive está aguardando uma nova tentativa.",
+      lastSuccess: previous?.lastSuccess,
+    };
+  } else {
+    try {
+      await probeDriveConnection(env);
+      connection = {
+        auth: "verified",
+        state: "healthy",
+        detail: "A conexão com o Drive foi confirmada.",
+        lastAttempt: at,
+        lastSuccess: at,
+      };
+    } catch (error) {
+      const authorization =
+        error instanceof ApiFault &&
+        (error.status === 401 || error.status === 403);
+      connection = {
+        auth: authorization ? "reauthorize" : "configured",
+        state: authorization ? "failed" : "warning",
+        detail: authorization
+          ? "A autorização do Drive foi recusada. Reconecte em Memória do Jarvis."
+          : "Não foi possível verificar a conexão com o Drive. Confira a conexão em Memória do Jarvis.",
+        lastAttempt: at,
+        lastSuccess: previous?.lastSuccess,
+      };
+    }
+  }
+  if (connection.auth === "verified") {
+    if (failures) {
+      connection.state = "failed";
+      connection.detail =
+        "Há documentos com erro de sincronização. Revise em Memória do Jarvis.";
+    } else if (pending || retryAt > clock) {
+      connection.state = "warning";
+      connection.detail = pending
+        ? "Há documentos aguardando sincronização."
+        : "O Drive está aguardando uma nova tentativa.";
+    } else if (!Number(stats.driveSynced)) {
+      connection.detail =
+        "A conexão com o Drive foi confirmada. Nenhuma memória foi sincronizada ainda.";
+    }
+  }
+  return {
+    ...item,
+    ...connection,
+    nextRun: retryAt > clock ? iso(retryAt) : undefined,
+  };
+}
 
 async function collect(
   env: Env,
@@ -88,7 +302,6 @@ async function collect(
   const gsc = lookup("gsc-");
   const stats = local.results[0];
   const catalog = catalogue.results[0];
-  const connected = stats.driveRetry !== null;
   const integrations = env.INTEGRATION_ENABLED === "true";
   const cacheItem = (
     id: string,
@@ -270,15 +483,19 @@ async function collect(
       nextRun: a?.nextRetry ? iso(a.nextRetry) : undefined,
     };
   });
-  const driveEnabled =
-    env.BRAIN_DRIVE_ENABLED === "true" &&
-    env.BRAIN_DRIVE_FREE_CONFIRMED === "true";
   const catalogueSuccess =
     typeof catalog?.last_success === "string"
       ? catalog.last_success
       : undefined;
   const catalogueStale =
     catalogueSuccess && clock - Date.parse(catalogueSuccess) > 2 * 3600000;
+  const old = (id: string) => previous?.items.find((row) => row.id === id);
+  const [portfolio, intake, drive, cloudMetrics] = await Promise.all([
+    portfolioHealth(checkedAt, old("portfolio")),
+    intakeHealth(env, stats.lastIntake, checkedAt, old("intake")),
+    driveHealth(env, stats, clock, old("drive")),
+    cloudflareMetrics(env, clock),
+  ]);
   const items: HealthItem[] = [
     {
       id: "lastro",
@@ -304,7 +521,7 @@ async function collect(
       "https://crm.marioserafim.com.br/",
       recent(crmItem.lastSuccess),
     ),
-    service("portfolio", "Blog e Portfólio", "https://marioserafim.com.br/"),
+    portfolio,
     {
       id: "catalogue",
       label: "Catálogo do Studio",
@@ -333,22 +550,7 @@ async function collect(
         Number(catalog?.next_at) > 0 ? iso(Number(catalog.next_at)) : undefined,
     },
     ...taskItems,
-    {
-      id: "intake",
-      label: "Portfólio → Oportunidades",
-      kind: "integration",
-      href: "/oportunidades",
-      state: !env.PORTFOLIO_INTEGRATION_SECRET
-        ? "disabled"
-        : stats.lastIntake
-          ? "healthy"
-          : "unknown",
-      detail: stats.lastIntake
-        ? "Há recebimento autenticado registrado. O fluxo depende de novos contatos."
-        : "Nenhum recebimento registrado.",
-      lastSuccess:
-        typeof stats.lastIntake === "string" ? stats.lastIntake : undefined,
-    },
+    intake,
     ga4Item,
     crmItem,
     gscItem,
@@ -367,58 +569,8 @@ async function collect(
       detail: "Leitura do armazenamento de memória concluída.",
       lastSuccess: checkedAt,
     },
-    {
-      id: "drive",
-      label: "Google Drive do Jarvis",
-      kind: "integration",
-      state: !driveEnabled
-        ? "disabled"
-        : Number(stats.driveFailures)
-          ? "failed"
-          : Number(stats.drivePending) || Number(stats.driveRetry) > clock
-            ? "warning"
-            : connected && Number(stats.driveSynced)
-              ? "healthy"
-              : "unknown",
-      detail: !driveEnabled
-        ? "Integração desativada."
-        : !connected
-          ? "Autorização ainda não registrada."
-          : Number(stats.driveFailures)
-            ? "Há documentos com erro de sincronização."
-            : Number(stats.drivePending)
-              ? "Há documentos aguardando sincronização."
-              : Number(stats.driveSynced)
-                ? "Há documentos com sincronização confirmada no D1."
-                : "Autorização registrada. Aguardando sincronização de documento.",
-      auth: connected ? "configured" : "missing",
-      pending: Number(stats.drivePending),
-      failures: Number(stats.driveFailures),
-      nextRun:
-        Number(stats.driveRetry) > clock
-          ? iso(Number(stats.driveRetry))
-          : undefined,
-    },
+    drive,
   ];
-  const portfolio = items.find((row) => row.id === "portfolio")!;
-  const metricsPromise = cloudflareMetrics(env, clock);
-  try {
-    const start = Date.now();
-    const response = await fetch("https://marioserafim.com.br/", {
-      method: "HEAD",
-      redirect: "manual",
-      signal: AbortSignal.timeout(4000),
-    });
-    portfolio.durationMs = Date.now() - start;
-    portfolio.lastAttempt = checkedAt;
-    if (response.ok)
-      portfolio.detail =
-        "A página pública respondeu. A entrega do formulário é monitorada separadamente.";
-    else throw Error("portfolio_unavailable");
-  } catch {
-    portfolio.state = "warning";
-    portfolio.detail = "A sondagem HTTP da página pública não foi concluída.";
-  }
   const number = (value: unknown) =>
     typeof value === "number" && Number.isFinite(value) && value >= 0
       ? value
@@ -431,7 +583,7 @@ async function collect(
     localDay(Number(ga4.fetched_at), "America/Los_Angeles") ===
       localDay(clock, "America/Los_Angeles");
   const metrics: HealthMetric[] = [
-    ...(await metricsPromise),
+    ...cloudMetrics,
     {
       id: "ga4-quota",
       label: "Tokens GA4 Data API",

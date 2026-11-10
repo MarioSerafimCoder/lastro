@@ -155,6 +155,7 @@ async function request(
   init: RequestInit = {},
   allow404 = false,
   grant?: "authorization_code" | "refresh_token",
+  recordBackoff = true,
 ) {
   await brainBudget(env, 32768); // reserve the maximum response before every external request
   const signal = AbortSignal.timeout(8000);
@@ -285,12 +286,13 @@ async function request(
           "drive_oauth_code",
           "Código OAuth inválido, expirado ou incompatível com callback/PKCE. Inicie nova autorização.",
         );
-      await stmt(
-        env.DB,
-        "UPDATE jarvis_brain_drive SET retry_at=? WHERE owner=?",
-        Date.now() + 300000,
-        OWNER,
-      ).run();
+      if (recordBackoff)
+        await stmt(
+          env.DB,
+          "UPDATE jarvis_brain_drive SET retry_at=? WHERE owner=?",
+          Date.now() + 300000,
+          OWNER,
+        ).run();
       throw new ApiFault(
         401,
         "drive_refresh",
@@ -298,7 +300,7 @@ async function request(
       );
     }
     if (status === 401 || status === 403 || status === 429) {
-      if (grant !== "authorization_code")
+      if (recordBackoff && grant !== "authorization_code")
         await stmt(
           env.DB,
           "UPDATE jarvis_brain_drive SET retry_at=? WHERE owner=?",
@@ -323,7 +325,11 @@ async function request(
   }
   return { body, etag: response.headers.get("etag") };
 }
-async function tokenRequest(env: Env, params: Record<string, string>) {
+async function tokenRequest(
+  env: Env,
+  params: Record<string, string>,
+  recordBackoff = true,
+) {
   const grant = params.grant_type as "authorization_code" | "refresh_token";
   const result = await request(
     env,
@@ -339,6 +345,7 @@ async function tokenRequest(env: Env, params: Record<string, string>) {
     },
     false,
     grant,
+    recordBackoff,
   );
   let tokens;
   try {
@@ -593,6 +600,38 @@ async function withDrive<T>(
   }
 }
 const jsonHeaders = { "Content-Type": "application/json" };
+
+export async function probeDriveConnection(env: Env) {
+  config(env);
+  const connection = await first<{ token_cipher: string }>(
+    env.DB,
+    "SELECT token_cipher FROM jarvis_brain_drive WHERE owner=?",
+    OWNER,
+  );
+  if (!connection)
+    throw new ApiFault(409, "drive_disconnected", "Drive desconectado.");
+  // The diagnostic must not lock document sync or change its retry schedule.
+  const tokens = await tokenRequest(
+    env,
+    {
+      grant_type: "refresh_token",
+      refresh_token: await unseal(env, connection.token_cipher),
+    },
+    false,
+  );
+  const response = await request(
+    env,
+    "https://www.googleapis.com/drive/v3/about?fields=kind",
+    {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    },
+    false,
+    undefined,
+    false,
+  );
+  if (!response || JSON.parse(response.body)?.kind !== "drive#about")
+    throw new ApiFault(502, "drive_response", "Resposta do Drive inválida.");
+}
 const validId = (id: string) => {
   if (!/^[a-zA-Z0-9_-]{1,180}$/.test(id))
     throw new ApiFault(400, "drive_id", "ID do Drive inválido.");

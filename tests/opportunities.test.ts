@@ -18,7 +18,7 @@ const input = {
   name: "Contato sintético",
   email: "synthetic@example.invalid",
   project_type: "Branding",
-  description: "Descrição sintética para teste isolado.",
+  description: "Identidade visual",
   received_at: new Date().toISOString(),
   source: "portfolio",
 };
@@ -171,6 +171,26 @@ test("rejects expired signature, forged signature and excess personal fields", a
       await signed({ ...input, unexpected: "not accepted" }),
       env,
     ),
+  );
+});
+
+test("signed delivery probes reach the receiver without writing contacts or receipts", async () => {
+  const before = await env.DB.prepare(
+    "SELECT (SELECT COUNT(*) FROM opportunities) opportunities,(SELECT COUNT(*) FROM opportunity_receipts) receipts",
+  ).first();
+  const value = { probe: crypto.randomUUID() };
+  const request = await signed(value);
+  const response = await app.request(request, {}, env);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), value);
+  await assert.rejects(async () =>
+    receiveOpportunity(await signed({ ...value, ...input }), env),
+  );
+  assert.deepEqual(
+    await env.DB.prepare(
+      "SELECT (SELECT COUNT(*) FROM opportunities) opportunities,(SELECT COUNT(*) FROM opportunity_receipts) receipts",
+    ).first(),
+    before,
   );
 });
 test("newsletter reports filter exact source/medium and retain campaign with pages and dates", async () => {

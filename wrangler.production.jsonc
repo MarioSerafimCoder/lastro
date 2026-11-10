@@ -27,6 +27,7 @@
   "triggers": { "crons": ["*/5 * * * *", "2-57/5 * * * *", "17,47 * * * *"] },
   "vars": {
     "ENVIRONMENT": "production",
+    "PORTFOLIO_CONTACT_ENDPOINT": "https://script.google.com/macros/s/AKfycbyulPLIGLCQKtFhvcvRvz69KwrZIc4S_2TcQNU-4rWDanoisOmVMlyoATYTnHx3pToU/exec",
     "BRAIN_DRIVE_ENABLED": "true",
     "BRAIN_DRIVE_FREE_CONFIRMED": "true",
     "BRAIN_DRIVE_CLIENT_ID": "352771654042-p6g4ad3dnlbofbfofvsda2f0rfivcvv8.apps.googleusercontent.com",
