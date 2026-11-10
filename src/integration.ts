@@ -16,6 +16,7 @@ import {
 } from "../packages/contracts/integration";
 import type { ResearchPackage } from "../packages/contracts";
 export const INTEGRATION_CRON = "17,47 * * * *";
+export const INTEGRATION_AND_SEARCH_CRON = "13,17,43,47 * * * *";
 const delay = 30 * 60 * 1000;
 export function event(
   db: D1Database,

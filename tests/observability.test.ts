@@ -11,9 +11,9 @@ import {
   searchOverview,
   selectProperty,
   SEARCH_CONSOLE_CALLBACK,
-  SEARCH_CONSOLE_CRON,
   SEARCH_CONSOLE_SCOPE,
 } from "../src/search-console";
+import { INTEGRATION_AND_SEARCH_CRON } from "../src/integration";
 import worker, { app } from "../src/index";
 import {
   advanceDialogue,
@@ -428,7 +428,10 @@ test("Search Console authorizes an allowed property, encrypts credentials, cache
   assert.equal(googleCalls, afterQuota);
   const runScheduled = () =>
     worker.scheduled(
-      { cron: SEARCH_CONSOLE_CRON } as ScheduledController,
+      {
+        cron: INTEGRATION_AND_SEARCH_CRON,
+        scheduledTime: Date.UTC(2026, 10, 10, 18, 13),
+      } as ScheduledController,
       env,
       {} as ExecutionContext,
     );
@@ -439,6 +442,15 @@ test("Search Console authorizes an allowed property, encrypts credentials, cache
   ).run();
   quota = false;
   windows.length = 0;
+  await worker.scheduled(
+    {
+      cron: INTEGRATION_AND_SEARCH_CRON,
+      scheduledTime: Date.UTC(2026, 10, 10, 18, 17),
+    } as ScheduledController,
+    { ...env, INTEGRATION_ENABLED: "false", ECOSYSTEM_HEALTH_ENABLED: "false" },
+    {} as ExecutionContext,
+  );
+  assert.equal(googleCalls, afterQuota);
   await runScheduled();
   assert.equal((await searchOverview(env, 7)).status, "available");
   assert.equal((await searchOverview(env, 90)).status, "unavailable");

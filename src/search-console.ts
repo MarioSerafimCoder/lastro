@@ -18,7 +18,6 @@ export const SEARCH_CONSOLE_CALLBACK =
   "/api/analytics/search-console/oauth/callback";
 export const SEARCH_CONSOLE_SCOPE =
   "https://www.googleapis.com/auth/webmasters.readonly";
-export const SEARCH_CONSOLE_CRON = "13,43 * * * *";
 const cookieName = "lastro_gsc_setup";
 const site = "marioserafim.com.br";
 const apiRoot = "https://www.googleapis.com/webmasters/v3/sites";

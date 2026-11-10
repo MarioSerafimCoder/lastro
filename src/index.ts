@@ -8,7 +8,6 @@ import {
   scheduledSearchConsole,
   searchOverview,
   SEARCH_CONSOLE_CALLBACK,
-  SEARCH_CONSOLE_CRON,
 } from "./search-console";
 import type { SearchDays } from "../packages/contracts/search-console";
 import {
@@ -72,6 +71,7 @@ import {
   integrationOverview,
   weeklySummary,
   INTEGRATION_CRON,
+  INTEGRATION_AND_SEARCH_CRON,
 } from "./integration";
 import { integrationRequestSchema } from "../packages/contracts/integration";
 import { Hono } from "hono";
@@ -1431,8 +1431,14 @@ export default {
     env: Env,
     _ctx: ExecutionContext,
   ) => {
-    if (_event.cron === SEARCH_CONSOLE_CRON) return scheduledSearchConsole(env);
-    if (_event.cron === INTEGRATION_CRON) {
+    const sharedSchedule = _event.cron === INTEGRATION_AND_SEARCH_CRON;
+    // Share one Cron Trigger without combining both jobs in the same invocation.
+    if (
+      sharedSchedule &&
+      new Date(_event.scheduledTime).getUTCMinutes() % 30 === 13
+    )
+      return scheduledSearchConsole(env);
+    if (_event.cron === INTEGRATION_CRON || sharedSchedule) {
       const result = await reconcile(env);
       if (!result.processed && env.ECOSYSTEM_HEALTH_ENABLED === "true")
         await ecosystemHealth(env, true);
