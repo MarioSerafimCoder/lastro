@@ -61,7 +61,7 @@ async function isolated(fn: (env: Env, s: Source) => Promise<void>) {
         ...input,
         country: "US",
         radarCategory: "graphic_design",
-        summaryAllowed: false,
+        summaryAllowed: true,
         imageAllowed: false,
       }),
     };
@@ -97,7 +97,7 @@ async function create(
     url: "https://fixtures.example.test/" + key,
     identifiers: [{ scheme: "source_guid" as const, value: key }],
     publishedAt: at,
-    description: null,
+    description: fixtureCandidate.description,
     imageUrl: null,
     ...overrides,
   };
@@ -203,7 +203,7 @@ test("Language balancing preserves every surplus, third language and unknown lan
   assert.equal(result.length, 9);
   assert.equal(new Set(result.map((i) => i.content.id)).size, 9);
 });
-test("Approved metadata is visible without synopsis or AI, with explicit dates and optional enrichment", async () =>
+test("Source summaries are visible without AI and preserve publication dates", async () =>
   isolated(async (env, s) => {
     const id = await create(env, s);
     const page = await radarFeed(
@@ -219,7 +219,10 @@ test("Approved metadata is visible without synopsis or AI, with explicit dates a
     assert.equal(page.items[0].content.radar?.level, "metadata");
     assert.equal(page.items[0].content.radar?.firstSeenAt, at);
     assert.equal(page.items[0].content.radar?.approvedAt, at);
-    assert.equal(page.items[0].content.description, null);
+    assert.equal(
+      page.items[0].content.description,
+      fixtureCandidate.description,
+    );
     assert.equal(page.items[0].content.imageUrl, null);
     assert.equal(
       await env.DB.prepare("SELECT COUNT(*) n FROM synopsis_inferences").first(
@@ -756,4 +759,108 @@ test("Radar API remains private and rejects unsupported filters", async () =>
       env,
     );
     assert.equal(r.status, 400);
+  }));
+
+test("RSS ingestion generates and stores a summary before a new card is visible", async () =>
+  isolated(async (env, s) => {
+    await env.DB.prepare(
+      "UPDATE sources SET config_json=json_set(config_json,'$.feedTextSummaryAllowed',1) WHERE id=?",
+    )
+      .bind(s.id)
+      .run();
+    const body =
+      "The graphic design identity connects print and digital applications through modular typography.";
+    const feed = xml(at, ["summary-ingestion"]).replace(
+      "</item>",
+      `<content:encoded><![CDATA[<p>${body}</p>]]></content:encoded></item>`,
+    );
+    const run = await ingestSource(
+      env,
+      s.id,
+      async () => new Response(feed),
+      clock,
+    );
+    assert.equal(run.accepted, 1);
+    const page = await radarFeed(
+      env.DB,
+      { scope: "editorial" },
+      prefs,
+      defaultPolicy,
+      clock,
+    );
+    assert.equal(page.items.length, 1);
+    assert.equal(page.items[0].content.description, body);
+    const stored = await env.DB.prepare(
+      "SELECT json_extract(metadata_json,'$.description') summary FROM contents",
+    ).first<{ summary: string }>();
+    assert.equal(stored?.summary, body);
+    assert.equal(
+      await env.DB.prepare("SELECT COUNT(*) n FROM synopsis_inferences").first(
+        "n",
+      ),
+      0,
+    );
+  }));
+
+test("Summary generation releases an existing card without renewing dates or losing favorites", async () =>
+  isolated(async (env, s) => {
+    const { generateFeedSummary } = await import("../src/feed-summary");
+    const { refreshFeedSummaries } =
+      await import("../src/feed-summary-refresh");
+    const key = await create(env, s, { description: null });
+    await env.DB.prepare("INSERT INTO favorites VALUES ('owner',?,?)")
+      .bind(key, at)
+      .run();
+    const read = () =>
+      env.DB.prepare("SELECT * FROM contents WHERE id=?")
+        .bind(key)
+        .first<any>();
+    const before = await read();
+    const page = () =>
+      radarFeed(env.DB, { scope: "editorial" }, prefs, defaultPolicy, clock);
+    assert.equal((await page()).items.length, 0);
+    const text = generateFeedSummary(
+      null,
+      "<p>The new graphic design system uses modular typography to connect print and digital applications.</p>",
+      before.title,
+    )!;
+    const item = {
+      ...fixtureCandidate,
+      url: before.canonical_url,
+      description: text,
+    };
+    await refreshFeedSummaries(env.DB, s, [item]).run();
+    const result = await page();
+    assert.equal(result.items.length, 1);
+    assert.equal(result.items[0].content.description, text);
+    assert.equal(result.items[0].content.state.favorite, true);
+    const after = await read();
+    for (const field of [
+      "id",
+      "first_seen_at",
+      "collected_at",
+      "published_at",
+      "approved_at",
+      "expired_at",
+      "quality_score",
+    ])
+      assert.equal(after[field], before[field]);
+    assert.equal(
+      (await refreshFeedSummaries(env.DB, s, [item]).run()).meta.changes,
+      0,
+    );
+    await env.DB.prepare(
+      "UPDATE sources SET config_json=json_set(config_json,'$.summaryAllowed',0) WHERE id=?",
+    )
+      .bind(s.id)
+      .run();
+    assert.equal((await page()).items.length, 0);
+    assert.equal(
+      (
+        await refreshFeedSummaries(env.DB, s, [
+          { ...item, description: "Blocked changed description" },
+        ]).run()
+      ).meta.changes,
+      0,
+    );
   }));

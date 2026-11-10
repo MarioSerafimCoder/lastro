@@ -1,4 +1,5 @@
 import { synopsisGate } from "./synopsis-evidence";
+import { summaryReadySql } from "./summary-ready";
 import { radarFeed, dailyWindowSql, dailyWindowArgs } from "./radar-feed";
 import { ecosystemHealth } from "./health";
 import {
@@ -602,6 +603,7 @@ async function search(
   } else where.push("c.editorial_status='approved'", "s.status='approved'");
   if (!favorites) {
     where.push(
+      `(c.kind='paper' OR ${summaryReadySql})`,
       "json_extract(s.config_json,'$.metadataAllowed')=1",
       dailyWindowSql,
       "(c.kind='paper' OR (json_extract(s.config_json,'$.country') IN ('BR','US') AND c.language IN ('pt','en')))",

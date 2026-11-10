@@ -50,6 +50,7 @@ export const sourceInputSchema = z
     maxAgeDays: z.number().int().min(1).max(36500).nullable().default(null),
     metadataAllowed: z.boolean().default(true),
     summaryAllowed: z.boolean().default(false),
+    feedTextSummaryAllowed: z.boolean().optional(),
     synopsisAllowed: z.boolean().optional(),
     synopsisRightsNote: z.string().max(2000).optional(),
     synopsisLicenseUrl: z

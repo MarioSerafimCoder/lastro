@@ -22,6 +22,7 @@ import { ApiFault, must } from "./errors";
 import type { Env } from "./env";
 import { canonicalUrl, normalizeCandidate, folded } from "./normalize";
 import { captureStatement } from "./synopsis-evidence";
+import { refreshFeedSummaries } from "./feed-summary-refresh";
 import { classifyRadar } from "./ranking";
 import { expireRadar, retentionDue } from "./radar-retention";
 import {
@@ -509,6 +510,9 @@ export async function ingestSource(
           sourceId,
           leaseToken,
         ),
+        ...(source.connector === "rss" && source.summaryAllowed && hasItems
+          ? [refreshFeedSummaries(env.DB, source, collected.items)]
+          : []),
       ]);
       newReferences = hasItems
         ? (discovered[collected.captures?.length ? 2 : 1].meta.changes ?? 0)

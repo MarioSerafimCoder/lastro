@@ -12,6 +12,7 @@ import { rows, first, stmt, OWNER, id } from "./db";
 import { ApiFault } from "./errors";
 import { balanceLanguages, dailyEligible, rank, rankRadar } from "./ranking";
 import { editorialWeek, RETENTION_MS, EDITORIAL_TIMEZONE } from "./schedule";
+import { summaryReadySql } from "./summary-ready";
 
 export const dailyWindowSql = `(c.kind='paper' OR (c.published_at>=? AND c.published_at<? AND c.published_at<=?
  AND (EXISTS(SELECT 1 FROM favorites f WHERE f.content_id=c.id) OR (c.expired_at IS NULL AND COALESCE(c.first_seen_at,c.collected_at)>?))))`;
@@ -39,6 +40,8 @@ export async function radarFeed(
   const { cursor, limit, ...filters } = q;
   const match = (c: Content) =>
     c.editorialStatus === "approved" &&
+    (c.kind === "paper" ||
+      !!(c.synopsis?.text.trim() || c.description?.trim())) &&
     c.quality.score >= policy.minimumQuality &&
     (c.kind === "paper" || dailyEligible(c, clock, week)) &&
     (q.scope !== "editorial" || c.kind !== "paper") &&
@@ -112,6 +115,8 @@ export async function radarFeed(
         dailyWindowSql,
       ],
       args: unknown[] = [policy.minimumQuality, ...dailyWindowArgs(clock)];
+    if (q.scope !== "scientific")
+      where.push(`(c.kind='paper' OR ${summaryReadySql})`);
     if (q.scope === "editorial") where.push("c.kind<>'paper'");
     if (q.scope === "scientific") where.push("c.kind='paper'");
     for (const [value, column] of [

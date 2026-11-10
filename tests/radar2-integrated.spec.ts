@@ -81,7 +81,7 @@ test.beforeAll(async () => {
         url: `https://fixtures.example.test/feed-${n}`,
         country: ["BR", "US", "US"][n],
         languages: [],
-        summaryAllowed: false,
+        summaryAllowed: true,
         imageAllowed: n === 0,
         rightsNote:
           "Synthetic fixtures authored for isolated homologation only.",
@@ -118,7 +118,8 @@ test.beforeAll(async () => {
       url: `https://fixtures.example.test/homologation-${i}`,
       identifiers: [],
       language: ["pt", "en", "en"][i % 3],
-      description: null,
+      description:
+        "O artigo examina como a tipografia e os espaços públicos participam da construção de identidades visuais.",
       imageUrl: i % 3 === 0 ? origin + "/fixture.svg" : null,
       publishedAt: new Date(
         Date.now() - (old ? 12 * 86400000 : i * 1000),
@@ -311,8 +312,10 @@ test("real session, 30+ references, responsive themes, provenance and editorial 
   await expect(page.getByRole("button", { name: "Abrir menu" })).toBeFocused();
   await page.setViewportSize({ width: 1440, height: 1000 });
   const card = b.getByTestId("radar-card").first();
-  await expect(card.locator(".radar-card-summary")).toContainText("Contexto");
   await expect(card.locator(".radar-card-summary")).toContainText(
+    "O artigo examina como a tipografia",
+  );
+  await expect(card.locator(".radar-card-summary")).not.toContainText(
     "Autoria sintética",
   );
   const surface = await card.evaluate(
@@ -340,7 +343,7 @@ test("real session, 30+ references, responsive themes, provenance and editorial 
   await expect(d).toBeVisible();
   await expect(d.getByText("Autoria sintética")).toBeVisible();
   await expect(
-    d.getByText("Resumo indisponível", { exact: false }),
+    d.getByText("O artigo examina como a tipografia", { exact: false }),
   ).toBeVisible();
   await expect(d.getByText("Aprovação editorial")).toBeHidden();
   await d.getByText("Metadados e procedência", { exact: true }).click();

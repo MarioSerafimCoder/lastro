@@ -6,6 +6,7 @@ import {
 } from "../packages/contracts/index";
 import type { Env } from "./env";
 import { inferTitleLanguage, plainText } from "./normalize";
+import { generateFeedSummary } from "./feed-summary";
 import {
   captureEvidence,
   processingAllowed,
@@ -170,7 +171,13 @@ export function parseRss(
         description: forSynopsis
           ? synopsisText
           : s.summaryAllowed && !conflictingRights
-            ? val(e.description ?? e.summary)
+            ? generateFeedSummary(
+                feedValue(e.description ?? e.summary),
+                s.feedTextSummaryAllowed
+                  ? feedValue(e["content:encoded"] ?? e.content)
+                  : null,
+                title,
+              )
             : null,
         imageUrl: s.imageAllowed ? imageFromFeed(e) : null,
         identifiers: [
