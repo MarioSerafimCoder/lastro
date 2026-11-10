@@ -311,6 +311,10 @@ test("real session, 30+ references, responsive themes, provenance and editorial 
   await expect(page.getByRole("button", { name: "Abrir menu" })).toBeFocused();
   await page.setViewportSize({ width: 1440, height: 1000 });
   const card = b.getByTestId("radar-card").first();
+  await expect(card.locator(".radar-card-summary")).toContainText("Contexto");
+  await expect(card.locator(".radar-card-summary")).toContainText(
+    "Autoria sintética",
+  );
   const surface = await card.evaluate(
     (element) => getComputedStyle(element).backgroundColor,
   );

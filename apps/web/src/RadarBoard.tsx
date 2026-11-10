@@ -34,6 +34,22 @@ const categories = {
   architecture_objects: "Arquitetura",
   creative_technology: "Tecnologia criativa",
 };
+function publicationContext(content: Content) {
+  const authors = content.authors.slice(0, 2).map((author) => author.name);
+  const topics = content.topics.slice(0, 3);
+  if (!topics.length && content.radar?.category)
+    topics.push(categories[content.radar.category]);
+  return (
+    [
+      authors.length
+        ? `Autoria: ${authors.join(", ")}${content.authors.length > 2 ? " e outros" : ""}.`
+        : "",
+      topics.length ? `Assuntos: ${topics.join(", ")}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ") || "Consulte a publicação original para mais detalhes."
+  );
+}
 const date = (v: string | null | undefined, dateOnly = false) =>
   v?.length === 10
     ? new Date(v + "T12:00:00Z").toLocaleDateString("pt-BR", {
@@ -490,7 +506,13 @@ export default function RadarBoard({
                         <RadarHeadline content={c} />
                       </button>
                     </h3>
-                    {preview && <p className="radar-card-summary">{preview}</p>}
+                    <p className="radar-card-summary">
+                      {preview || (
+                        <>
+                          <strong>Contexto</strong> · {publicationContext(c)}
+                        </>
+                      )}
+                    </p>
                     <div className="radar-card-meta">
                       <span>
                         {c.topics[0] ??
