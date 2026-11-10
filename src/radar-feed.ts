@@ -185,11 +185,7 @@ export async function radarFeed(
       expiresAt,
     ).run();
   }
-  const remaining = ranking.slice(offset),
-    loaded = await contents(
-      db,
-      remaining.map((i) => i.id),
-    );
+  const remaining = ranking.slice(offset);
   const sources = new Set(
     (
       await rows<{ id: string }>(
@@ -198,18 +194,24 @@ export async function radarFeed(
       )
     ).map((s) => s.id),
   );
-  const byId = new Map(
-    loaded
-      .filter((c) => sources.has(c.sourceId) && match(c))
-      .map((c) => [c.id, c]),
-  );
   const items: FeedItem[] = [];
   let consumed = 0;
-  for (const r of remaining) {
-    consumed++;
-    const content = byId.get(r.id);
-    if (content) items.push({ content, explanation: r.explanation });
-    if (items.length === limit) break;
+  while (consumed < remaining.length && items.length < limit) {
+    const batch = remaining.slice(consumed, consumed + limit - items.length);
+    const loaded = await contents(
+      db,
+      batch.map((item) => item.id),
+    );
+    const byId = new Map(
+      loaded
+        .filter((c) => sources.has(c.sourceId) && match(c))
+        .map((c) => [c.id, c]),
+    );
+    for (const entry of batch) {
+      consumed++;
+      const content = byId.get(entry.id);
+      if (content) items.push({ content, explanation: entry.explanation });
+    }
   }
   return {
     items,

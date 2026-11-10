@@ -407,8 +407,17 @@ test("Nine-day expiration preserves favorites, Workshop, packages, citations and
       ).items.length,
       4,
     );
-    const result = await expireRadar(env.DB, clock);
-    assert.equal(result.expired, 3);
+    const safeResult = await expireRadar(env.DB, clock);
+    assert.equal(safeResult.purged, 0);
+    const preserved = await env.DB.prepare(
+      "SELECT title,purged_at FROM contents WHERE id=?",
+    )
+      .bind(plain)
+      .first<any>();
+    assert.equal(preserved.purged_at, null);
+    assert.notEqual(preserved.title, "Referência expirada");
+    const result = await expireRadar(env.DB, clock, true);
+    assert.equal(safeResult.expired, 3);
     assert.equal(result.purged, 1);
     const state = await env.DB.prepare(
       "SELECT id,expired_at,purged_at,title FROM contents ORDER BY id",
@@ -453,7 +462,7 @@ test("Expired RSS URLs stay deduplicated after cleanup and a later discovery", a
     const body = xml(old, ["dedup"]);
     await ingestSource(env, s.id, async () => new Response(body), oldClock);
     await env.DB.prepare("INSERT INTO radar_scheduler(id) VALUES (1)").run();
-    await expireRadar(env.DB, clock);
+    await expireRadar(env.DB, clock, true);
     const before = await env.DB.prepare(
       "SELECT id,first_seen_at FROM contents",
     ).first<any>();
@@ -530,7 +539,7 @@ test("Retention keeps eight days, expires nine complete days and preserves citat
       .bind(processing)
       .run();
     await env.DB.prepare("INSERT INTO radar_scheduler(id) VALUES (1)").run();
-    const result = await expireRadar(env.DB, clock);
+    const result = await expireRadar(env.DB, clock, true);
     assert.deepEqual(result, { expired: 3, purged: 1 });
     const state = async (id: string) =>
       env.DB.prepare(
@@ -569,7 +578,7 @@ test("Retention keeps eight days, expires nine complete days and preserves citat
     assert.equal(response.status, 204);
     assert.equal((await state(saved)).purged_at, null);
     assert.notEqual((await state(saved)).title, "Referência expirada");
-    await expireRadar(env.DB, clock + 1);
+    await expireRadar(env.DB, clock + 1, true);
     assert.notEqual((await state(saved)).purged_at, null);
     assert.deepEqual(
       (await env.DB.prepare("PRAGMA foreign_key_check").all()).results,
@@ -586,7 +595,7 @@ test("Retention transaction rolls back on partial failure and retries in bounded
       "CREATE TRIGGER retention_fault BEFORE UPDATE ON content_synopses BEGIN SELECT RAISE(ABORT,'synthetic retention fault'); END",
     ).run();
     await assert.rejects(
-      expireRadar(env.DB, clock),
+      expireRadar(env.DB, clock, true),
       /synthetic retention fault/,
     );
     assert.equal(
@@ -610,7 +619,7 @@ test("Retention transaction rolls back on partial failure and retries in bounded
     await env.DB.prepare("DROP TRIGGER retention_fault").run();
     const passes = [];
     for (let i = 0; i < 3; i++)
-      passes.push(await expireRadar(env.DB, clock + i));
+      passes.push(await expireRadar(env.DB, clock + i, true));
     assert.deepEqual(passes, [
       { expired: 50, purged: 25 },
       { expired: 6, purged: 25 },

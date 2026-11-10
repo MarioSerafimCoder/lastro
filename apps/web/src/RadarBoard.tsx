@@ -109,13 +109,13 @@ export default function RadarBoard({
     setLoading(true);
     setError("");
     try {
-      const [page, saved] = await Promise.all([
+      const [page, saved, health] = await Promise.all([
         useSearch
           ? api.search({ ...query, limit: 50, offset: 0 })
           : api.feed({ limit: 50, scope, sort, triage: feedTriage }),
         api.favorites({ limit: 50, offset: 0 }),
+        api.radarStatus().catch(() => null),
       ]);
-      const health = await api.radarStatus().catch(() => null);
       if (n !== generation.current) return;
       setItems([
         ...new Map(

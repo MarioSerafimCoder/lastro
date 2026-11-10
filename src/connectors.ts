@@ -100,6 +100,14 @@ export function parseRss(
   const licensedEvidence =
     (forSynopsis || !!onCapture) && mayProcess && !!s.synopsisLicenseUrl;
   return list(feed.item ?? feed.entry ?? doc["rdf:RDF"]?.item)
+    .filter((e: any) => {
+      const language = (
+        val(e["dc:language"] ?? e["@xml:lang"], 20) ?? feedLanguage
+      )
+        ?.toLowerCase()
+        .split(/[-_]/)[0];
+      return !language || language === "pt" || language === "en";
+    })
     .slice(0, 25)
     .map((e: any) => {
       const links = list(e.link);
@@ -190,49 +198,59 @@ export function parseRss(
 export function parseOpenAlex(data: any, s: Source): Candidate[] {
   if (!Array.isArray(data?.results))
     throw new Error("invalid_openalex_response");
-  return data.results.slice(0, 25).map((w: any) =>
-    candidateSchema.parse({
-      title: val(w.display_name ?? w.title, 500) ?? "",
-      url:
-        val(w.primary_location?.landing_page_url ?? w.doi ?? w.id, 2000) ?? "",
-      authors: list(w.authorships)
-        .slice(0, 50)
-        .flatMap((a: any) =>
-          a.author?.display_name
-            ? [
-                {
-                  name: val(a.author.display_name, 100),
-                  orcid: val(a.author.orcid, 100),
-                  openalex: val(a.author.id, 100),
-                },
-              ]
-            : [],
+  return data.results
+    .filter(
+      (w: any) =>
+        !w.language ||
+        ["pt", "en"].includes(
+          String(w.language).toLowerCase().split(/[-_]/)[0],
         ),
-      publication: val(w.primary_location?.source?.display_name, 300),
-      publishedAt: val(w.publication_date, 100),
-      kind: "paper",
-      language: val(w.language, 20),
-      identifiers: [
-        ...(w.doi ? [{ scheme: "doi", value: w.doi }] : []),
-        ...(w.id ? [{ scheme: "openalex", value: w.id }] : []),
-      ],
-      topics: list(w.topics)
-        .map((t: any) => val(t.display_name, 100))
-        .filter(Boolean)
-        .slice(0, 30),
-      // Do not reconstruct abstracts or download full text. The provider's access flag is contextual.
-      access:
-        w.open_access?.is_oa === true
-          ? "open"
-          : w.open_access?.is_oa === false
-            ? "restricted"
-            : "unknown",
-      license: val(w.primary_location?.license, 300),
-      accessNote:
-        "Acesso informado pelo OpenAlex; texto integral não consultado.",
-      retracted: w.is_retracted === true,
-    }),
-  );
+    )
+    .slice(0, 25)
+    .map((w: any) =>
+      candidateSchema.parse({
+        title: val(w.display_name ?? w.title, 500) ?? "",
+        url:
+          val(w.primary_location?.landing_page_url ?? w.doi ?? w.id, 2000) ??
+          "",
+        authors: list(w.authorships)
+          .slice(0, 50)
+          .flatMap((a: any) =>
+            a.author?.display_name
+              ? [
+                  {
+                    name: val(a.author.display_name, 100),
+                    orcid: val(a.author.orcid, 100),
+                    openalex: val(a.author.id, 100),
+                  },
+                ]
+              : [],
+          ),
+        publication: val(w.primary_location?.source?.display_name, 300),
+        publishedAt: val(w.publication_date, 100),
+        kind: "paper",
+        language: val(w.language, 20),
+        identifiers: [
+          ...(w.doi ? [{ scheme: "doi", value: w.doi }] : []),
+          ...(w.id ? [{ scheme: "openalex", value: w.id }] : []),
+        ],
+        topics: list(w.topics)
+          .map((t: any) => val(t.display_name, 100))
+          .filter(Boolean)
+          .slice(0, 30),
+        // Do not reconstruct abstracts or download full text. The provider's access flag is contextual.
+        access:
+          w.open_access?.is_oa === true
+            ? "open"
+            : w.open_access?.is_oa === false
+              ? "restricted"
+              : "unknown",
+        license: val(w.primary_location?.license, 300),
+        accessNote:
+          "Acesso informado pelo OpenAlex; texto integral não consultado.",
+        retracted: w.is_retracted === true,
+      }),
+    );
 }
 export function validateFetchUrl(
   raw: string,

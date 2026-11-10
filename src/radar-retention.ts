@@ -11,7 +11,11 @@ const unprotected = `NOT EXISTS(SELECT 1 FROM favorites f WHERE f.content_id=c.i
  AND NOT EXISTS(SELECT 1 FROM knowledge_annotations a WHERE a.content_id=c.id)
  AND NOT EXISTS(SELECT 1 FROM content_synopses sy WHERE sy.content_id=c.id AND sy.status='processing')`;
 
-export async function expireRadar(db: D1Database, clock = Date.now()) {
+export async function expireRadar(
+  db: D1Database,
+  clock = Date.now(),
+  allowPurge = false,
+) {
   const at = new Date(clock).toISOString(),
     cutoff = new Date(clock - RETENTION_MS).toISOString();
   const minimal = `json_object('title','Referência expirada','url',c.canonical_url,'authors',json('[]'),
@@ -33,7 +37,7 @@ export async function expireRadar(db: D1Database, clock = Date.now()) {
       db,
       `UPDATE contents AS c SET purged_at=?,title='Referência expirada',metadata_json=${minimal}
       WHERE c.id IN(SELECT c.id FROM contents c WHERE c.expired_at IS NOT NULL AND c.purged_at IS NULL
-      AND ${unprotected} ORDER BY c.first_seen_at,c.id LIMIT 25) AND ${unprotected}`,
+      AND ${allowPurge ? "1=1" : "0=1"} AND ${unprotected} ORDER BY c.first_seen_at,c.id LIMIT 25) AND ${unprotected}`,
       at,
     ),
     stmt(

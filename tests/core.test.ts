@@ -13,7 +13,12 @@ import {
   collect,
   validateFetchUrl,
 } from "../src/connectors";
-import { automaticReviewReasons, evaluate, prefilter } from "../src/quality";
+import {
+  automaticReviewReasons,
+  evaluate,
+  prefilter,
+  matchedTopics,
+} from "../src/quality";
 import { balanceLanguages, rank } from "../src/ranking";
 import { renderPrompt } from "../src/research";
 import { defaultPolicy } from "../packages/contracts/index";
@@ -420,5 +425,46 @@ test("correção parcial preserva metadados omitidos e rejeita campos desconheci
       correction: { description: null },
     }).correction,
     { description: null },
+  );
+});
+
+test("language gate rejects unsupported feeds and unrestricted source languages", () => {
+  assert.ok(
+    prefilter({ ...c, language: "fr" }, { ...s, languages: [] }, at).includes(
+      "language_excluded",
+    ),
+  );
+  assert.deepEqual(
+    parseRss(
+      "<rss><channel><language>fr-FR</language><item><title>Design</title><link>https://example.com/news</link></item></channel></rss>",
+      s,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    parseOpenAlex({ results: [{ language: "de", display_name: "Design" }] }, s),
+    [],
+  );
+});
+
+test("branding discovery recognizes rebrands and Portuguese visual identities", () => {
+  for (const title of [
+    "Company unveils a rebrand",
+    "Empresa apresenta nova identidade visual",
+    "Empresa apresenta novo logotipo",
+  ])
+    assert.deepEqual(
+      matchedTopics(
+        { ...c, title, topics: [] },
+        { ...s, topics: ["branding"] },
+      ),
+      ["branding"],
+    );
+  assert.deepEqual(
+    matchedTopics(
+      { ...c, title: "Resultados financeiros da empresa", topics: [] },
+      { ...s, topics: ["branding"] },
+    ),
+    [],
   );
 });

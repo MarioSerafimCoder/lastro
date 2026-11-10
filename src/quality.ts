@@ -50,7 +50,24 @@ export function matchedTopics(c: Candidate, s: Source): string[] {
       "visual identity",
       "user interface",
     ],
-    brand: ["branding", "brands", "brand identity"],
+    brand: [
+      "branding",
+      "brands",
+      "brand identity",
+      "rebrand",
+      "rebranding",
+      "identidade visual",
+    ],
+    branding: [
+      "brand identity",
+      "visual identity",
+      "rebrand",
+      "rebranding",
+      "identidade visual",
+      "nova marca",
+      "novo logo",
+      "novo logotipo",
+    ],
     typography: ["typeface", "typefaces", "fonts", "lettering", "tipografia"],
     type: ["typeface", "typefaces", "typography"],
     font: ["fonts", "typeface", "typefaces"],
@@ -79,7 +96,11 @@ export function prefilter(c: Candidate, s: Source, at = Date.now()): string[] {
     failures.push("invalid_url");
   }
   if (!matchedTopics(c, s).length) failures.push("off_topic");
-  if (c.language && s.languages.length && !s.languages.includes(c.language))
+  if (
+    c.language &&
+    (!["pt", "en"].includes(c.language) ||
+      (s.languages.length > 0 && !s.languages.includes(c.language)))
+  )
     failures.push("language_excluded");
   if (c.publishedAt && Date.parse(c.publishedAt) > at + 86400000)
     failures.push("future_date");
