@@ -494,3 +494,20 @@ test("brand refresh editorial remains eligible while sponsorship stays blocked",
     ).includes("promotional_material"),
   );
 });
+
+test("Brazilian branding headlines remain topical without admitting sponsorship", () => {
+  assert.deepEqual(
+    matchedTopics(
+      { ...c, title: "Caixa muda marca após quase 30 anos", topics: [] },
+      { ...s, topics: ["branding"] },
+    ),
+    ["branding"],
+  );
+  assert.deepEqual(
+    matchedTopics(
+      { ...c, title: "Agência anuncia nova direção de arte", topics: [] },
+      { ...s, topics: ["branding"] },
+    ),
+    ["branding"],
+  );
+});
