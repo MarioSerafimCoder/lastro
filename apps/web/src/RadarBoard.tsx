@@ -24,13 +24,6 @@ const categories = {
   architecture_objects: "Arquitetura",
   creative_technology: "Tecnologia criativa",
 };
-const day = (v: string) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Fortaleza",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(v));
 const date = (v: string | null | undefined) =>
   v?.length === 10
     ? new Date(v + "T12:00:00Z").toLocaleDateString("pt-BR", {
@@ -65,43 +58,13 @@ export default function RadarBoard({
     [feedback, setFeedback] = useState(""),
     [busy, setBusy] = useState(false);
   const scope = query?.kind === "paper" ? "scientific" : "editorial";
-  const [sort, setSort] = useState<"novidade" | "relevancia">(() =>
-    localStorage.getItem("lastro-radar-sort") === "relevancia"
-      ? "relevancia"
-      : "novidade",
-  );
-  useEffect(() => {
-    localStorage.setItem("lastro-radar-sort", sort);
-  }, [sort]);
   const [nextFeed, setNextFeed] = useState<string | null>(null);
   const [nextFavorites, setNextFavorites] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [filters, setFilters] = useState(() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem("lastro-radar-filters") ?? '{"period":"week"}',
-      ) as {
-        search?: string;
-        country?: string;
-        category?: string;
-        source?: string;
-        language?: string;
-        period?: string;
-        triage?: string;
-        unread?: boolean;
-      };
-    } catch {
-      return {};
-    }
-  });
   const [detail, setDetail] = useState<Content | null>(null);
   const search = query?.q ?? query?.topic;
   const source = query?.sourceId;
   const useSearch = !!(search || source || query?.kind);
-  const feedTriage = filters.triage === "descartado" ? "descartado" : undefined;
-  useEffect(() => {
-    localStorage.setItem("lastro-radar-filters", JSON.stringify(filters));
-  }, [filters]);
   const dialog = useRef<HTMLDialogElement>(null),
     generation = useRef(0);
   async function load() {
@@ -112,7 +75,7 @@ export default function RadarBoard({
       const [page, saved, health] = await Promise.all([
         useSearch
           ? api.search({ ...query, limit: 50, offset: 0 })
-          : api.feed({ limit: 50, scope, sort, triage: feedTriage }),
+          : api.feed({ limit: 50, scope, sort: "novidade" }),
         api.favorites({ limit: 50, offset: 0 }),
         api.radarStatus().catch(() => null),
       ]);
@@ -140,15 +103,7 @@ export default function RadarBoard({
     return () => {
       generation.current++;
     };
-  }, [
-    scope,
-    sort,
-    query?.q,
-    query?.topic,
-    query?.sourceId,
-    query?.kind,
-    feedTriage,
-  ]);
+  }, [scope, query?.q, query?.topic, query?.sourceId, query?.kind]);
   useEffect(() => onItemsChange?.(items), [items, onItemsChange]);
   async function loadMore() {
     if (loadingMore) return;
@@ -162,8 +117,7 @@ export default function RadarBoard({
             : api.feed({
                 limit: 50,
                 scope,
-                sort,
-                triage: feedTriage,
+                sort: "novidade",
                 cursor: nextFeed,
               })
           : null,
@@ -289,51 +243,23 @@ export default function RadarBoard({
     (c) => (scope === "scientific") === (c.kind === "paper"),
   );
   const filtered = available.filter((c) => {
-    const saved = c.state.favorite,
-      expires =
-        c.radar?.expiresAt ??
-        new Date(
-          Date.parse(c.radar?.firstSeenAt ?? c.collectedAt) + 9 * 86400000,
-        ).toISOString();
+    const expires =
+      c.radar?.expiresAt ??
+      new Date(
+        Date.parse(c.radar?.firstSeenAt ?? c.collectedAt) + 9 * 86400000,
+      ).toISOString();
     if (
-      !saved &&
-      ((c.state.dismissed && filters.triage !== "descartado") ||
+      !c.state.favorite &&
+      (c.state.dismissed ||
         (scope === "editorial" &&
-          (!!c.radar?.expiredAt || Date.parse(expires) <= Date.now())))
+          (c.radar?.expiredAt || Date.parse(expires) <= Date.now())))
     )
       return false;
     const text =
-      `${c.title} ${c.authors.map((a) => a.name).join(" ")} ${c.topics.join(" ")}`.toLocaleLowerCase();
-    const today = day(new Date().toISOString());
-    const weekStart = new Date(`${today}T00:00:00-03:00`);
-    weekStart.setUTCDate(
-      weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7),
-    );
-    const withinPeriod =
-      saved ||
-      filters.period === "all" ||
-      !filters.period ||
-      (filters.period === "today" &&
-        !!c.publishedAt &&
-        day(c.publishedAt) === today) ||
-      (filters.period === "week" &&
-        !!c.publishedAt &&
-        Date.parse(c.publishedAt) >= weekStart.getTime()) ||
-      (filters.period === "nine" &&
-        !!c.publishedAt &&
-        Date.parse(c.publishedAt) >= Date.now() - 9 * 86400000);
+      `${c.title} ${c.authors.map((author) => author.name).join(" ")} ${c.topics.join(" ")}`.toLocaleLowerCase();
     return (
       (!source || c.sourceId === source) &&
-      (!search || text.includes(search.toLocaleLowerCase())) &&
-      (!filters.search || text.includes(filters.search.toLocaleLowerCase())) &&
-      (!filters.country ||
-        (c.radar?.country ?? "unknown") === filters.country) &&
-      (!filters.category || c.radar?.category === filters.category) &&
-      (!filters.source || c.sourceId === filters.source) &&
-      (!filters.language || c.language === filters.language) &&
-      (!filters.triage || radarTriage(c) === filters.triage) &&
-      (!filters.unread || !c.state.read) &&
-      withinPeriod
+      (!search || text.includes(search.toLocaleLowerCase()))
     );
   });
   const byCountry = new Map<string, Content[]>();
@@ -355,23 +281,6 @@ export default function RadarBoard({
   const editorialSources = (status?.sources ?? []).filter(
     (s) => s.cycle === "daily",
   );
-  const countryChoices = [
-    ...new Set(available.map((c) => c.radar?.country ?? "unknown")),
-  ];
-  const sourceChoices = [
-    ...new Map(available.map((c) => [c.sourceId, c.sourceName])).entries(),
-  ];
-  const languageChoices = [
-    ...new Set(
-      available.map((c) => c.language).filter((v): v is string => !!v),
-    ),
-  ];
-  const setFilter = (key: string, value: string | boolean) =>
-    setFilters((current) => ({ ...current, [key]: value }));
-  const clearFilters = () => {
-    setFilters({ period: "week" });
-    setSort("novidade");
-  };
   const actions = (c: Content) => (
     <div className="radar-card-actions">
       <button
@@ -488,118 +397,6 @@ export default function RadarBoard({
       <p className="radar-browse-hint">
         Explore por país. Arraste as matérias ou use as setas para continuar.
       </p>
-      <div className="radar-filterbar" aria-label="Filtros do Radar">
-        <label>
-          Busca textual
-          <input
-            value={filters.search ?? ""}
-            onChange={(e) => setFilter("search", e.target.value)}
-            placeholder="Título, autoria ou tag"
-          />
-        </label>
-        <label>
-          País
-          <select
-            value={filters.country ?? ""}
-            onChange={(e) => setFilter("country", e.target.value)}
-          >
-            <option value="">Todos</option>
-            {countryChoices.map((code) => (
-              <option key={code} value={code}>
-                {countryName(code === "unknown" ? null : code)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Categoria
-          <select
-            value={filters.category ?? ""}
-            onChange={(e) => setFilter("category", e.target.value)}
-          >
-            <option value="">Todas</option>
-            {Object.entries(categories).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Fonte
-          <select
-            value={filters.source ?? ""}
-            onChange={(e) => setFilter("source", e.target.value)}
-          >
-            <option value="">Todas</option>
-            {sourceChoices.map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Idioma
-          <select
-            value={filters.language ?? ""}
-            onChange={(e) => setFilter("language", e.target.value)}
-          >
-            <option value="">Todos</option>
-            {languageChoices.map((value) => (
-              <option key={value} value={value}>
-                {value.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Período
-          <select
-            value={filters.period ?? "week"}
-            onChange={(e) => setFilter("period", e.target.value)}
-          >
-            <option value="today">Hoje</option>
-            <option value="week">Esta semana</option>
-            <option value="nine">Últimos nove dias</option>
-            <option value="all">Todas as datas</option>
-          </select>
-        </label>
-        <label>
-          Estado de triagem
-          <select
-            value={filters.triage ?? ""}
-            onChange={(e) => setFilter("triage", e.target.value)}
-          >
-            <option value="">Todos</option>
-            <option value="novidade">Novidade</option>
-            <option value="para_avaliar">Para avaliar</option>
-            <option value="favorito">Favorito</option>
-            <option value="descartado">Descartado</option>
-          </select>
-        </label>
-        <label>
-          Ordenação
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as typeof sort)}
-          >
-            <option value="novidade">Mais recentes</option>
-            <option value="relevancia">Relevância</option>
-          </select>
-        </label>
-        <label className="radar-filter-check">
-          <input
-            type="checkbox"
-            checked={filters.unread ?? false}
-            onChange={(e) => setFilter("unread", e.target.checked)}
-          />
-          Não lidos
-        </label>
-        <button type="button" onClick={clearFilters}>
-          Limpar filtros
-        </button>
-      </div>
       <p role="status" className="radar-feedback">
         {feedback}
       </p>

@@ -739,33 +739,6 @@ test("Jarvis: contexto real, uma sugestão, preferências e desativação persis
   ).toHaveAttribute("aria-pressed", "true");
 });
 
-test("Busca, filtros e estado vazio honestos", async ({ page }) => {
-  await mockApi(page);
-  await page.goto("/");
-  await page.getByLabel("Buscar conteúdos").fill("inexistente");
-  await expect(
-    page.getByText("Ainda não há referências por aqui"),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Limpar filtros", exact: true })
-    .first()
-    .click();
-  await page
-    .getByRole("button", { name: "Radar Científico · pesquisas", exact: true })
-    .click();
-  await expect(page.locator(".content-card")).toHaveCount(5);
-  await page
-    .getByRole("button", { name: "Radar Diário · artigos", exact: true })
-    .click();
-  await expect(page.locator(".content-card")).toHaveCount(19);
-  await page.getByRole("button", { name: "Ver lista", exact: true }).click();
-  await page.reload();
-  await expect(page.locator(".content-card")).toHaveCount(19);
-  await expect(
-    page.getByRole("button", { name: "Ver cards", exact: true }),
-  ).toBeVisible();
-});
-
 test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
   page,
 }) => {
@@ -2383,19 +2356,7 @@ test("Radar 2: países, 32 cards, triagem, detalhes e Oficina", async ({
   await expect(board.getByRole("status")).toContainText("Remova dos Favoritos");
   await page.reload();
   await expect(board.locator('[data-triage="favorito"]')).toHaveCount(1);
-  await expect(board.getByRole("combobox")).toHaveCount(7);
-  await expect(board.getByTestId("radar-card")).toHaveCount(32);
-  await board
-    .getByRole("combobox", { name: "País", exact: true })
-    .selectOption("GB");
-  await expect(board.getByTestId("radar-card")).toHaveCount(16);
-  await board
-    .getByRole("combobox", { name: "Idioma", exact: true })
-    .selectOption("en");
-  await expect(board.getByTestId("radar-card")).toHaveCount(16);
-  await board
-    .getByRole("button", { name: "Limpar filtros", exact: true })
-    .click();
+  await expect(board.getByRole("combobox")).toHaveCount(0);
   await expect(board.getByTestId("radar-card")).toHaveCount(32);
   const trigger = board
     .getByTestId("radar-card")
@@ -2496,5 +2457,29 @@ test("Radar 2: favoritos sobrevivem à expiração e itens não favoritos podem 
     .getByRole("button", { name: /^Favoritar / })
     .click();
   await expect(board.getByTestId("radar-card")).toHaveCount(0);
-  await expect(board.getByRole("combobox")).toHaveCount(7);
+  await expect(board.getByRole("combobox")).toHaveCount(0);
+});
+
+test("Busca única no topo abre resultados no Radar sem controles de filtro", async ({
+  page,
+}) => {
+  await mockApi(page, 24, true, false, false, true);
+  await page.goto("/");
+  const search = page.getByRole("searchbox", { name: "Buscar no Lastro" });
+  await expect(search).toHaveCount(1);
+  await expect(page.getByLabel("Filtros do Radar")).toHaveCount(0);
+  await search.fill("TESTE 2");
+  await search.press("Enter");
+  await expect(
+    page
+      .getByRole("region", { name: "Mesa editorial" })
+      .getByTestId("radar-card"),
+  ).toHaveCount(5);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(search).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 });

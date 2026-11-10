@@ -3572,3 +3572,39 @@ section[aria-labelledby="feed-title"] > .filters {
   outline: 2px solid var(--accent);
   outline-offset: -3px;
 }
+
+.workspace-heading {
+  flex-wrap: wrap;
+}
+.global-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 180px;
+  flex: 1 1 220px;
+  max-width: 320px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--surface);
+}
+.global-search:focus-within {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+.global-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+}
+@media (max-width: 900px) {
+  .global-search {
+    max-width: none;
+    flex-basis: 100%;
+  }
+}

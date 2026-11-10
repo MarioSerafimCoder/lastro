@@ -15,7 +15,7 @@ import {
   type ReactNode,
 } from "react";
 import Curation from "./Curation";
-import { ContentCard, Filters } from "./ReferenceCards";
+import { ContentCard } from "./ReferenceCards";
 import Jarvis from "./Jarvis";
 import Pulso from "./Pulso";
 import EditorialPulse from "./EditorialPulse";
@@ -190,14 +190,16 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
     [savedError, setSavedError] = useState("");
   const [query, setQuery] = useState<SearchQuery>(() => {
       try {
-        return JSON.parse(
+        const previous = JSON.parse(
           localStorage.getItem("lastro-feed-filters") ?? "{}",
         ) as SearchQuery;
+        return previous.q ? { q: previous.q } : {};
       } catch {
         return {};
       }
     }),
     [sources, setSources] = useState<Source[]>([]),
+    [searchText, setSearchText] = useState(query.q ?? ""),
     [toast, setToast] = useState(""),
     [busyId, setBusyId] = useState<string | null>(null),
     [noteTarget, setNoteTarget] = useState<Content | null>(null),
@@ -810,6 +812,27 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                             : "O próximo destino das suas ideias."}
             </p>
           </div>
+          <form
+            className="global-search"
+            role="search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setQuery(searchText.trim() ? { q: searchText.trim() } : {});
+              navigate("for-you");
+            }}
+          >
+            <label className="sr-only" htmlFor="global-search">
+              Buscar no Lastro
+            </label>
+            <Search size={18} aria-hidden="true" />
+            <input
+              id="global-search"
+              type="search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="Buscar no Lastro"
+            />
+          </form>
           <AppearanceControls />
           <button
             className="secondary-button"
@@ -882,7 +905,6 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                 </button>
               </form>
             </div>
-            <Filters query={query} setQuery={setQuery} sources={sources} />
             {savedError ? (
               <ErrorState
                 message={savedError}
@@ -901,7 +923,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                 }
                 body={
                   activeCollection
-                    ? "Adicione referências a esta coleção a partir de Todos os salvos, ou ajuste os filtros."
+                    ? "Adicione referências a esta coleção a partir de Todos os salvos, ou explore o Radar."
                     : Object.values(query).some(Boolean)
                       ? "Experimente outra busca ou remova um filtro."
                       : "Ao favoritar uma referência no For You, ela aparece nesta biblioteca."
