@@ -779,7 +779,15 @@ test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
                   detail: "Sem amostra",
                 },
               ],
-              events: [],
+              events: [
+                {
+                  id: "crm-sync",
+                  label: "Leitura de campanhas do CRM",
+                  state: "healthy",
+                  detail: "Última leitura de dados concluída.",
+                  at: now,
+                },
+              ],
               items: [
                 {
                   id: "assets",
@@ -789,7 +797,7 @@ test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
                   detail: "Disponível.",
                 },
                 {
-                  id: "studio",
+                  id: "catalogue",
                   label: "Catálogo do Studio",
                   state: "warning",
                   kind: "integration",
@@ -797,6 +805,32 @@ test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
                   href: "/publicacoes",
                   pending: 2,
                   failures: 0,
+                },
+                {
+                  id: "tasks-studio",
+                  label: "Oficina → Studio",
+                  state: "failed",
+                  kind: "integration",
+                  detail:
+                    "Há tarefas com falha. Abra Publicações para consultar ou retentar.",
+                  href: "/publicacoes",
+                  lastAttempt: now,
+                  failures: 1,
+                },
+                {
+                  id: "portfolio",
+                  label: "Blog e Portfólio",
+                  state: "unknown",
+                  kind: "service",
+                  detail:
+                    "Sem operação autenticada recente para confirmar a disponibilidade.",
+                },
+                {
+                  id: "drive",
+                  label: "Google Drive do Jarvis",
+                  state: "disabled",
+                  kind: "integration",
+                  detail: "Integração desativada.",
                 },
               ],
             }
@@ -889,14 +923,40 @@ test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
   await page.getByRole("button", { name: "Atualizar diagnóstico" }).click();
   await expect(page.getByText("Sincronização atrasada.")).toBeVisible();
   expect(healthUpdates).toBe(1);
-  await expect(page.locator(".dashboard-service").first()).toContainText(
-    "Catálogo do Studio",
+  const attention = page.getByRole("region", {
+    name: "Precisa da sua atenção",
+  });
+  await expect(page.getByText("Há falhas para resolver")).toBeVisible();
+  await expect(attention.getByRole("article").first()).toContainText(
+    "Oficina → Studio",
   );
-  await expect(page.getByRole("meter", { name: /Leituras D1/ })).toHaveCount(1);
+  await expect(attention.getByRole("article")).toHaveCount(2);
   await expect(
-    page.getByText("Consumo indisponível · Limite não informado"),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Abrir no Lastro" }).click();
+    page.getByRole("region", { name: "Funcionando normalmente" }),
+  ).toContainText("Arquivos estáticos");
+  await expect(
+    page.getByRole("region", { name: "Sem dados ou desativados" }),
+  ).toContainText("Blog e Portfólio");
+  await expect(
+    page.getByRole("region", { name: "Sem dados ou desativados" }),
+  ).toContainText("Google Drive do Jarvis");
+  await expect(
+    page.getByRole("region", { name: "Mudanças recentes" }),
+  ).toContainText("Funcionamento confirmado");
+  await expect(page.getByRole("meter", { name: /Leituras D1/ })).toBeHidden();
+  const advanced = page.locator(".health-infrastructure > summary");
+  await advanced.press("Enter");
+  await expect(page.getByRole("meter", { name: /Leituras D1/ })).toHaveCount(1);
+  await expect(page.getByText("Uma métrica está sem dados.")).toBeVisible();
+  await expect(page.getByText("CPU Workers")).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await attention
+    .getByRole("button", { name: "Ver tarefas com falha" })
+    .click();
   await expect(page).toHaveURL(/\/publicacoes$/);
   await page.goto("/analytics");
   const analytics = page.getByRole("region", { name: "Google Analytics" });

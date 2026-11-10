@@ -22,20 +22,18 @@
   line-height: 1.5;
 }
 .dashboard-kpis,
-.dashboard-charts,
-.dashboard-services {
+.dashboard-charts {
   display: grid;
   gap: 10px;
   min-width: 0;
 }
-.lastro-dashboard :is(.dashboard-kpi, .dashboard-service) {
+.lastro-dashboard .dashboard-kpi {
   margin-bottom: 0;
 }
 .dashboard-kpis {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
 }
-.lastro-dashboard .dashboard-kpi h3,
-.lastro-dashboard .dashboard-service h3 {
+.lastro-dashboard .dashboard-kpi h3 {
   margin: 0;
   line-height: 1.3;
 }
@@ -104,84 +102,450 @@
   color: var(--muted);
   background: var(--soft);
 }
-.dashboard-services {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.dashboard-service header,
-.dashboard-service-actions {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-}
-.dashboard-service header {
-  align-items: center;
-}
-.lastro-dashboard .dashboard-service h3 {
-  font-size: 15px;
-}
-.dashboard-service p {
-  margin: 6px 0;
-}
-.dashboard-service-actions {
-  align-items: center;
-  justify-content: flex-start;
-}
-.dashboard-service-actions .dashboard-disclosure {
-  flex: 1 0 100%;
-}
-.dashboard-service-actions > a {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-}
-.dashboard-disclosure dl {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px 12px;
-  font-size: 13px;
-}
-.dashboard-disclosure dt {
-  color: var(--muted);
-}
-.dashboard-disclosure dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-.dashboard-service .dashboard-state {
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: var(--soft);
-  color: var(--ink);
-  font-size: 11px;
-}
-.dashboard-service .dashboard-state[data-state="failed"],
-.dashboard-service .dashboard-state[data-state="warning"] {
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-}
-.lastro-dashboard .dashboard-kpi .dashboard-state[data-state="failed"],
-.lastro-dashboard .dashboard-kpi .dashboard-state[data-state="warning"] {
-  color: var(--accent-ink);
-}
-.dashboard-consumption {
-  display: block;
-  min-width: 9rem;
-}
-.lastro-dashboard meter {
-  display: block;
-  height: 9px;
-  max-width: 160px;
-  margin-top: 5px;
-}
 .lastro-dashboard :is(summary, .analytics-table):focus-visible {
   outline: 2px solid var(--accent-ink);
   outline-offset: 2px;
 }
 @media (max-width: 780px) {
-  .dashboard-charts,
-  .dashboard-services {
+  .dashboard-charts {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Ecosystem health uses the workspace palette with status-specific accents. */
+.health-dashboard {
+  --health-warning: #f4c374;
+  --health-healthy: #86d4aa;
+  --health-tone: var(--muted);
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+:root[data-theme="light"] .health-dashboard {
+  --health-warning: #805008;
+  --health-healthy: #226748;
+}
+.health-dashboard [data-state="failed"] {
+  --health-tone: var(--accent-ink);
+}
+.health-dashboard [data-state="warning"] {
+  --health-tone: var(--health-warning);
+}
+.health-dashboard [data-state="healthy"] {
+  --health-tone: var(--health-healthy);
+}
+.health-dashboard :is([data-state="unknown"], [data-state="disabled"]) {
+  --health-tone: var(--muted);
+}
+.health-dashboard :is(h2, h3, p, dl, dd) {
+  margin: 0;
+}
+.health-dashboard h2 {
+  font:
+    600 clamp(1.2rem, 2.2vw, 1.55rem)/1.2 Georgia,
+    serif;
+  letter-spacing: -0.02em;
+}
+.health-dashboard h3 {
+  font-size: 15px;
+  line-height: 1.35;
+}
+.health-dashboard p {
+  line-height: 1.5;
+}
+.health-toolbar,
+.health-issue header,
+.health-services header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.health-timestamp time {
+  display: block;
+  color: var(--ink);
+  font-weight: 600;
+}
+.health-dashboard .health-note,
+.health-feedback {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.health-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.health-refresh[aria-disabled="true"] {
+  cursor: progress;
+}
+.health-feedback:empty {
+  position: absolute;
+}
+.health-feedback {
+  flex-basis: 100%;
+}
+.health-dashboard .health-stale {
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--health-warning) 40%, var(--line));
+  border-radius: var(--radius);
+  color: var(--health-warning);
+}
+
+.health-overview {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-inline-start: 3px solid var(--health-tone);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.health-overview-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: clamp(14px, 2.2vw, 24px);
+}
+.health-overview-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 48px;
+  block-size: 48px;
+  border-radius: var(--radius);
+  color: var(--health-tone);
+  background: color-mix(in srgb, var(--health-tone) 13%, var(--surface));
+}
+.health-overview .health-eyebrow {
+  color: var(--health-tone);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.health-overview h3 {
+  margin: 4px 0 5px;
+  font:
+    600 clamp(1.4rem, 3vw, 2.1rem)/1.1 Georgia,
+    serif;
+  letter-spacing: -0.025em;
+}
+.health-overview-main p:last-child,
+.health-issue > p:not(.health-note),
+.health-services p:not(.health-note),
+.health-history p:not(.health-note) {
+  color: var(--muted);
+}
+.health-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1.16fr)) repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border-block-start: 1px solid var(--line);
+}
+.health-kpi {
+  padding: 12px 16px;
+  background: var(--surface);
+}
+.health-kpi:is([data-state="failed"], [data-state="warning"]) {
+  background: color-mix(in srgb, var(--health-tone) 9%, var(--surface));
+}
+.health-kpi dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--health-tone);
+  font-size: 12px;
+  font-weight: 650;
+}
+.health-kpi dd {
+  margin-top: 4px;
+  font-size: 23px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.health-kpi:is([data-state="failed"], [data-state="warning"]) dd {
+  font-weight: 750;
+}
+.health-kpi:is([data-state="unknown"], [data-state="disabled"]) dd {
+  color: var(--muted);
+  font-size: 19px;
+}
+
+.health-group {
+  display: grid;
+  gap: 10px;
+}
+.health-issues,
+.health-services,
+.health-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.health-issue,
+.health-services > li,
+.health-metrics > li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.health-issue {
+  display: grid;
+  gap: 7px;
+  padding: 13px 16px;
+  border-inline-start: 3px solid var(--health-tone);
+}
+.health-issue h3 {
+  font-size: 17px;
+}
+.health-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--health-tone) 12%, var(--surface));
+  color: var(--health-tone);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.health-issue-footer {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0 12px;
+  margin-top: 3px;
+}
+.health-action,
+.health-item-details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+}
+.health-item-details summary {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+}
+.health-item-details[open] {
+  flex-basis: 100%;
+}
+.health-item-details[open] summary {
+  margin-bottom: 4px;
+}
+.health-item-details dl {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-size: 12px;
+}
+.health-item-details dl div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 3px 0;
+}
+.health-item-details dt {
+  color: var(--muted);
+}
+.health-services,
+.health-metrics,
+.health-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.health-services > li,
+.health-metrics > li {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 10px 12px;
+}
+.health-secondary .health-services > li {
+  background: var(--paper);
+}
+.health-empty {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  padding: 13px 16px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+.health-empty p {
+  color: var(--ink);
+}
+.health-history > li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 0;
+  border-block-start: 1px solid var(--line);
+}
+.health-history > li > svg {
+  margin-top: 2px;
+  color: var(--health-tone);
+}
+.health-history h3 {
+  margin: 2px 0;
+}
+
+.health-disclosure {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.health-disclosure summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 9px 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.health-disclosure summary span {
+  flex: 1;
+}
+.health-disclosure summary svg {
+  flex: none;
+  color: var(--muted);
+}
+.health-disclosure[open] summary svg:last-child {
+  transform: rotate(180deg);
+}
+.health-disclosure-body {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-block-start: 1px solid var(--line);
+}
+.health-metrics > li {
+  background: var(--paper);
+}
+.health-metrics meter {
+  width: min(100%, 220px);
+  height: 12px;
+}
+.health-dashboard :is(summary, button, a):focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .health-issue:hover {
+    background: color-mix(in srgb, var(--health-tone) 4%, var(--surface));
+  }
+  .health-dashboard :is(.health-action, summary):hover {
+    color: var(--accent-ink);
+  }
+}
+@media (max-width: 660px) {
+  .health-dashboard {
+    gap: 16px;
+  }
+  .health-issues,
+  .health-services,
+  .health-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .health-kpis {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .health-kpi {
+    grid-column: span 2;
+    padding: 8px;
+  }
+  .health-kpi:is([data-state="failed"], [data-state="warning"]) {
+    grid-column: span 3;
+  }
+  .health-kpi dt {
+    gap: 4px;
+    font-size: 11px;
+  }
+  .health-kpi dt svg {
+    flex: none;
+    width: 13px;
+  }
+  .health-overview-main {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .health-overview-icon {
+    inline-size: 34px;
+    block-size: 34px;
+  }
+  .health-overview-icon svg {
+    width: 20px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-motion="full"] .health-enter {
+    transition:
+      opacity 180ms var(--ease),
+      transform 180ms var(--ease),
+      background-color 160ms ease,
+      border-color 160ms ease;
+  }
+  @starting-style {
+    :root[data-motion="full"] .health-enter {
+      opacity: 0.6;
+      transform: translateY(3px);
+    }
+  }
+  :root[data-motion="full"] .health-spin {
+    animation: health-spin 850ms linear infinite;
+  }
+  @keyframes health-spin {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+  :root[data-motion="full"]
+    .health-disclosure
+    summary:not(:focus-visible)
+    svg:last-child {
+    transition: transform 160ms var(--ease);
+  }
+  @supports (interpolate-size: allow-keywords) {
+    :root[data-motion="full"]
+      .health-disclosure:not(:has(summary:focus-visible))::details-content {
+      interpolate-size: allow-keywords;
+      block-size: 0;
+      opacity: 0;
+      overflow: clip;
+      transition:
+        block-size 190ms var(--ease),
+        opacity 160ms var(--ease),
+        content-visibility 190ms allow-discrete;
+    }
+    :root[data-motion="full"]
+      .health-disclosure[open]:not(
+        :has(summary:focus-visible)
+      )::details-content {
+      block-size: auto;
+      opacity: 1;
+    }
   }
 }

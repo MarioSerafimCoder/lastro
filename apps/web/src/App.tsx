@@ -829,11 +829,13 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                       ? "A origem importa. O critério também."
                       : area === "analytics"
                         ? "Dados reais para acompanhar a leitura do seu trabalho."
-                        : area === "oportunidades"
-                          ? "Acompanhe conversas e próximos passos de cada projeto."
-                          : area === "newsletters"
-                            ? "Acompanhe os leitores que chegam pelas suas edições."
-                            : "O próximo destino das suas ideias."}
+                        : area === "saude"
+                          ? "Acompanhe o que funciona e saiba onde agir quando algo precisar de atenção."
+                          : area === "oportunidades"
+                            ? "Acompanhe conversas e próximos passos de cada projeto."
+                            : area === "newsletters"
+                              ? "Acompanhe os leitores que chegam pelas suas edições."
+                              : "O próximo destino das suas ideias."}
             </p>
           </div>
           <form
