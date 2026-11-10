@@ -300,7 +300,27 @@ test("real session, 30+ references, responsive themes, provenance and editorial 
       );
     expect(columns).toBe(width <= 680 ? 1 : width <= 1200 ? 2 : 3);
   }
+  await page.getByRole("button", { name: "Abrir menu" }).click();
+  const menu = page.getByRole("navigation", { name: "Navegação principal" });
+  await expect(menu.getByRole("group", { name: "Ferramentas" })).toBeVisible();
+  const navBounds = await menu.boundingBox();
+  const mainBounds = await page.getByRole("main").boundingBox();
+  expect(navBounds!.y + navBounds!.height).toBeLessThanOrEqual(mainBounds!.y);
+  await menu.getByRole("button", { name: "For You", exact: true }).focus();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Abrir menu" })).toBeFocused();
   await page.setViewportSize({ width: 1440, height: 1000 });
+  const card = b.getByTestId("radar-card").first();
+  const surface = await card.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  );
+  await card.getByRole("link", { name: "Ler original" }).hover();
+  expect(
+    await card.evaluate((element) => getComputedStyle(element).backgroundColor),
+  ).toBe(surface);
+  expect(
+    await card.evaluate((element) => getComputedStyle(element).transform),
+  ).toBe("none");
   await page.locator("#main").evaluate((el) => (el.scrollTop = 420));
   await page.screenshot({
     path: `${evidence}/country-sections.png`,
@@ -314,14 +334,19 @@ test("real session, 30+ references, responsive themes, provenance and editorial 
   await page.keyboard.press("Enter");
   const d = page.getByRole("dialog");
   await expect(d).toBeVisible();
-  await expect(d).toContainText("Publicação");
-  await expect(d).toContainText("Descoberta");
-  await expect(d).toContainText("Aprovação editorial");
-  await expect(d).toContainText("Última coleta bem-sucedida da fonte");
-  await expect(d).toContainText("Não há sinopse autorizada");
+  await expect(d.getByText("Autoria sintética")).toBeVisible();
   await expect(
-    d.getByRole("link", { name: "Ler artigo original ↗" }),
-  ).toHaveAttribute("href", /fixtures\.example\.test/);
+    d.getByText("Resumo indisponível", { exact: false }),
+  ).toBeVisible();
+  await expect(d.getByText("Aprovação editorial")).toBeHidden();
+  await d.getByText("Metadados e procedência", { exact: true }).click();
+  await expect(d.getByText("Descoberta", { exact: true })).toBeVisible();
+  await expect(d.getByText("Aprovação editorial")).toBeVisible();
+  await expect(d.getByText("Última coleta da fonte")).toBeVisible();
+  await expect(d.getByRole("link", { name: "Ler original" })).toHaveAttribute(
+    "href",
+    /fixtures\.example\.test/,
+  );
   for (let i = 0; i < 12; i++) {
     if (i === 0)
       await page.screenshot({
@@ -390,9 +415,7 @@ test("favorite and Workshop persist through API and details reopen", async ({
   holdSelection = new Promise<void>((resolve) => {
     releaseSelection = resolve;
   });
-  await page
-    .getByRole("button", { name: "Selecionar / remover da Oficina" })
-    .click();
+  await page.getByRole("button", { name: "Enviar para a Oficina" }).click();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
   releaseSelection!();
@@ -407,18 +430,14 @@ test("favorite and Workshop persist through API and details reopen", async ({
           .first("n"),
     )
     .toBe(1);
-  await expect(b.getByRole("status")).toContainText(
-    "Seleção da Oficina atualizada",
-  );
+  await expect(b.getByRole("status")).toContainText("Enviada para a Oficina.");
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await c.locator(".radar-title").click();
   await expect(page.getByRole("dialog")).toContainText(refs[0].title);
   await page.keyboard.press("Escape");
   await c.getByRole("button", { name: /^Remover dos salvos / }).click();
   await c.locator(".radar-title").click();
-  await page
-    .getByRole("button", { name: "Selecionar / remover da Oficina" })
-    .click();
+  await page.getByRole("button", { name: "Remover da Oficina" }).click();
   await expect
     .poll(
       async () =>
@@ -441,10 +460,10 @@ test("Workshop database failure never confirms or moves a reference", async ({
   ).run();
   try {
     await c.locator(".radar-title").click();
-    await page
-      .getByRole("button", { name: "Selecionar / remover da Oficina" })
-      .click();
-    await expect(b.getByRole("status")).toContainText("Ação não concluída");
+    await page.getByRole("button", { name: "Enviar para a Oficina" }).click();
+    await expect(page.getByRole("dialog").getByRole("status")).toContainText(
+      "Não foi possível atualizar a Oficina",
+    );
     await page.keyboard.press("Escape");
     await expect(
       b.locator(`[data-reference-id="${refs[8].id}"][data-triage="novidade"]`),
@@ -460,7 +479,8 @@ test("loading, actual API database error and recovery", async ({ page }) => {
     releaseFeed = resolve;
   });
   await b.getByRole("button", { name: "Atualizar", exact: true }).click();
-  await expect(b.getByLabel("Carregando referências")).toBeVisible();
+  await expect(b.getByRole("button", { name: "Atualizando…" })).toBeDisabled();
+  await expect(b.getByTestId("radar-card")).toHaveCount(37);
   releaseFeed!();
   holdFeed = undefined;
   await expect(b.getByTestId("radar-card")).toHaveCount(37);

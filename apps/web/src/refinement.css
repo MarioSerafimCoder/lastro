@@ -26,7 +26,8 @@ button:disabled {
   cursor: wait;
 }
 .topbar {
-  padding-top: 2rem;
+  padding-block: 24px 16px;
+  gap: 18px;
 }
 .brand {
   letter-spacing: -0.035em;
@@ -36,12 +37,12 @@ button:disabled {
 }
 .nav button {
   border-radius: 6px;
-  min-height: 46px;
-  padding-block: 13px;
+  min-height: 38px;
+  padding-block: 8px;
 }
 .nav button.active::before {
-  top: 14px;
-  bottom: 14px;
+  top: 9px;
+  bottom: 9px;
   width: 2px;
 }
 .nav {
@@ -49,11 +50,29 @@ button:disabled {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.nav-group {
+  display: grid;
+  gap: 2px;
+}
+.nav-group + .nav-group {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.nav-group-title {
+  padding: 4px 12px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.nav button[aria-current="page"] {
+  font-weight: 700;
+}
 .quick-access {
   display: grid;
-  gap: 4px;
-  margin-top: 18px;
-  padding-top: 18px;
+  gap: 2px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid var(--line);
 }
 .quick-access-title {
@@ -68,9 +87,9 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 44px;
-  margin: 3px 5px;
-  padding: 10px 7px;
+  min-height: 36px;
+  margin: 0 5px;
+  padding: 7px;
   border-radius: 6px;
   color: var(--muted);
   font-size: 13px;
@@ -527,13 +546,35 @@ section[aria-labelledby="feed-title"] .radar-toolbar {
   }
 }
 @media (max-width: 620px) {
-  .nav {
-    position: absolute;
-    max-height: calc(100dvh - 64px);
-  }
   .topbar {
-    padding-top: 0;
+    padding-block: 0;
+    gap: 8px;
     background: var(--paper);
+  }
+  .app-shell:has(.nav.open) {
+    grid-template-rows: auto minmax(0, 1fr) 76px;
+  }
+  .topbar:has(.nav.open) {
+    height: auto;
+    min-height: 64px;
+    flex-wrap: wrap;
+    padding-block: 10px;
+  }
+  .topbar .nav.open {
+    position: static;
+    order: 1;
+    flex-basis: 100%;
+    max-height: 52dvh;
+    padding: 4px;
+    border-bottom: 0;
+  }
+  .app-shell:has(.nav.open) main#main {
+    height: auto;
+    min-height: 0;
+  }
+  .nav button,
+  .quick-access a {
+    min-height: 44px;
   }
   .appearance-controls button,
   .menu-button,

@@ -1510,14 +1510,10 @@ test("Ecossistema: rascunho assíncrono preserva prompt e reutiliza vínculo", a
   });
   await page.goto("/");
   await page.getByTestId("radar-card").first().locator(".radar-title").click();
-  await page
-    .getByRole("button", { name: "Selecionar / remover da Oficina" })
-    .click();
-  await expect(
-    page
-      .getByRole("region", { name: "Mesa editorial", exact: true })
-      .getByRole("status"),
-  ).toContainText("Seleção da Oficina atualizada");
+  await page.getByRole("button", { name: "Enviar para a Oficina" }).click();
+  await expect(page.getByRole("dialog").getByRole("status")).toContainText(
+    "Enviada para a Oficina.",
+  );
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Oficina", exact: true }).click();
   await page
@@ -2366,9 +2362,7 @@ test("Radar 2: grade, 32 cards, triagem, detalhes e Oficina", async ({
   await trigger.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("dialog")).toBeVisible();
-  await page
-    .getByRole("button", { name: "Selecionar / remover da Oficina" })
-    .click();
+  await page.getByRole("button", { name: "Enviar para a Oficina" }).click();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();
   await expect(

@@ -76,6 +76,10 @@ const areas: { id: Area; label: string; index: string }[] = [
   { id: "newsletters", label: "Newsletters", index: "08" },
   { id: "saude", label: "Saúde do Ecossistema", index: "09" },
 ];
+const navigationGroups = [
+  { label: "Navegação principal", areas: areas.slice(0, 3) },
+  { label: "Ferramentas", areas: areas.slice(3) },
+];
 const navArea = (): Area => {
   const path = location.pathname.slice(1);
   return areas.some((a) => a.id === path) ? (path as Area) : "for-you";
@@ -438,7 +442,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
       setBusyId(null);
     }
   };
-  const selection = (item: Content) => {
+  const selection = (item: Content, announce = true) => {
     const desired = selectedRef.current.some((i) => i.id === item.id)
       ? selectedRef.current.filter((i) => i.id !== item.id)
       : [...selectedRef.current, item];
@@ -469,9 +473,10 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             selectedRef.current = r.items;
             setSelected(r.items);
           }
-          notify(
-            `${desired.length} ${desired.length === 1 ? "referência selecionada" : "referências selecionadas"}.`,
-          );
+          if (announce)
+            notify(
+              `${desired.length} ${desired.length === 1 ? "referência selecionada" : "referências selecionadas"}.`,
+            );
         } catch (e) {
           notify(errorText(e));
           try {
@@ -664,40 +669,57 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
         </button>
         <nav
           className={`nav ${mobileMenu ? "open" : ""}`}
+          id="lastro-navigation"
           aria-label="Navegação principal"
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && mobileMenu)
+              document.getElementById("lastro-menu-button")?.focus();
+          }}
         >
-          {areas.map((a) => (
-            <button
-              key={a.id}
-              className={area === a.id ? "active" : ""}
-              onClick={() => navigate(a.id)}
-              aria-current={area === a.id ? "page" : undefined}
+          {navigationGroups.map((group) => (
+            <div
+              className="nav-group"
+              role="group"
+              aria-label={group.label}
+              key={group.label}
             >
-              <span className="nav-icon" aria-hidden="true">
-                {a.id === "for-you" ? (
-                  <Search size={18} />
-                ) : a.id === "salvos" ? (
-                  <Bookmark size={18} />
-                ) : a.id === "oficina" ? (
-                  <Layers2 size={18} />
-                ) : a.id === "curadoria" ? (
-                  <Filter size={18} />
-                ) : a.id === "publicacoes" ? (
-                  <Newspaper size={18} />
-                ) : a.id === "analytics" ? (
-                  <ChartNoAxesCombined size={18} />
-                ) : a.id === "oportunidades" ? (
-                  <Lightbulb size={18} />
-                ) : a.id === "newsletters" ? (
-                  <Mail size={18} />
-                ) : a.id === "saude" ? (
-                  <Activity size={18} />
-                ) : (
-                  <BookOpen size={18} />
-                )}
-              </span>
-              {a.label}
-            </button>
+              {group.label === "Ferramentas" && (
+                <span className="nav-group-title">Ferramentas</span>
+              )}
+              {group.areas.map((a) => (
+                <button
+                  key={a.id}
+                  className={area === a.id ? "active" : ""}
+                  onClick={() => navigate(a.id)}
+                  aria-current={area === a.id ? "page" : undefined}
+                >
+                  <span className="nav-icon" aria-hidden="true">
+                    {a.id === "for-you" ? (
+                      <Search size={18} />
+                    ) : a.id === "salvos" ? (
+                      <Bookmark size={18} />
+                    ) : a.id === "oficina" ? (
+                      <Layers2 size={18} />
+                    ) : a.id === "curadoria" ? (
+                      <Filter size={18} />
+                    ) : a.id === "publicacoes" ? (
+                      <Newspaper size={18} />
+                    ) : a.id === "analytics" ? (
+                      <ChartNoAxesCombined size={18} />
+                    ) : a.id === "oportunidades" ? (
+                      <Lightbulb size={18} />
+                    ) : a.id === "newsletters" ? (
+                      <Mail size={18} />
+                    ) : a.id === "saude" ? (
+                      <Activity size={18} />
+                    ) : (
+                      <BookOpen size={18} />
+                    )}
+                  </span>
+                  {a.label}
+                </button>
+              ))}
+            </div>
           ))}
           <div
             className="quick-access"
@@ -760,10 +782,12 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
             Sair
           </button>
           <button
+            id="lastro-menu-button"
             className="menu-button"
             onClick={() => setMobileMenu((v) => !v)}
             aria-label={mobileMenu ? "Fechar menu" : "Abrir menu"}
             aria-expanded={mobileMenu}
+            aria-controls="lastro-navigation"
           >
             {mobileMenu ? <X /> : <Menu />}
           </button>
@@ -849,7 +873,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
         </div>
         {area === "for-you" && (
           <RadarBoard
-            onSelect={selection}
+            onSelect={(item) => selection(item, false)}
             onItemsChange={setRadarItems}
             query={query}
             onClearSearch={() => {
