@@ -1,0 +1,187 @@
+.lastro-dashboard {
+  min-width: 0;
+}
+.lastro-dashboard .pub-card {
+  min-width: 0;
+  padding: 14px 16px;
+}
+.lastro-dashboard .pub-card h2 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+.dashboard-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+}
+.dashboard-status,
+.dashboard-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.dashboard-kpis,
+.dashboard-charts,
+.dashboard-services {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.lastro-dashboard :is(.dashboard-kpi, .dashboard-service) {
+  margin-bottom: 0;
+}
+.dashboard-kpis {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
+}
+.lastro-dashboard .dashboard-kpi h3,
+.lastro-dashboard .dashboard-service h3 {
+  margin: 0;
+  line-height: 1.3;
+}
+.lastro-dashboard .dashboard-kpi h3 {
+  color: var(--muted);
+  font:
+    600 12px/1.4 system-ui,
+    sans-serif;
+}
+.lastro-dashboard .dashboard-kpi .analytics-value {
+  color: var(--ink);
+  margin: 6px 0 0;
+  font-size: clamp(1.35rem, 2.3vw, 1.8rem);
+  font-weight: 650;
+  line-height: 1.15;
+}
+.dashboard-charts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.dashboard-chart {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.dashboard-chart figcaption {
+  font-size: 13px;
+  font-weight: 650;
+}
+.dashboard-chart svg {
+  display: block;
+  width: 100%;
+  height: 76px;
+  fill: var(--accent-ink);
+}
+.dashboard-chart-axis {
+  stroke: var(--line);
+  stroke-width: 1px;
+}
+.dashboard-chart-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-block: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-disclosure summary {
+  min-height: 44px;
+  padding-block: 12px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dashboard-disclosure[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+.lastro-dashboard .analytics-table th,
+.lastro-dashboard .analytics-table td {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.lastro-dashboard .analytics-table thead th {
+  color: var(--muted);
+  background: var(--soft);
+}
+.dashboard-services {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.dashboard-service header,
+.dashboard-service-actions {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.dashboard-service header {
+  align-items: center;
+}
+.lastro-dashboard .dashboard-service h3 {
+  font-size: 15px;
+}
+.dashboard-service p {
+  margin: 6px 0;
+}
+.dashboard-service-actions {
+  align-items: center;
+  justify-content: flex-start;
+}
+.dashboard-service-actions .dashboard-disclosure {
+  flex: 1 0 100%;
+}
+.dashboard-service-actions > a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.dashboard-disclosure dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 12px;
+  font-size: 13px;
+}
+.dashboard-disclosure dt {
+  color: var(--muted);
+}
+.dashboard-disclosure dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.dashboard-service .dashboard-state {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 11px;
+}
+.dashboard-service .dashboard-state[data-state="failed"],
+.dashboard-service .dashboard-state[data-state="warning"] {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.lastro-dashboard .dashboard-kpi .dashboard-state[data-state="failed"],
+.lastro-dashboard .dashboard-kpi .dashboard-state[data-state="warning"] {
+  color: var(--accent-ink);
+}
+.dashboard-consumption {
+  display: block;
+  min-width: 9rem;
+}
+.lastro-dashboard meter {
+  display: block;
+  height: 9px;
+  max-width: 160px;
+  margin-top: 5px;
+}
+.lastro-dashboard :is(summary, .analytics-table):focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+@media (max-width: 780px) {
+  .dashboard-charts,
+  .dashboard-services {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

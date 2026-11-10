@@ -6,28 +6,112 @@ import type {
 } from "../../../packages/contracts/analytics";
 import { editorialDate } from "./Ecosystem";
 import SearchConsole from "./SearchConsole";
+import "./dashboard.css";
 const api = createLastroClient();
-const number = (n: number) =>
-  new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(n);
+const formatter = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+const number = (n: number) => formatter.format(n);
+const chartFields = [
+  ["Usuários ativos", "activeUsers"],
+  ["Sessões", "sessions"],
+  ["Visualizações", "screenPageViews"],
+] as const;
+const metricFields = [
+  ...chartFields,
+  ["Taxa de engajamento", "engagementRate"],
+  ["Tempo de engajamento", "userEngagementDuration"],
+] as const;
+const dateLabel = (date?: string) =>
+  date?.replace(/^(\d{4})-?(\d{2})-?(\d{2})$/, "$3/$2/$1");
+const chartDay = (date: string) =>
+  Date.parse(
+    date.replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3") + "T00:00:00Z",
+  ) / 86400000;
+
+function DailyChart({
+  label,
+  metric,
+  rows,
+}: {
+  label: string;
+  metric: "activeUsers" | "sessions" | "screenPageViews";
+  rows: AnalyticsRow[];
+}) {
+  const points = rows.flatMap((row) => {
+    const day = chartDay(row.date ?? "");
+    return Number.isFinite(day)
+      ? [{ day, value: row[metric], date: row.date }]
+      : [];
+  });
+  if (!points.length) return null;
+  const first = points[0],
+    last = points[points.length - 1];
+  const maximum = Math.max(...points.map((point) => point.value));
+  const step = 300 / Math.max(2, last.day - first.day + 1);
+  const barWidth = Math.min(26, step * 0.72);
+  return (
+    <figure className="dashboard-chart">
+      <figcaption>{label}</figcaption>
+      <span className="dashboard-chart-scale" aria-hidden="true">
+        {number(maximum)}
+      </span>
+      <svg
+        viewBox="0 0 300 76"
+        role="img"
+        aria-label={`${label} por dia, de ${dateLabel(first.date)} a ${dateLabel(last.date)}. Consulte a tabela para os valores exatos.`}
+        preserveAspectRatio="none"
+      >
+        <path d="M0 0.5H300 M0 75.5H300" className="dashboard-chart-axis" />
+        {points.map((point) => {
+          const height = point.value > 0 ? (point.value / maximum) * 74 : 1;
+          return (
+            <rect
+              key={point.day}
+              x={(point.day - first.day + 0.5) * step - barWidth / 2}
+              y={75 - height}
+              width={barWidth}
+              height={height}
+            >
+              <title>
+                {dateLabel(point.date)} · {number(point.value)}
+              </title>
+            </rect>
+          );
+        })}
+      </svg>
+      <div className="dashboard-chart-scale" aria-hidden="true">
+        <span>{dateLabel(first.date)?.slice(0, 5)}</span>
+        <span>{dateLabel(last.date)?.slice(0, 5)}</span>
+      </div>
+    </figure>
+  );
+}
 export default function Analytics() {
   const [days, setDays] = useState<7 | 30>(7),
     [data, setData] = useState<AnalyticsOverview | null>(null),
-    [busy, setBusy] = useState(false),
+    [busy, setBusy] = useState(true),
     [error, setError] = useState("");
   const sequence = useRef(0);
+  const pendingRead = useRef<{
+    days: 7 | 30;
+    request: Promise<AnalyticsOverview>;
+  } | null>(null);
   async function load(refresh = false) {
     const id = ++sequence.current;
     setBusy(true);
     setError("");
+    if (!refresh && pendingRead.current?.days !== days)
+      pendingRead.current = { days, request: api.analyticsOverview(days) };
+    const request = refresh
+      ? api.refreshAnalytics(days)
+      : pendingRead.current!.request;
     try {
-      const value = await (refresh
-        ? api.refreshAnalytics(days)
-        : api.analyticsOverview(days));
+      const value = await request;
       if (id === sequence.current) setData(value);
     } catch (e) {
       if (id === sequence.current)
         setError(e instanceof Error ? e.message : "Analytics indisponível.");
     } finally {
+      if (pendingRead.current?.request === request) pendingRead.current = null;
       if (id === sequence.current) setBusy(false);
     }
   }
@@ -41,7 +125,10 @@ export default function Analytics() {
   const report = (dimension: string) =>
     data?.data?.reports.find((r) => r.dimension === dimension);
   const total = report("total")?.rows[0];
-  const daily = report("date")?.rows ?? [];
+  const daily = [...(report("date")?.rows ?? [])].sort(
+    (a, b) => chartDay(a.date ?? "") - chartDay(b.date ?? ""),
+  );
+  const range = data?.data?.effectiveRange ?? data?.data?.range;
   const nextManual = data?.freshness.fetchedAt
     ? new Date(data.freshness.fetchedAt).getTime() + 3600000
     : 0;
@@ -64,14 +151,19 @@ export default function Analytics() {
         ) : !r.rows.length ? (
           <p>Nenhum resultado disponível neste período.</p>
         ) : (
-          <div className="analytics-table">
+          <div
+            className="analytics-table"
+            role="region"
+            aria-label={title}
+            tabIndex={0}
+          >
             <table>
               <thead>
                 <tr>
-                  <th>{label}</th>
-                  <th>Usuários ativos</th>
-                  <th>Sessões</th>
-                  <th>Visualizações</th>
+                  <th scope="col">{label}</th>
+                  <th scope="col">Usuários ativos</th>
+                  <th scope="col">Sessões</th>
+                  <th scope="col">Visualizações</th>
                 </tr>
               </thead>
               <tbody>
@@ -96,7 +188,7 @@ export default function Analytics() {
   }
   return (
     <section
-      className="page-section ecosystem analytics"
+      className="page-section ecosystem analytics lastro-dashboard"
       aria-label="Google Analytics"
       aria-busy={busy}
     >
@@ -125,16 +217,24 @@ export default function Analytics() {
           </button>
         </div>
       </div>
-      <p>
-        Até ontem, conforme o fuso da propriedade GA4. Snapshot com cache de 12
-        horas; atualização manual limitada a uma por hora em cada período.
-      </p>
-      <p role="status">
-        {busy
-          ? "Consultando Analytics…"
-          : `Última atualização: ${editorialDate(data?.freshness.fetchedAt)}`}
-        {data?.freshness.stale ? " · Dados antigos" : ""}
-      </p>
+      <div className="dashboard-status" role="status">
+        {range && (
+          <span>
+            {dateLabel(range.start)} a {dateLabel(range.end)} ·{" "}
+            {data?.data?.timeZone ?? "Fuso do GA4"}
+          </span>
+        )}
+        <span>
+          {busy
+            ? "Carregando dados…"
+            : data?.freshness.fetchedAt
+              ? `Atualizado em ${editorialDate(data.freshness.fetchedAt)}`
+              : data?.status === "pending"
+                ? "Aguardando o primeiro snapshot."
+                : "Dados indisponíveis."}
+          {data?.data && data.freshness.stale ? " · Dados desatualizados" : ""}
+        </span>
+      </div>
       {(error || data?.error) && (
         <div className="notice error" role="alert">
           <p>
@@ -150,15 +250,9 @@ export default function Analytics() {
           </p>
         </div>
       )}
-      <div className="pub-grid">
-        {[
-          ["Usuários ativos", "activeUsers"],
-          ["Sessões", "sessions"],
-          ["Visualizações", "screenPageViews"],
-          ["Taxa de engajamento", "engagementRate"],
-          ["Tempo de engajamento", "userEngagementDuration"],
-        ].map(([label, key]) => (
-          <article className="pub-card" key={key}>
+      <div className="dashboard-kpis" aria-label="Indicadores principais">
+        {metricFields.map(([label, key]) => (
+          <article className="pub-card dashboard-kpi" key={key}>
             <h3>{label}</h3>
             <p className="analytics-value">
               {total
@@ -166,66 +260,69 @@ export default function Analytics() {
                   ? number(total.engagementRate * 100) + "%"
                   : key === "userEngagementDuration"
                     ? number(total.userEngagementDuration / 60) + " min"
-                    : number(total[key as keyof AnalyticsRow] as number)
+                    : number(total[key])
                 : "—"}
             </p>
           </article>
         ))}
       </div>
-      {!total && data?.status === "available" && (
-        <p>
-          Sem dados no período. Ausência de resultados não indica falha de
-          autenticação.
-        </p>
-      )}
+      {!total && data?.status === "available" && <p>Sem dados no período.</p>}
       <article className="pub-card">
         <h2>Evolução diária</h2>
-        {!data?.data ? (
+        {busy && !data?.data ? (
+          <p>Carregando série diária…</p>
+        ) : !data?.data ? (
           <p>Dados indisponíveis.</p>
         ) : !daily.length ? (
-          <p>Nenhum resultado diário.</p>
+          <p>Nenhum resultado diário neste período.</p>
         ) : (
-          <div className="analytics-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Usuários ativos</th>
-                  <th>Sessões</th>
-                  <th>Visualizações</th>
-                  <th>Evolução de visualizações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {daily.map((row) => (
-                  <tr key={row.date}>
-                    <th scope="row">
-                      {row.date?.replace(/^(\d{4})(\d{2})(\d{2})$/, "$3/$2/$1")}
-                    </th>
-                    <td>{number(row.activeUsers)}</td>
-                    <td>{number(row.sessions)}</td>
-                    <td>{number(row.screenPageViews)}</td>
-                    <td>
-                      <meter
-                        aria-label={`Visualizações em ${row.date}`}
-                        min={0}
-                        max={Math.max(
-                          1,
-                          ...daily.map((d) => d.screenPageViews),
-                        )}
-                        value={row.screenPageViews}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="dashboard-charts">
+              {chartFields.map(([label, metric]) => (
+                <DailyChart
+                  key={metric}
+                  label={label}
+                  metric={metric}
+                  rows={daily}
+                />
+              ))}
+            </div>
+            <p className="dashboard-note">
+              Cada gráfico tem escala própria. Dias sem registro ficam em
+              branco.
+            </p>
+            <details className="dashboard-disclosure">
+              <summary>Ver valores por dia</summary>
+              <div
+                className="analytics-table"
+                role="region"
+                aria-label="Valores por dia"
+                tabIndex={0}
+              >
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Data</th>
+                      <th scope="col">Usuários ativos</th>
+                      <th scope="col">Sessões</th>
+                      <th scope="col">Visualizações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {daily.map((row) => (
+                      <tr key={row.date}>
+                        <th scope="row">{dateLabel(row.date)}</th>
+                        <td>{number(row.activeUsers)}</td>
+                        <td>{number(row.sessions)}</td>
+                        <td>{number(row.screenPageViews)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </>
         )}
-        <p>
-          Usuários ativos do período são calculados pelo GA4; não são a soma dos
-          dias.
-        </p>
       </article>
       {table("Páginas mais acessadas", "pagePath", "Página")}
       {table("Origens de tráfego", "sessionSourceMedium", "Origem / mídia")}

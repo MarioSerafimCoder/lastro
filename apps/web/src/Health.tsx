@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createLastroClient } from "../../../packages/contracts/client";
 import type {
   HealthOverview,
   HealthState,
 } from "../../../packages/contracts/health";
 import { editorialDate } from "./Ecosystem";
+import "./dashboard.css";
 
 const api = createLastroClient();
 const labels: Record<HealthState, string> = {
@@ -14,6 +15,13 @@ const labels: Record<HealthState, string> = {
   unknown: "Sem dados suficientes",
   disabled: "Desativado",
 };
+const stateOrder: HealthState[] = [
+  "failed",
+  "warning",
+  "unknown",
+  "disabled",
+  "healthy",
+];
 const destinations = {
   "/": "for-you",
   "/publicacoes": "publicacoes",
@@ -37,14 +45,19 @@ export default function Health({
   const [data, setData] = useState<HealthOverview | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
+  const pendingRead = useRef<Promise<HealthOverview> | null>(null);
   async function load(refresh = false) {
     setBusy(true);
     setError("");
+    const request = refresh
+      ? api.ecosystemHealth(true)
+      : (pendingRead.current ??= api.ecosystemHealth(false));
     try {
-      setData(await api.ecosystemHealth(refresh));
+      setData(await request);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Diagnóstico indisponível.");
     } finally {
+      if (pendingRead.current === request) pendingRead.current = null;
       setBusy(false);
     }
   }
@@ -52,9 +65,15 @@ export default function Health({
     void load();
   }, []);
   const snapshot = data?.snapshot;
+  const counts = { failed: 0, warning: 0, unknown: 0, disabled: 0, healthy: 0 };
+  const services = [...(snapshot?.items ?? [])].sort(
+    (a, b) => stateOrder.indexOf(a.state) - stateOrder.indexOf(b.state),
+  );
+  for (const item of services) counts[item.state]++;
+
   return (
     <section
-      className="page-section ecosystem analytics"
+      className="page-section ecosystem analytics lastro-dashboard"
       aria-label="Saúde do Ecossistema"
       aria-busy={busy}
     >
@@ -72,17 +91,19 @@ export default function Health({
           Atualizar diagnóstico
         </button>
       </div>
-      <p role="status">
+      <p className="dashboard-status" role="status">
         {busy
           ? "Carregando diagnóstico…"
           : data?.enabled === false
             ? "Monitoramento desativado neste ambiente."
             : snapshot
-              ? `Última atualização ${editorialDate(snapshot.checkedAt)}${data?.stale ? " · Snapshot antigo" : ""}`
+              ? `Última atualização ${editorialDate(snapshot.checkedAt)}${data?.stale ? " · Dados desatualizados" : ""}`
               : "Aguardando o primeiro diagnóstico."}
       </p>
       {data?.nextRefresh && (
-        <p>Próxima atualização permitida {editorialDate(data.nextRefresh)}.</p>
+        <p className="dashboard-note">
+          Próxima atualização disponível em {editorialDate(data.nextRefresh)}.
+        </p>
       )}
       {data?.refreshFailed && (
         <p className="notice error" role="alert">
@@ -96,107 +117,176 @@ export default function Health({
       )}
       {snapshot && (
         <>
-          <div className="pub-grid">
-            {(Object.keys(labels) as HealthState[]).map((state) => (
-              <article className="pub-card" key={state}>
-                <h3>{labels[state]}</h3>
-                <p className="analytics-value">
-                  {snapshot.items.filter((item) => item.state === state).length}
-                </p>
+          <div className="dashboard-kpis" aria-label="Resumo dos serviços">
+            {stateOrder.map((state) => (
+              <article className="pub-card dashboard-kpi" key={state}>
+                <h3 className="dashboard-state" data-state={state}>
+                  {labels[state]}
+                </h3>
+                <p className="analytics-value">{counts[state]}</p>
               </article>
             ))}
           </div>
           <h2>Serviços e integrações</h2>
-          <div className="pub-grid">
-            {snapshot.items.map((item) => (
-              <article className="pub-card" key={item.id}>
-                <span className="kicker">
-                  {item.kind === "service" ? "SERVIÇO" : "INTEGRAÇÃO"}
-                </span>
-                <h3>{item.label}</h3>
-                <p>
-                  <strong>{labels[item.state]}</strong>
-                </p>
+          {services.length === 0 && (
+            <p>Nenhum serviço foi registrado neste diagnóstico.</p>
+          )}
+          <div className="dashboard-services">
+            {services.map((item) => (
+              <article className="pub-card dashboard-service" key={item.id}>
+                <header>
+                  <h3>{item.label}</h3>
+                  <span className="dashboard-state" data-state={item.state}>
+                    {labels[item.state]}
+                  </span>
+                </header>
                 <p>{item.detail}</p>
-                {item.lastSuccess && (
-                  <p>Último sucesso {editorialDate(item.lastSuccess)}</p>
-                )}
-                {item.lastAttempt && (
-                  <p>Última tentativa {editorialDate(item.lastAttempt)}</p>
-                )}
-                {item.nextRun && (
-                  <p>Próxima janela {editorialDate(item.nextRun)}</p>
-                )}
-                {item.pending != null && (
-                  <p>
-                    {item.pending} pendentes · {item.failures ?? 0} em erro
+                {item.lastAttempt ? (
+                  <p className="dashboard-note">
+                    Última tentativa · {editorialDate(item.lastAttempt)}
+                  </p>
+                ) : item.lastSuccess ? (
+                  <p className="dashboard-note">
+                    Último sucesso · {editorialDate(item.lastSuccess)}
+                  </p>
+                ) : (
+                  <p className="dashboard-note">
+                    Horário da verificação não informado.
                   </p>
                 )}
-                {item.consecutiveFailures ? (
-                  <p>
-                    {item.consecutiveFailures} falhas consecutivas na fonte mais
-                    afetada
-                  </p>
-                ) : null}
-                {item.durationMs != null && (
-                  <p>Tempo de resposta {format.format(item.durationMs)} ms</p>
-                )}
-                {item.auth && <p>Autorização · {authLabels[item.auth]}</p>}
-                {item.href?.startsWith("https://") && (
-                  <a href={item.href} target="_blank" rel="noopener noreferrer">
-                    Abrir aplicativo
-                  </a>
-                )}
-                {item.href && item.href in destinations && (
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    onClick={() =>
-                      navigate(
-                        destinations[item.href as keyof typeof destinations],
-                      )
-                    }
-                  >
-                    Abrir no Lastro
-                  </button>
-                )}
+                <div className="dashboard-service-actions">
+                  {item.href?.startsWith("https://") && (
+                    <a
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Abrir aplicativo
+                    </a>
+                  )}
+                  {item.href && Object.hasOwn(destinations, item.href) && (
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() =>
+                        navigate(
+                          destinations[item.href as keyof typeof destinations],
+                        )
+                      }
+                    >
+                      Abrir no Lastro
+                    </button>
+                  )}
+                  <details className="dashboard-disclosure">
+                    <summary>Detalhes técnicos</summary>
+                    <dl>
+                      <dt>Tipo</dt>
+                      <dd>
+                        {item.kind === "service" ? "Serviço" : "Integração"}
+                      </dd>
+                      {item.lastAttempt && item.lastSuccess && (
+                        <>
+                          <dt>Último sucesso</dt>
+                          <dd>{editorialDate(item.lastSuccess)}</dd>
+                        </>
+                      )}
+                      {item.nextRun && (
+                        <>
+                          <dt>Próxima janela</dt>
+                          <dd>{editorialDate(item.nextRun)}</dd>
+                        </>
+                      )}
+                      {item.pending != null && (
+                        <>
+                          <dt>Pendentes</dt>
+                          <dd>{format.format(item.pending)}</dd>
+                        </>
+                      )}
+                      {item.failures != null && (
+                        <>
+                          <dt>Em erro</dt>
+                          <dd>{format.format(item.failures)}</dd>
+                        </>
+                      )}
+                      {item.consecutiveFailures != null && (
+                        <>
+                          <dt>Falhas consecutivas</dt>
+                          <dd>{format.format(item.consecutiveFailures)}</dd>
+                        </>
+                      )}
+                      {item.durationMs != null && (
+                        <>
+                          <dt>Resposta</dt>
+                          <dd>{format.format(item.durationMs)} ms</dd>
+                        </>
+                      )}
+                      {item.auth && (
+                        <>
+                          <dt>Autorização</dt>
+                          <dd>{authLabels[item.auth]}</dd>
+                        </>
+                      )}
+                    </dl>
+                  </details>
+                </div>
               </article>
             ))}
           </div>
           <article className="pub-card">
             <h2>Consumo e cotas</h2>
-            <div className="analytics-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Métrica</th>
-                    <th>Escopo</th>
-                    <th>Valor</th>
-                    <th>Fonte</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {snapshot.metrics.map((metric) => (
-                    <tr key={metric.id}>
-                      <th scope="row">{metric.label}</th>
-                      <td>{metric.scope}</td>
-                      <td>
-                        {metric.value === null
-                          ? "Indisponível"
-                          : `${format.format(metric.value)} ${metric.unit}`}
-                        {metric.value !== null && metric.limit !== null
-                          ? ` / ${format.format(metric.limit)}`
-                          : ""}
-                      </td>
-                      <td>{metric.detail}</td>
+            {!snapshot.metrics.length ? (
+              <p>O diagnóstico atual não trouxe métricas de consumo.</p>
+            ) : (
+              <div
+                className="analytics-table"
+                role="region"
+                aria-label="Consumo e cotas"
+                tabIndex={0}
+              >
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Métrica</th>
+                      <th scope="col">Escopo</th>
+                      <th scope="col">Consumo</th>
+                      <th scope="col">Fonte</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {snapshot.metrics.map((metric) => (
+                      <tr key={metric.id}>
+                        <th scope="row">{metric.label}</th>
+                        <td>{metric.scope}</td>
+                        <td>
+                          <span className="dashboard-consumption">
+                            {metric.value == null
+                              ? "Consumo indisponível"
+                              : `${format.format(metric.value)} ${metric.unit}`}
+                            {metric.limit != null
+                              ? ` / ${format.format(metric.limit)} ${metric.unit}`
+                              : " · Limite não informado"}
+                          </span>
+                          {metric.value != null &&
+                            metric.limit != null &&
+                            metric.limit > 0 && (
+                              <meter
+                                min={0}
+                                max={metric.limit}
+                                value={Math.min(metric.value, metric.limit)}
+                                aria-label={`${metric.label}: ${format.format(metric.value)} de ${format.format(metric.limit)} ${metric.unit}`}
+                              />
+                            )}
+                        </td>
+                        <td>{metric.detail}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </article>
-          <article className="pub-card">
-            <h2>Histórico recente</h2>
+          <details className="pub-card dashboard-disclosure">
+            <summary>Histórico recente</summary>
             {snapshot.events.length ? (
               <ul>
                 {snapshot.events.map((event) => (
@@ -211,7 +301,7 @@ export default function Health({
             ) : (
               <p>Nenhuma mudança de estado registrada.</p>
             )}
-          </article>
+          </details>
         </>
       )}
     </section>

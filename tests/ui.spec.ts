@@ -746,6 +746,7 @@ test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
   await mockApi(page, 0);
   let healthUpdates = 0;
   let searchUpdates = 0;
+  let analyticsReads = 0;
   const now = new Date().toISOString();
   await page.route(/\/api\/ecosystem\/health(?:\/refresh)?$/, async (route) => {
     const refresh = route.request().method() === "POST";
@@ -758,9 +759,35 @@ test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
         snapshot: refresh
           ? {
               checkedAt: now,
-              metrics: [],
+              metrics: [
+                {
+                  id: "d1-reads",
+                  label: "Leituras D1",
+                  scope: "Lastro",
+                  unit: "linhas",
+                  value: 100,
+                  limit: 1000,
+                  detail: "Cloudflare",
+                },
+                {
+                  id: "worker-cpu",
+                  label: "CPU Workers",
+                  scope: "Lastro",
+                  unit: "ms",
+                  value: null,
+                  limit: null,
+                  detail: "Sem amostra",
+                },
+              ],
               events: [],
               items: [
+                {
+                  id: "assets",
+                  label: "Arquivos estáticos",
+                  kind: "service",
+                  state: "healthy",
+                  detail: "Disponível.",
+                },
                 {
                   id: "studio",
                   label: "Catálogo do Studio",
@@ -777,18 +804,47 @@ test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
       },
     });
   });
-  await page.route("**/api/analytics/overview?**", (route) =>
-    route.fulfill({
+  await page.route("**/api/analytics/overview?**", (route) => {
+    analyticsReads++;
+    const totals = {
+      activeUsers: 15,
+      sessions: 20,
+      screenPageViews: 25,
+      engagementRate: 0.5,
+      userEngagementDuration: 120,
+    };
+    return route.fulfill({
       json: {
         version: "analytics-1.0",
         propertyId: "test",
-        status: "pending",
-        data: null,
+        status: "available",
+        data: {
+          range: { start: "2026-11-01", end: "2026-11-07" },
+          reports: [
+            {
+              dimension: "total",
+              rows: [totals],
+              rowCount: 1,
+              limited: false,
+              privacyFiltered: false,
+            },
+            {
+              dimension: "date",
+              rows: [
+                { ...totals, date: "20261101", sessions: 5 },
+                { ...totals, date: "20261103", sessions: 15 },
+              ],
+              rowCount: 2,
+              limited: false,
+              privacyFiltered: false,
+            },
+          ],
+        },
         error: null,
-        freshness: { fetchedAt: null, nextAttemptAt: null, stale: true },
+        freshness: { fetchedAt: now, nextAttemptAt: null, stale: false },
       },
-    }),
-  );
+    });
+  });
   await page.route(
     /\/api\/analytics\/search-console(?:\/refresh)?\?days=/,
     async (route) => {
@@ -833,9 +889,30 @@ test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
   await page.getByRole("button", { name: "Atualizar diagnóstico" }).click();
   await expect(page.getByText("Sincronização atrasada.")).toBeVisible();
   expect(healthUpdates).toBe(1);
+  await expect(page.locator(".dashboard-service").first()).toContainText(
+    "Catálogo do Studio",
+  );
+  await expect(page.getByRole("meter", { name: /Leituras D1/ })).toHaveCount(1);
+  await expect(
+    page.getByText("Consumo indisponível · Limite não informado"),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Abrir no Lastro" }).click();
   await expect(page).toHaveURL(/\/publicacoes$/);
   await page.goto("/analytics");
+  const analytics = page.getByRole("region", { name: "Google Analytics" });
+  await expect(
+    analytics.getByRole("img", { name: /Sessões por dia/ }),
+  ).toBeVisible();
+  await analytics.getByText("Ver valores por dia", { exact: true }).click();
+  await expect(
+    analytics.getByRole("rowheader", { name: "03/11/2026" }),
+  ).toBeVisible();
+  expect(analyticsReads).toBe(1);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
   const organic = page.getByRole("region", { name: "Pesquisa Orgânica" });
   await expect(
     organic.getByText("Conexão registrada.", { exact: false }),
@@ -846,6 +923,17 @@ test("Saúde do Ecossistema e Pesquisa Orgânica no celular", async ({
     organic.getByText("Cruzamento com GA4 indisponível para este snapshot."),
   ).toBeVisible();
   expect(searchUpdates).toBe(1);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.getByRole("button", { name: "Ativar tema claro" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(
+    analytics.getByRole("img", { name: /Visualizações por dia/ }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
