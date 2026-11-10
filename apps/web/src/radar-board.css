@@ -85,16 +85,15 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  transition:
-    background-color 150ms ease,
-    border-color 150ms ease,
-    box-shadow 150ms ease;
+  transition: border-color 150ms ease;
 }
-.radar-compact:hover,
 .radar-compact:focus-within {
   border-color: var(--accent-ink);
-  background: var(--raised);
-  box-shadow: inset 0 2px var(--accent-ink);
+}
+@media (hover: hover) {
+  .radar-compact:hover:not(:focus-within) {
+    border-color: var(--muted);
+  }
 }
 .radar-origin {
   display: flex;
@@ -119,6 +118,7 @@
 .radar-title {
   display: block;
   width: 100%;
+  color: var(--ink);
   background: none;
   border: 0;
   text-align: left;
@@ -204,15 +204,17 @@
   width: 100%;
   justify-content: flex-start;
 }
-.radar-card-actions button:hover,
-.radar-card-actions a:hover,
-.radar-more summary:hover {
-  background: var(--soft);
-  color: var(--ink);
-}
 .radar-card-actions button[aria-pressed="true"] {
   color: var(--accent-ink);
   background: var(--accent-soft);
+}
+@media (hover: hover) {
+  .radar-card-actions button:hover:not(:disabled),
+  .radar-card-actions a:hover,
+  .radar-more summary:hover {
+    background: var(--ink);
+    color: var(--paper);
+  }
 }
 .radar-deadline {
   font-size: 10px;
