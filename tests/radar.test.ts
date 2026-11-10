@@ -195,7 +195,7 @@ test("calendário UTC: rodadas científicas bimestrais e virada de ano", () => {
     ),
     "2026-11-01T00:00:00.000Z",
   );
-  assert.equal(nextCycle(fixtureSource, at), "2026-10-22T10:00:00.000Z");
+  assert.equal(nextCycle(fixtureSource, at), "2026-10-21T16:00:00.000Z");
 });
 test("diário, 304, intervalo mínimo e próximo dia", async () => {
   const s = await source();

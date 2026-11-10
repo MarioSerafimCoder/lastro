@@ -56,6 +56,7 @@ export function matchedTopics(c: Candidate, s: Source): string[] {
       "brand identity",
       "rebrand",
       "rebranding",
+      "brand refresh",
       "identidade visual",
     ],
     branding: [
@@ -63,6 +64,7 @@ export function matchedTopics(c: Candidate, s: Source): string[] {
       "visual identity",
       "rebrand",
       "rebranding",
+      "brand refresh",
       "identidade visual",
       "nova marca",
       "novo logo",
@@ -205,7 +207,7 @@ export function automaticReviewReasons(
   // Calls for registrations, awards and agency promotions are exceptions, even
   // when their publisher is reputable and their metadata is complete.
   if (
-    /\b(inscri[cç][oõ]es abertas|inscreva|participe|chamada aberta|microbolsas|projetos finalistas|pr[eê]mio|cadastre|promo[cç][aã]o|sponsored|advertorial|register now|sign up|call for proposals|call for papers|award finalists|brand refresh)\b/i.test(
+    /\b(inscri[cç][oõ]es abertas|inscreva|participe|chamada aberta|microbolsas|projetos finalistas|pr[eê]mio|cadastre|promo[cç][aã]o|sponsored|advertorial|register now|sign up|call for proposals|call for papers|award finalists)\b/i.test(
       c.title,
     ) ||
     c.topics.some((v) =>

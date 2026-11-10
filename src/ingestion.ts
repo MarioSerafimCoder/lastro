@@ -364,6 +364,15 @@ export async function ingestSource(
       ),
     ),
     source = sourceView(row);
+  if (
+    source.connector === "rss" &&
+    !["BR", "US"].includes(source.country ?? "")
+  )
+    throw new ApiFault(
+      409,
+      "source_country_excluded",
+      "Fonte fora do recorte editorial.",
+    );
   if (source.status !== "approved")
     throw new ApiFault(
       409,
@@ -380,7 +389,7 @@ export async function ingestSource(
     leaseToken = id();
   const locked = await stmt(
     env.DB,
-    `UPDATE sources SET lease_until=?,lease_token=?,last_processed_at=? WHERE id=? AND status='approved' AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?) AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (last_cycle_key IS NULL OR last_cycle_key<>?)))`,
+    `UPDATE sources SET lease_until=?,lease_token=?,last_processed_at=? WHERE id=? AND status='approved' AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?) AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (connector='rss' OR last_cycle_key IS NULL OR last_cycle_key<>?)))`,
     new Date(clock + 300000).toISOString(),
     leaseToken,
     at,
@@ -643,7 +652,7 @@ export async function scheduledIngest(
       lastError: string | null = null;
     const due = await rows<{ id: string }>(
       env.DB,
-      "SELECT id FROM sources WHERE status='approved' AND json_extract(config_json,'$.metadataAllowed')=1 AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?) AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (last_cycle_key IS NULL OR last_cycle_key<>CASE WHEN connector='openalex' THEN ? ELSE ? END))) ORDER BY COALESCE(last_processed_at,'') ASC,id LIMIT 1",
+      "SELECT id FROM sources WHERE status='approved' AND (connector='openalex' OR json_extract(config_json,'$.country') IN ('BR','US')) AND json_extract(config_json,'$.metadataAllowed')=1 AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?) AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (connector='rss' OR last_cycle_key IS NULL OR last_cycle_key<>CASE WHEN connector='openalex' THEN ? ELSE ? END))) ORDER BY COALESCE(last_processed_at,'') ASC,id LIMIT 1",
       new Date(clock).toISOString(),
       new Date(clock).toISOString(),
       new Date(clock).toISOString(),

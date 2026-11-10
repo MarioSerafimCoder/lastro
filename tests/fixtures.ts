@@ -11,6 +11,7 @@ export const fixtureSource: Source = {
     connector: "rss",
     url: "https://fixtures.example.test/feed.xml",
     authority: 85,
+    country: "BR",
     topics: ["design", "branding", "science"],
     languages: ["pt", "en"],
     summaryAllowed: true,

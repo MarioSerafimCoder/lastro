@@ -79,7 +79,7 @@ test.beforeAll(async () => {
         ...sourceInput,
         name: `HOMOLOGAÇÃO — Fonte ${n + 1}`,
         url: `https://fixtures.example.test/feed-${n}`,
-        country: ["BR", "GB", "FR"][n],
+        country: ["BR", "US", "US"][n],
         languages: [],
         summaryAllowed: false,
         imageAllowed: n === 0,
@@ -117,7 +117,7 @@ test.beforeAll(async () => {
       authors: [{ name: "Autoria sintética", orcid: null, openalex: null }],
       url: `https://fixtures.example.test/homologation-${i}`,
       identifiers: [],
-      language: ["pt", "en", "fr"][i % 3],
+      language: ["pt", "en", "en"][i % 3],
       description: null,
       imageUrl: i % 3 === 0 ? origin + "/fixture.svg" : null,
       publishedAt: new Date(
@@ -353,7 +353,7 @@ test("country carousels: mouse drag, arrows, keyboard and sparse country", async
     name: "Matérias de Brasil",
     exact: true,
   });
-  await expect(b.locator(".radar-country")).toHaveCount(3);
+  await expect(b.locator(".radar-country")).toHaveCount(2);
   await expect(country.getByTestId("radar-card")).toHaveCount(12);
   await expect(
     country.getByRole("button", { name: "Matérias anteriores — Brasil" }),
@@ -403,15 +403,11 @@ test("country carousels: mouse drag, arrows, keyboard and sparse country", async
     await b.getByRole("button", { name: "Atualizar", exact: true }).click();
     await expect(
       b.getByRole("region", { name: "País não informado", exact: true }),
-    ).toBeVisible();
-    await expect(
-      b
-        .getByRole("region", { name: "País não informado", exact: true })
-        .getByTestId("radar-card"),
-    ).toHaveCount(13);
+    ).toHaveCount(0);
+    await expect(b.getByTestId("radar-card")).toHaveCount(25);
   } finally {
     await env.DB.prepare(
-      "UPDATE sources SET config_json=json_set(config_json,'$.country','FR') WHERE name='HOMOLOGAÇÃO — Fonte 3'",
+      "UPDATE sources SET config_json=json_set(config_json,'$.country','US') WHERE name='HOMOLOGAÇÃO — Fonte 3'",
     ).run();
   }
 });
@@ -523,7 +519,7 @@ test("visible foreign titles are translated and retain their original in details
   page,
 }) => {
   const title = board(page)
-    .getByRole("region", { name: "França", exact: true })
+    .getByRole("region", { name: "Estados Unidos", exact: true })
     .locator(".radar-title")
     .first();
   await title.scrollIntoViewIfNeeded();

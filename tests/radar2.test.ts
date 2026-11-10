@@ -59,7 +59,7 @@ async function isolated(fn: (env: Env, s: Source) => Promise<void>) {
       ...fixtureSource,
       ...sourceInputSchema.parse({
         ...input,
-        country: "GB",
+        country: "US",
         radarCategory: "graphic_design",
         summaryAllowed: false,
         imageAllowed: false,
@@ -294,7 +294,7 @@ test("Typed filters, triage and cursor revalidation retain unequal language pool
     );
     const filters = {
       scope: "editorial",
-      country: "GB",
+      country: "US",
       category: "graphic_design",
       language: "en",
       sort: "novidade",

@@ -32,7 +32,7 @@
     "BRAIN_DRIVE_CLIENT_ID": "352771654042-p6g4ad3dnlbofbfofvsda2f0rfivcvv8.apps.googleusercontent.com",
     "BRAIN_DRIVE_REDIRECT_URI": "https://lastro.marioserafim.com.br/api/jarvis/drive/oauth/callback",
     "ALLOWED_ORIGIN": "https://lastro.marioserafim.com.br",
-    "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,feeds2.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com,www.creativeboom.com,brasil.uxdesign.cc,plau.substack.com,designnotes.blog.gov.uk,baixacultura.org,internetlab.org.br,escoladedados.org,creativecommons.org,www.thisiscolossal.com,hyperallergic.com,www.artnews.com,www.etapes.com,artebrasileiros.com.br,www.designboom.com",
+    "ALLOWED_FETCH_HOSTS": "feeds.feedburner.com,feeds2.feedburner.com,www.smashingmagazine.com,api.openalex.org,alistapart.com,www.creativeboom.com,brasil.uxdesign.cc,plau.substack.com,designnotes.blog.gov.uk,baixacultura.org,internetlab.org.br,escoladedados.org,creativecommons.org,www.thisiscolossal.com,hyperallergic.com,www.artnews.com,www.etapes.com,artebrasileiros.com.br,www.designboom.com,agenciabrasil.ebc.com.br,feeds.npr.org",
     "RADAR_RETENTION_ENABLED": "false",
     "INGEST_ENABLED": "true",
     "SYNOPSIS_ENABLED": "true",

@@ -468,3 +468,29 @@ test("branding discovery recognizes rebrands and Portuguese visual identities", 
     [],
   );
 });
+
+test("brand refresh editorial remains eligible while sponsorship stays blocked", () => {
+  const news = {
+    ...c,
+    title: "Brand refresh reveals a new visual identity",
+    topics: ["branding"],
+  };
+  const reasons = automaticReviewReasons(
+    news,
+    s,
+    defaultPolicy,
+    evaluate(news, s, defaultPolicy, at),
+    at,
+  );
+  assert.ok(!reasons.includes("promotional_material"));
+  const sponsored = { ...news, topics: ["branding", "sponsored"] };
+  assert.ok(
+    automaticReviewReasons(
+      sponsored,
+      s,
+      defaultPolicy,
+      evaluate(sponsored, s, defaultPolicy, at),
+      at,
+    ).includes("promotional_material"),
+  );
+});

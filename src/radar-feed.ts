@@ -47,6 +47,9 @@ export async function radarFeed(
     (!q.country || c.radar?.country === q.country) &&
     (!q.category || c.radar?.category === q.category) &&
     (!q.language || c.language === q.language) &&
+    (c.kind === "paper" ||
+      (["BR", "US"].includes(c.radar?.country ?? "") &&
+        ["pt", "en"].includes(c.language ?? ""))) &&
     (!preferences.languages.length ||
       (!!c.language && preferences.languages.includes(c.language))) &&
     (!q.after ||
@@ -103,6 +106,7 @@ export async function radarFeed(
     const where = [
         "c.editorial_status='approved'",
         "s.status='approved'",
+        "(c.kind='paper' OR (json_extract(s.config_json,'$.country') IN ('BR','US') AND c.language IN ('pt','en')))",
         "json_extract(s.config_json,'$.metadataAllowed')=1",
         "c.quality_score>=?",
         dailyWindowSql,

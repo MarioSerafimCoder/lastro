@@ -38,10 +38,7 @@ export function nextCycle(
   return new Date(
     source.connector === "openalex"
       ? Date.UTC(d.getUTCFullYear(), Math.floor(d.getUTCMonth() / 2) * 2 + 2, 1)
-      : Math.max(
-          Date.parse(editorialDay(at) + "T00:00:00-03:00") + 86400000,
-          at + Math.max(1440, source.intervalMinutes) * 60000,
-        ),
+      : at + Math.max(360, source.intervalMinutes) * 60000,
   ).toISOString();
 }
 export function retryAt(failures: number, at = Date.now(), upstreamAt = 0) {
