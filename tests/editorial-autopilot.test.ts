@@ -8,6 +8,7 @@ import { unstable_splitSqlQuery } from "wrangler";
 import worker, { app } from "../src/index";
 import {
   EDITORIAL_CRON,
+  editorialEligibility,
   editorialOverview,
   nextEditorialExecution,
   queueEditorialRun,
@@ -265,6 +266,63 @@ test("source ranking chooses a recent, diverse and connected trio, rejects syndi
     )?.sources.length,
     3,
   );
+});
+
+test("connects a recent redesign to older research and an independent analysis", () => {
+  const now = Date.now();
+  const material = [
+    [
+      "Redesign de marca em sistemas de sinalização",
+      "Discussão de escolhas de contraste em aplicações e fachadas.",
+    ],
+    [
+      "Estudo de percepção visual em diferentes distâncias",
+      "Experimento compara leitura e reconhecimento de formas em várias condições.",
+    ],
+    [
+      "Análise da identidade visual de um serviço público",
+      "Análise crítica de implantação e manutenção de pictogramas.",
+    ],
+  ];
+  const trio = sources.map((source, index) => ({
+    ...source,
+    topics: [],
+    text: material[index][1],
+    reference: {
+      ...source.reference,
+      title: material[index][0],
+      publishedAt: new Date(now - (index ? 70 : 3) * 86400000).toISOString(),
+    },
+  }));
+  assert.equal(
+    selectEditorialSources(trio, [], [], now)?.theme,
+    "Identidades visuais",
+  );
+  assert.equal(selectEditorialSources(trio, [], [], now + 31 * 86400000), null);
+});
+
+test("eligibility counts distinguish RSS observations, unverified permission and usable evidence", async () => {
+  await seedEditorial(db, sources);
+  await db
+    .prepare(
+      "UPDATE sources SET config_json=json_remove(config_json,'$.synopsisAllowed') WHERE id=?",
+    )
+    .bind(sources[0].reference.sourceId)
+    .run();
+  await db
+    .prepare(
+      "UPDATE synopsis_evidence_cache SET description_present=1 WHERE source_id=?",
+    )
+    .bind(sources[0].reference.sourceId)
+    .run();
+  const report = await editorialEligibility(env);
+  assert.deepEqual(report.recent, {
+    references: 3,
+    rssDescriptions: 1,
+    eligible: 2,
+  });
+  assert.equal(report.exclusions[0]?.reason, "permission_unverified");
+  assert.equal(report.selection, null);
 });
 
 test("compares titles and arguments before delivery; checks length, links, numeric claims and verifier anchors", () => {

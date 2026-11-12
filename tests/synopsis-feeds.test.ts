@@ -75,3 +75,34 @@ test("post curto em uma única frase não é arquivado integralmente como evidê
     .replace("<p>Resumo de design para teste.</p>", oneSentence);
   assert.equal(parseRss(short, licensed, true)[0].description, null);
 });
+
+test("usa a descrição autorizada quando o início do corpo é insuficiente", () => {
+  const withSummary = rss
+    .replace(
+      "Não armazenar texto integral",
+      "<![CDATA[Um começo curto. Este trecho fica incompleto]]>",
+    )
+    .replace("<p>Resumo de design para teste.</p>", `<p>${text}</p>`);
+  assert.equal(parseRss(withSummary, licensed, true)[0].description, text);
+  const restricted = withSummary.replace(
+    "</item>",
+    `<dc:rights>No derivatives</dc:rights><cc:license>${licence}</cc:license></item>`,
+  );
+  assert.equal(parseRss(restricted, licensed, true)[0].description, null);
+  const observations: import("../src/synopsis-evidence").EvidenceCapture[] = [];
+  parseRss(
+    withSummary,
+    { ...licensed, synopsisAllowed: false },
+    false,
+    (item) => observations.push(item),
+  );
+  assert.deepEqual(
+    observations.map((item) => [
+      item.descriptionPresent,
+      item.bodyPresent,
+      item.blockCode,
+      item.evidence,
+    ]),
+    [[true, true, "rights", null]],
+  );
+});

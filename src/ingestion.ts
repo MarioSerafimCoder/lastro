@@ -388,9 +388,10 @@ export async function ingestSource(
     );
   const at = new Date(clock).toISOString(),
     leaseToken = id();
-  const locked = await stmt(
+  const locked = await first<{ has_queue: number }>(
     env.DB,
-    `UPDATE sources SET lease_until=?,lease_token=?,last_processed_at=? WHERE id=? AND status='approved' AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?) AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (connector='rss' OR last_cycle_key IS NULL OR last_cycle_key<>?)))`,
+    `UPDATE sources SET lease_until=?,lease_token=?,last_processed_at=? WHERE id=? AND status='approved' AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?) AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (connector='rss' OR last_cycle_key IS NULL OR last_cycle_key<>?)))
+    RETURNING EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) has_queue`,
     new Date(clock + 300000).toISOString(),
     leaseToken,
     at,
@@ -399,8 +400,8 @@ export async function ingestSource(
     at,
     at,
     cycleKey(source, clock),
-  ).run();
-  if (!locked.meta.changes)
+  );
+  if (!locked)
     throw new ApiFault(
       409,
       "source_busy_or_not_due",
@@ -437,12 +438,7 @@ export async function ingestSource(
       "running",
       row.last_cycle_key,
     ).run();
-    const hasQueue = await first(
-      env.DB,
-      "SELECT id FROM ingestion_queue WHERE source_id=? LIMIT 1",
-      sourceId,
-    );
-    if (!hasQueue) {
+    if (!locked.has_queue) {
       await env.DB.batch([
         stmt(
           env.DB,

@@ -20,7 +20,11 @@ import type {
 } from "./index";
 
 import type { AnalyticsOverview } from "./analytics";
-import type { EditorialOverview, EditorialRun } from "./editorial-autopilot";
+import type {
+  EditorialEligibility,
+  EditorialOverview,
+  EditorialRun,
+} from "./editorial-autopilot";
 import type { HealthOverview } from "./health";
 import type { SearchDays, SearchOverview } from "./search-console";
 export class LastroApiError extends Error {
@@ -104,6 +108,8 @@ export function createLastroClient(
   return {
     editorialOverview: () =>
       request<EditorialOverview>("/editorial-autopilot/overview"),
+    editorialEligibility: () =>
+      request<EditorialEligibility>("/editorial-autopilot/eligibility"),
     setEditorialAutomation: (enabled: boolean) =>
       request<{ enabled: boolean }>("/editorial-autopilot/settings", "PUT", {
         enabled,

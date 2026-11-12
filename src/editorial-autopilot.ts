@@ -4,12 +4,14 @@ import {
   EDITORIAL_MEMORY,
   EDITORIAL_VERSION,
   editorialId,
+  editorialUrl,
   type EditorialArticle,
   type EditorialMemory,
   type EditorialReceipt,
   type EditorialReference,
 } from "../packages/contracts/editorial-article";
 import type {
+  EditorialEligibility,
   EditorialOverview,
   EditorialRun,
   EditorialRunStatus,
@@ -21,6 +23,7 @@ import { remote } from "./integration";
 import { editorialDay } from "./schedule";
 import {
   editorialCandidates,
+  inspectEditorialCandidates,
   repeatsArticle,
   selectEditorialSources,
   sourceFingerprint,
@@ -258,10 +261,7 @@ export async function processRequestedEditorial(env: Env, run: EditorialRun) {
   return current ? runView(current, editorialDay()) : run;
 }
 
-async function editorialMemory(env: Env) {
-  const external = memorySchema.parse(
-    await remote(env, "studio", EDITORIAL_MEMORY),
-  ).items;
+async function savedEditorialMemory(env: Env) {
   const past = await rows<{ sources_json: string; memory: string | null }>(
     env.DB,
     `
@@ -277,7 +277,72 @@ async function editorialMemory(env: Env) {
       ({ reference }) => reference,
     ),
   );
-  return { history: [...external, ...privateMemory], sources };
+  return { history: privateMemory, sources };
+}
+
+async function editorialMemory(env: Env) {
+  const [external, local] = await Promise.all([
+    remote(env, "studio", EDITORIAL_MEMORY),
+    savedEditorialMemory(env),
+  ]);
+  return {
+    ...local,
+    history: [...memorySchema.parse(external).items, ...local.history],
+  };
+}
+
+export async function editorialEligibility(
+  env: Env,
+  at = Date.now(),
+): Promise<EditorialEligibility> {
+  const [inspected, memory] = await Promise.all([
+    inspectEditorialCandidates(env.DB, at),
+    savedEditorialMemory(env),
+  ]);
+  const candidates = inspected.flatMap(({ candidate }) =>
+    candidate ? [candidate] : [],
+  );
+  const recent = inspected.filter((item) => item.recent);
+  const exclusions = new Map<
+    string,
+    EditorialEligibility["exclusions"][number]
+  >();
+  for (const { reason, title, publication, url } of recent) {
+    if (!reason) continue;
+    const group = exclusions.get(reason) ?? { reason, count: 0, examples: [] };
+    group.count++;
+    if (group.examples.length < 2)
+      group.examples.push({
+        title,
+        publication,
+        url: editorialUrl(url) ? url : null,
+      });
+    exclusions.set(reason, group);
+  }
+  const group = selectEditorialSources(
+    candidates,
+    memory.history,
+    memory.sources,
+    at,
+  );
+  return {
+    recent: {
+      references: recent.length,
+      rssDescriptions: recent.filter(({ hasDescription }) => hasDescription)
+        .length,
+      eligible: recent.filter(({ candidate }) => candidate).length,
+    },
+    eligible: candidates.length,
+    publications: new Set(candidates.map(({ reference }) => reference.sourceId))
+      .size,
+    exclusions: [...exclusions.values()].sort((a, b) => b.count - a.count),
+    selection: group
+      ? {
+          theme: group.theme,
+          sources: group.sources.map(({ reference }) => reference),
+        }
+      : null,
+  };
 }
 
 export async function runEditorialQueue(

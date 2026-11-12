@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { createLastroClient } from "../../../packages/contracts/client";
 import type {
+  EditorialEligibility,
   EditorialOverview,
   EditorialRun,
   EditorialRunStatus,
 } from "../../../packages/contracts/editorial-autopilot";
-import { evidenceLabel } from "../../../packages/contracts/editorial-article";
+import { eligibilityReasons } from "../../../packages/contracts/editorial-autopilot";
+import {
+  evidenceLabel,
+  type EditorialReference,
+} from "../../../packages/contracts/editorial-article";
 import { editorialDate } from "./Ecosystem";
 
 const api = createLastroClient();
@@ -26,6 +31,107 @@ const processing = (run: EditorialRun) =>
   );
 const date = (value: string) => value.split("-").reverse().join("/");
 
+function References({ sources }: { sources: EditorialReference[] }) {
+  if (!sources.length) return null;
+  return (
+    <ol className="autopilot-sources" aria-label="Referências">
+      {sources.map((source) => (
+        <li key={source.contentId}>
+          <a href={source.url} target="_blank" rel="noopener noreferrer">
+            {source.title}
+          </a>
+          <small>
+            {source.publication} · {evidenceLabel(source.kind)}
+          </small>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Eligibility({
+  report,
+  error,
+}: {
+  report: EditorialEligibility | null;
+  error: string;
+}) {
+  return (
+    <section className="pub-card" aria-labelledby="editorial-eligibility">
+      <h2 id="editorial-eligibility">Elegibilidade das fontes</h2>
+      {error && <p role="alert">{error}</p>}
+      {!report && !error && <p role="status">Consultando o Radar…</p>}
+      {report && (
+        <>
+          <dl className="editorial-metrics">
+            <div>
+              <dt>Aprovadas nos últimos 7 dias</dt>
+              <dd>{report.recent.references}</dd>
+            </div>
+            <div>
+              <dt>Com descrição ou resumo registrado</dt>
+              <dd>{report.recent.rssDescriptions}</dd>
+            </div>
+            <div>
+              <dt>Elegíveis nos últimos 7 dias</dt>
+              <dd>{report.recent.eligible}</dd>
+            </div>
+            <div>
+              <dt>Elegíveis no acervo considerado</dt>
+              <dd>
+                {report.eligible} · {report.publications} publicações
+              </dd>
+            </div>
+          </dl>
+          {report.exclusions.length > 0 && (
+            <details>
+              <summary>Motivos de exclusão nos últimos 7 dias</summary>
+              <ul className="editorial-list">
+                {report.exclusions.map(({ reason, count, examples }) => (
+                  <li key={reason}>
+                    <strong>
+                      {eligibilityReasons[reason]} · {count}
+                    </strong>
+                    {examples.map((item) => (
+                      <p key={item.title}>
+                        {item.url ? (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {item.title}
+                          </a>
+                        ) : (
+                          item.title
+                        )}{" "}
+                        · {item.publication}
+                      </p>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <h3>Simulação de seleção</h3>
+          {report.selection ? (
+            <>
+              <p>{report.selection.theme}</p>
+              <References sources={report.selection.sources} />
+            </>
+          ) : (
+            <p>
+              {report.publications < 3
+                ? "Faltam evidências elegíveis de três publicações independentes."
+                : "Há evidências elegíveis, mas a seleção não encontrou três referências independentes que sustentem a mesma pauta."}
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 function RunDetails({ run }: { run: EditorialRun }) {
   return (
     <>
@@ -37,20 +143,7 @@ function RunDetails({ run }: { run: EditorialRun }) {
       {run.retryAt && (
         <p>Nova tentativa a partir de {editorialDate(run.retryAt)}.</p>
       )}
-      {run.sources.length > 0 && (
-        <ol className="autopilot-sources" aria-label="Fontes consultadas">
-          {run.sources.map((source) => (
-            <li key={source.contentId}>
-              <a href={source.url} target="_blank" rel="noopener noreferrer">
-                {source.title}
-              </a>
-              <small>
-                {source.publication} · {evidenceLabel(source.kind)}
-              </small>
-            </li>
-          ))}
-        </ol>
-      )}
+      <References sources={run.sources} />
       {run.studio && (
         <a
           className="text-button"
@@ -67,13 +160,28 @@ function RunDetails({ run }: { run: EditorialRun }) {
 
 export default function EditorialAutopilot() {
   const [data, setData] = useState<EditorialOverview | null>(null);
+  const [eligibility, setEligibility] = useState<EditorialEligibility | null>(
+    null,
+  );
+  const [eligibilityError, setEligibilityError] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [action, setAction] = useState("");
   const lock = useRef(false);
+  const loadEligibility = async () => {
+    try {
+      setEligibility(await api.editorialEligibility());
+      setEligibilityError("");
+    } catch {
+      setEligibilityError(
+        "Diagnóstico de elegibilidade indisponível. Use Atualizar para consultar novamente.",
+      );
+    }
+  };
   const load = async () => {
     setData(await api.editorialOverview());
     setError("");
+    await loadEligibility();
   };
   useEffect(() => {
     let active = true;
@@ -93,6 +201,7 @@ export default function EditorialAutopilot() {
       }
     };
     void refresh();
+    void loadEligibility();
     const timer = window.setInterval(() => void refresh(), 20000);
     return () => {
       active = false;
@@ -209,6 +318,7 @@ export default function EditorialAutopilot() {
               configurados.
             </p>
           )}
+          <Eligibility report={eligibility} error={eligibilityError} />
           {lastArticle && (
             <article className="pub-card">
               <h2>Artigo mais recente</h2>

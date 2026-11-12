@@ -31,3 +31,30 @@ export type EditorialOverview = {
   latestDraft: EditorialRun | null;
   history: EditorialRun[];
 };
+
+export const eligibilityReasons = {
+  no_text: "Sem texto identificado",
+  permission_unverified: "Permissão ainda não verificada",
+  rights: "Restrição de direitos",
+  capture_pending: "Captura autorizada pendente",
+  insufficient: "Evidência textual insuficiente",
+  quality: "Abaixo da qualidade mínima",
+  invalid: "Referência indisponível, descartada ou inválida",
+} as const;
+export type EligibilityReason = keyof typeof eligibilityReasons;
+export type EligibilityExample = {
+  title: string;
+  publication: string;
+  url: string | null;
+};
+export type EditorialEligibility = {
+  recent: { references: number; rssDescriptions: number; eligible: number };
+  eligible: number;
+  publications: number;
+  exclusions: {
+    reason: EligibilityReason;
+    count: number;
+    examples: EligibilityExample[];
+  }[];
+  selection: { theme: string; sources: EditorialReference[] } | null;
+};

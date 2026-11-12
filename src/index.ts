@@ -1,6 +1,7 @@
 import { synopsisGate } from "./synopsis-evidence";
 import {
   EDITORIAL_CRON,
+  editorialEligibility,
   editorialOverview,
   processRequestedEditorial,
   queueEditorialRun,
@@ -820,6 +821,9 @@ app.get("/api/integrations/overview", async (c) =>
 app.use("/api/editorial-autopilot/*", bodyLimit({ maxSize: 1024 }));
 app.get("/api/editorial-autopilot/overview", async (c) =>
   c.json(await editorialOverview(c.env)),
+);
+app.get("/api/editorial-autopilot/eligibility", async (c) =>
+  c.json(await editorialEligibility(c.env)),
 );
 app.put("/api/editorial-autopilot/settings", async (c) =>
   c.json(

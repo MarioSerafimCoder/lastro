@@ -5,23 +5,35 @@ import {
   type EditorialArticle,
 } from "../packages/contracts/editorial-article";
 import { policy, rows, sourceView, type SourceRow } from "./db";
-import { canonicalUrl, folded } from "./normalize";
-import { evidenceAllowed, evidenceSchema } from "./synopsis-evidence";
-import { sufficientEvidence } from "./synopses";
+import { folded } from "./normalize";
+import {
+  evidenceAllowed,
+  evidenceKey,
+  evidenceSchema,
+  itemRightsRestricted,
+  permissionVersion,
+  processingAllowed,
+  sufficientEvidence,
+} from "./synopsis-evidence";
+import type { EligibilityReason } from "../packages/contracts/editorial-autopilot";
 
 const day = 86400000;
+const recentDays = 30;
+const contextDays = 180;
 export const injectionPattern =
   /(?:ignore|disregard|override|forget|esqueça|desconsidere|ignorar)\b.{0,100}\b(?:instructions?|instruções|prompts?|regras)|(?:system|developer) (?:prompt|message)|(?:mensagem|instruções) do sistema|\[\/?INST\]|<\|[^>]{1,50}\|>|(?:api[_ -]?key|access[_ -]?token).{0,30}(?:send|reveal|exiba|revele)/isu;
 const themes = [
   [
     "identidade-visual",
     "Identidades visuais",
-    /identidad\w* visua\w*|visual identit\w*|rebrand\w*|design de marcas/,
+    /identidad\w* visua\w*|visual identit\w*|rebrand\w*|design de marcas|redesign\w* (?:de marca|do logotipo)|brand redesign/,
+    /percepcao visual|visual perception|percepcao de marca|brand (?:perception|recognition)|reconhecimento de marca|logo (?:recognition|design)|(?:critica|analise) de identidade/,
   ],
   [
     "branding",
     "Estratégia de marca",
     /brand(?:ing| strategy| positioning)|estrategia de marca|posicionamento de marca/,
+    /rebrand\w*|brand (?:perception|recognition)|percepcao de marca|memoria de marca|identidade visual|visual identity/,
   ],
   [
     "direcao-de-arte",
@@ -82,6 +94,7 @@ const themes = [
   EditorialArticle["category"],
   string,
   RegExp,
+  RegExp?,
 ])[];
 
 export type SourceEvidence = {
@@ -106,51 +119,113 @@ type CandidateRow = SourceRow & {
   quality_score: number;
   metadata_json: string;
   quality_json: string;
-  evidence_json: string;
-  material_key: string;
+  evidence_json: string | null;
+  legacy_evidence: string | null;
+  evidence_version: number | null;
+  block_code: string | null;
+  item_rights: string | null;
+  description_present: number | null;
+  body_present: number | null;
+  dismissed: number;
+  purged_at: string | null;
 };
 
-export async function editorialCandidates(
+export async function inspectEditorialCandidates(
   db: D1Database,
   at: number,
   ids?: string[],
 ) {
-  const minimum = ids ? 0 : (await policy(db)).minimumQuality;
+  const minimum = (await policy(db)).minimumQuality;
+  const weekStart = new Date(at - 7 * day).toISOString();
   const candidates = await rows<CandidateRow>(
     db,
     `
     SELECT s.*, c.id content_id,c.canonical_url,c.title,c.published_at,
-      c.quality_score,c.metadata_json,c.quality_json,e.evidence_json,e.material_key
-    FROM synopsis_evidence_cache e JOIN sources s ON s.id=e.source_id
-    JOIN contents c ON c.source_id=s.id AND c.canonical_url=e.canonical_url
-    WHERE c.editorial_status='approved' AND s.status='approved' AND c.purged_at IS NULL
-      AND e.permission_version=s.synopsis_permission_version AND e.block_code IS NULL
-      AND e.evidence_json IS NOT NULL AND c.quality_score>=? AND c.published_at<=?
-      ${ids ? "" : "AND (c.published_at>=? OR json_extract(c.metadata_json,'$.evergreen')=1)"}
-      AND NOT EXISTS(SELECT 1 FROM interactions u WHERE u.content_id=c.id AND u.user_id='owner' AND u.type='dismissed' AND u.active=1)
-      ${ids ? "AND c.id IN (SELECT value FROM json_each(?))" : ""}
-    ORDER BY (c.published_at>=?) DESC,c.quality_score DESC,c.published_at DESC,c.id LIMIT 48`,
-    minimum,
+      c.quality_score,c.metadata_json,c.quality_json,c.purged_at,e.evidence_json,
+      e.permission_version evidence_version,e.block_code,e.item_rights,e.description_present,e.body_present,
+      sy.evidence_json legacy_evidence,
+      EXISTS(SELECT 1 FROM interactions u WHERE u.content_id=c.id AND u.user_id='owner' AND u.type='dismissed' AND u.active=1) dismissed
+    FROM contents c JOIN sources s ON s.id=c.source_id
+    LEFT JOIN synopsis_evidence_cache e ON c.source_id=e.source_id AND c.canonical_url=e.canonical_url
+    LEFT JOIN content_synopses sy ON sy.content_id=c.id AND sy.metadata_json=c.metadata_json AND sy.status='validated'
+    WHERE c.editorial_status='approved' AND s.status='approved' AND c.published_at<=?
+      AND ${
+        ids
+          ? "c.id IN (SELECT value FROM json_each(?))"
+          : `(
+        c.published_at>=? OR ((c.published_at>=? OR json_extract(c.metadata_json,'$.evergreen')=1)
+          AND (e.evidence_json IS NOT NULL OR sy.evidence_json IS NOT NULL)))`
+      }
+    ORDER BY c.published_at DESC,c.id`,
     new Date(at).toISOString(),
-    ids ? JSON.stringify(ids) : new Date(at - 30 * day).toISOString(),
-    new Date(at - 7 * day).toISOString(),
+    ...(ids
+      ? [JSON.stringify(ids)]
+      : [weekStart, new Date(at - contextDays * day).toISOString()]),
   );
-  return candidates.flatMap((row): SourceEvidence[] => {
+  return candidates.map((row) => {
     const source = sourceView(row);
-    const parsed = evidenceSchema.safeParse(JSON.parse(row.evidence_json));
+    const metadata = JSON.parse(row.metadata_json);
+    const recent = row.published_at >= weekStart;
+    const hasDescription =
+      row.description_present === 1 || !!metadata.description?.trim();
+    const base = {
+      recent,
+      hasDescription,
+      title: row.title,
+      publication: source.name,
+      url: row.canonical_url,
+    };
+    const exclude = (reason: EligibilityReason) => ({
+      ...base,
+      reason,
+      candidate: null,
+    });
+    const current = row.evidence_version === permissionVersion(source);
+    const observedText = hasDescription || row.body_present === 1;
     if (
-      !parsed.success ||
-      parsed.data.kind === "editorial_evidence" ||
-      !evidenceAllowed(parsed.data, source, row.canonical_url) ||
-      canonicalUrl(parsed.data.url) !== row.canonical_url ||
-      !sufficientEvidence(parsed.data.text, row.title) ||
+      row.purged_at ||
+      row.dismissed ||
+      metadata.retracted ||
+      metadata.access === "unavailable"
+    )
+      return exclude("invalid");
+    if (
+      !source.metadataAllowed ||
+      source.synopsisAllowed === false ||
+      itemRightsRestricted(row.item_rights ?? "") ||
+      (current && row.block_code === "rights")
+    )
+      return exclude("rights");
+    if (!processingAllowed(source))
+      return exclude(observedText ? "permission_unverified" : "no_text");
+    const raw = current ? row.evidence_json : row.legacy_evidence;
+    if (!raw) {
+      if (
+        row.description_present === 0 &&
+        row.body_present === 0 &&
+        !hasDescription
+      )
+        return exclude("no_text");
+      return exclude(
+        current && row.block_code === "insufficient_evidence"
+          ? "insufficient"
+          : "capture_pending",
+      );
+    }
+    const parsed = evidenceSchema.safeParse(JSON.parse(raw));
+    if (!parsed.success || parsed.data.kind === "editorial_evidence")
+      return exclude("capture_pending");
+    if (!evidenceAllowed(parsed.data, source, row.canonical_url))
+      return exclude("permission_unverified");
+    if (!sufficientEvidence(parsed.data.text, row.title))
+      return exclude("insufficient");
+    if (
       injectionPattern.test(
         [row.title, source.name, parsed.data.text].join(" "),
       )
     )
-      return [];
-    const metadata = JSON.parse(row.metadata_json);
-    if (metadata.retracted) return [];
+      return exclude("invalid");
+    if (row.quality_score < minimum) return exclude("quality");
     const reference = {
       contentId: row.content_id,
       sourceId: source.id,
@@ -159,21 +234,46 @@ export async function editorialCandidates(
       publication: source.name.trim(),
       publishedAt: row.published_at,
       kind: parsed.data.kind,
+      ...(parsed.data.licenseUrl
+        ? {
+            attribution: {
+              authors: (metadata.authors ?? [])
+                .flatMap(({ name }: { name: string }) =>
+                  typeof name === "string" &&
+                  name.trim() &&
+                  !/[\u0000-\u001f\u007f<>{}]/u.test(name)
+                    ? [name.trim().slice(0, 100)]
+                    : [],
+                )
+                .slice(0, 8),
+              licenseUrl: parsed.data.licenseUrl,
+            },
+          }
+        : {}),
     };
-    if (!editorialReference(reference)) return [];
-    return [
-      {
-        reference,
-        materialKey: row.material_key,
-        text: parsed.data.text.slice(0, 1800),
-        topics: metadata.topics ?? [],
-        quality: row.quality_score,
-        authority: source.authority,
-        originality: JSON.parse(row.quality_json).factors?.originality ?? 50,
-        evergreen: metadata.evergreen === true,
-      },
-    ];
+    if (!editorialReference(reference)) return exclude("invalid");
+    const candidate: SourceEvidence = {
+      reference,
+      materialKey: evidenceKey(parsed.data),
+      text: parsed.data.text.slice(0, 1800),
+      topics: metadata.topics ?? [],
+      quality: row.quality_score,
+      authority: source.authority,
+      originality: JSON.parse(row.quality_json).factors?.originality ?? 50,
+      evergreen: metadata.evergreen === true,
+    };
+    return { ...base, reason: null, candidate };
   });
+}
+
+export async function editorialCandidates(
+  db: D1Database,
+  at: number,
+  ids?: string[],
+) {
+  return (await inspectEditorialCandidates(db, at, ids)).flatMap(
+    ({ candidate }) => (candidate ? [candidate] : []),
+  );
 }
 
 const stopWords = new Set(
@@ -226,7 +326,7 @@ export function selectEditorialSources(
       const age = (at - Date.parse(reference.publishedAt)) / day;
       if (
         age < 0 ||
-        (age > 30 && !candidate.evergreen) ||
+        (age > contextDays && !candidate.evergreen) ||
         usedUrls.has(reference.url)
       )
         return [];
@@ -243,7 +343,9 @@ export function selectEditorialSources(
         quality * 0.25 +
         authority * 0.15 +
         originality * 0.15 +
-        (age <= 30 ? 20 * Math.exp(-age / 5) + (age <= 7 ? 10 : 0) : 0) +
+        (age <= recentDays
+          ? 20 * Math.exp(-age / 5) + (age <= 7 ? 10 : 0)
+          : 0) +
         Math.min(10, body.size / 6) -
         45 * novelty -
         4 * (frequency.get(reference.sourceId) ?? 0);
@@ -255,6 +357,7 @@ export function selectEditorialSources(
           angle,
           background,
           score,
+          recent: age <= recentDays,
           host: new URL(reference.url).hostname.replace(/^www\./, ""),
         },
       ];
@@ -294,15 +397,24 @@ export function selectEditorialSources(
     sources: SourceEvidence[];
     score: number;
   } | null = null;
-  for (const [category, theme, pattern] of themes) {
+  for (const [category, theme, pattern, related] of themes) {
+    const perPublication = new Map<string, number>();
     const ranked = pool
       .flatMap((item) => {
         const focus = pattern.test(item.angle);
-        return focus || pattern.test(item.background)
-          ? [{ ...item, focus }]
-          : [];
+        const direct = focus || pattern.test(item.background);
+        if (
+          !direct &&
+          !related?.test(item.angle) &&
+          !related?.test(item.background)
+        )
+          return [];
+        const count = perPublication.get(item.host) ?? 0;
+        if (count >= 4) return [];
+        perPublication.set(item.host, count + 1);
+        return [{ ...item, focus, direct }];
       })
-      .slice(0, 12);
+      .slice(0, 24);
     for (let i = 0; i < ranked.length; i++) {
       for (let j = i + 1; j < ranked.length; j++) {
         const a = ranked[i],
@@ -312,17 +424,19 @@ export function selectEditorialSources(
         for (let k = j + 1; k < ranked.length; k++) {
           const c = ranked[k];
           const group = [a, b, c];
-          if (group.filter((s) => s.focus).length < 2)
+          const focus = group.filter((s) => s.focus).length;
+          if (
+            (!group.some((s) => s.recent && s.direct) &&
+              !group.every((s) => s.candidate.evergreen)) ||
+            (!related && focus < 2) ||
+            (related && (!focus || group.filter((s) => s.direct).length < 2))
+          )
             continue;
           const ac = connection(a, c),
             bc = connection(b, c);
           if (ac < 0 || bc < 0) continue;
           const score =
-            a.score +
-            b.score +
-            c.score +
-            8 * group.filter((s) => s.focus).length +
-            6 * (ab + ac + bc);
+            a.score + b.score + c.score + 8 * focus + 6 * (ab + ac + bc);
           if (!best || score > best.score)
             best = {
               theme,

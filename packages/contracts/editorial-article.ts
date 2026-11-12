@@ -22,6 +22,7 @@ export type EditorialReference = {
   url: string;
   publishedAt: string;
   kind: (typeof evidenceKinds)[number];
+  attribution?: { authors: string[]; licenseUrl: string };
 };
 export type EditorialMemory = {
   title: string;
@@ -96,6 +97,7 @@ export function editorialReference(value: EditorialReference) {
       "url",
       "publishedAt",
       "kind",
+      ...(value?.attribution !== undefined ? ["attribution"] : []),
     ]) &&
     typeof value.contentId === "string" &&
     editorialId.test(value.contentId) &&
@@ -107,9 +109,22 @@ export function editorialReference(value: EditorialReference) {
     typeof value.publishedAt === "string" &&
     /^\d{4}-\d{2}-\d{2}T/.test(value.publishedAt) &&
     Number.isFinite(Date.parse(value.publishedAt)) &&
-    evidenceKinds.includes(value.kind)
+    evidenceKinds.includes(value.kind) &&
+    (value.attribution === undefined ||
+      (record(value.attribution, ["authors", "licenseUrl"]) &&
+        Array.isArray(value.attribution.authors) &&
+        value.attribution.authors.length <= 8 &&
+        value.attribution.authors.every((author) => plain(author, 100)) &&
+        typeof value.attribution.licenseUrl === "string" &&
+        Object.hasOwn(licenseLabels, value.attribution.licenseUrl)))
   );
 }
+const licenseLabels: Record<string, string> = {
+  "https://creativecommons.org/licenses/by/4.0/": "CC BY 4.0",
+  "https://creativecommons.org/licenses/by-sa/4.0/": "CC BY-SA 4.0",
+  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/":
+    "OGL 3.0",
+};
 export const evidenceLabel = (kind: EditorialReference["kind"]) =>
   kind === "authorized_abstract"
     ? "Resumo autorizado"
@@ -120,10 +135,16 @@ export function editorialReferences(references: EditorialReference[]) {
   return (
     "\n\n## Referências consultadas\n\n" +
     references
-      .map(
-        (r, i) =>
-          `${i + 1}. [${escapeLabel(r.title)}](<${r.url}>) — ${escapeLabel(r.publication)}. ${evidenceLabel(r.kind)}.`,
-      )
+      .map((r, i) => {
+        const credit = r.attribution;
+        const author = credit?.authors.length
+          ? ` Crédito no feed: ${credit.authors.map(escapeLabel).join(", ")}.`
+          : "";
+        const license = credit
+          ? ` [${licenseLabels[credit.licenseUrl]}](<${credit.licenseUrl}>).`
+          : "";
+        return `${i + 1}. [${escapeLabel(r.title)}](<${r.url}>) — ${escapeLabel(r.publication)}. ${evidenceLabel(r.kind)}.${author}${license}`;
+      })
       .join("\n") +
     "\n"
   );

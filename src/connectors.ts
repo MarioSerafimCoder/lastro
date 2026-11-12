@@ -11,6 +11,7 @@ import {
   captureEvidence,
   processingAllowed,
   itemRightsAllowed,
+  sufficientEvidence,
   type EvidenceCapture,
 } from "./synopsis-evidence";
 export type Fetcher = (
@@ -30,6 +31,15 @@ const feedValue = (value: unknown) =>
   typeof value === "string"
     ? value.replace(/^<!\[CDATA\[([\s\S]*?)\]\]>$/, "$1")
     : value;
+const feedText = (value: unknown, limit = 1200) =>
+  plainText(
+    feedValue(
+      value && typeof value === "object"
+        ? (value as Record<string, unknown>)["#text"]
+        : value,
+    ),
+    limit,
+  );
 const val = (v: any, n = 1200) => plainText(feedValue(v), n);
 const boundedBodyExcerpt = (body: string | null) => {
   if (!body) return null;
@@ -38,15 +48,6 @@ const boundedBodyExcerpt = (body: string | null) => {
     body
       .slice(0, Math.min(1200, body.length - 1))
       .match(/^[\s\S]*[.!?](?=\s|$)/u)?.[0] ?? null
-  );
-};
-const licensedFeedExcerpt = (entry: any) => {
-  const raw = entry["content:encoded"] ?? entry.content;
-  const body = plainText(feedValue(raw), 1201),
-    summary = val(entry.description ?? entry.summary);
-  return (
-    boundedBodyExcerpt(body) ??
-    (summary && (!body || !summary.includes(body)) ? summary : null)
   );
 };
 const imageFromFeed = (entry: any): string | null => {
@@ -84,7 +85,7 @@ export function parseRss(
     attributeNamePrefix: "@",
     parseTagValue: false,
     processEntities: false,
-    stopNodes: ["*.content:encoded", "*.description", "*.summary"],
+    stopNodes: ["*.content:encoded", "*.description", "*.summary", "*.content"],
   }).parse(xml);
   const feed = doc.rss?.channel ?? doc.feed ?? doc["rdf:RDF"];
   if (!feed) throw new Error("unsupported_feed");
@@ -142,19 +143,40 @@ export function parseRss(
       const title = val(e.title, 500) ?? "";
       // Full feed text is evidence only with an audited adaptation licence.
       // Normal ingestion still honours summaryAllowed and never stores the body.
-      const itemRights = e.rights ?? e["dc:rights"] ?? e.copyright;
+      const itemRights = val(e.rights ?? e["dc:rights"] ?? e.copyright, 1000);
+      const license = val(
+        e["cc:license"] ??
+          e["creativeCommons:license"] ??
+          links.find((link: any) => link?.["@rel"] === "license")?.["@href"],
+        1000,
+      );
       const entryRights =
-        itemRights == null ? feedRights : val(itemRights, 1000);
+        [itemRights, license].filter(Boolean).join(" ") || feedRights;
       const conflictingRights = !itemRightsAllowed(
         entryRights,
         s.synopsisLicenseUrl,
       );
+      const description = feedText(e.description) ?? feedText(e.summary);
+      const body =
+        onCapture || licensedEvidence
+          ? feedText(e["content:encoded"] ?? e.content, 1201)
+          : null;
+      const summary =
+        description && (!body || !description.includes(body))
+          ? description
+          : null;
       const excerpt =
-        licensedEvidence && !conflictingRights ? licensedFeedExcerpt(e) : null;
-      const synopsisText = licensedEvidence
-        ? (excerpt?.match(/^[\s\S]*[.!?](?=\s|$)/u)?.[0] ?? null)
-        : (forSynopsis || onCapture) && mayProcess && !conflictingRights
-          ? val(e.description ?? e.summary)
+        licensedEvidence && !conflictingRights
+          ? boundedBodyExcerpt(body)
+          : null;
+      const synopsisText =
+        (forSynopsis || onCapture) && mayProcess && !conflictingRights
+          ? excerpt &&
+            (sufficientEvidence(excerpt, title) ||
+              !summary ||
+              !sufficientEvidence(summary, title))
+            ? excerpt
+            : (summary ?? excerpt)
           : null;
       const candidate = candidateSchema.parse({
         title,
@@ -189,13 +211,14 @@ export function parseRss(
         accessNote:
           "Somente metadados do feed; página original não foi consultada. Na ausência de idioma declarado, a inferência conservadora usa apenas o título.",
       });
-      if (onCapture && mayProcess) {
+      if (onCapture) {
         const captured = captureEvidence(
           s,
           url,
           synopsisText,
           entryRights,
           new Date().toISOString(),
+          { descriptionPresent: !!description, bodyPresent: !!body },
         );
         if (captured) onCapture(captured);
       }

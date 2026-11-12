@@ -19,7 +19,11 @@ export const VERSION = "lastro-synopsis-2.3";
 export const RESERVATION = 150;
 export const AUTOMATIC_RESERVATION = RESERVATION + VERIFICATION_RESERVATION;
 export const DAILY_BUDGET = 4500;
-export { evidenceSchema, synopsisGate } from "./synopsis-evidence";
+export {
+  evidenceSchema,
+  synopsisGate,
+  sufficientEvidence,
+} from "./synopsis-evidence";
 import {
   evidenceSchema,
   evidenceKey,
@@ -27,21 +31,12 @@ import {
   permissionVersion,
   processingAllowed,
   captureStatement,
+  sufficientEvidence,
   type Evidence,
   synopsisGate,
 } from "./synopsis-evidence";
 import { anchorErrors, automaticFactualErrors } from "./synopsis-facts";
 const words = (text: string) => text.trim().split(/\s+/u).filter(Boolean);
-export function sufficientEvidence(text: string, title: string) {
-  if (!title.trim()) return false;
-  const beyondTitle = folded(text).split(folded(title)).join(" ");
-  return (
-    words(text).length >= 40 &&
-    text.length >= 200 &&
-    words(beyondTitle).length >= 35 &&
-    new Set(words(beyondTitle)).size >= 25
-  );
-}
 export function checkSynopsis(text: string, evidence: string) {
   const errors: string[] = [];
   if (words(text).length < 35 || words(text).length > 60)
@@ -117,7 +112,7 @@ export async function processSynopsis(
         (sy.status='pending' AND sy.attempts=0)
         OR (json_extract(sy.evidence_json,'$.kind') IS NOT 'editorial_evidence' AND (
           (sy.status='blocked' AND s.synopsis_permission_version<>sy.observed_permission_version)
-          OR (ec.material_key IS NOT NULL AND ec.material_key IS NOT sy.observed_evidence_key)))
+          OR (json_extract(s.config_json,'$.synopsisAllowed')=1 AND ec.material_key IS NOT NULL AND ec.material_key IS NOT sy.observed_evidence_key)))
         OR (sy.status='failed' AND sy.inference_started=0 AND sy.technical_retries<3 AND sy.retry_at<=?))
       ORDER BY CASE WHEN sy.evidence_json IS NOT NULL OR ec.evidence_json IS NOT NULL THEN 0 ELSE 1 END,sy.updated_at,sy.content_id LIMIT 1)
     AND status<>'processing' RETURNING *`,

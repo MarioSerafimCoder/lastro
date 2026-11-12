@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Source } from "../packages/contracts";
-import { canonicalUrl } from "./normalize";
+import { canonicalUrl, folded } from "./normalize";
 import { stmt } from "./db";
 
 const httpsUrl = z
@@ -43,7 +43,23 @@ export type EvidenceCapture = {
   permissionVersion: number;
   blockCode: "rights" | "insufficient_evidence" | null;
   itemRights: string | null;
+  descriptionPresent?: boolean;
+  bodyPresent?: boolean;
 };
+export function sufficientEvidence(text: string, title: string) {
+  if (
+    !title.trim() ||
+    text.length < 200 ||
+    text.trim().split(/\s+/u).length < 40
+  )
+    return false;
+  const beyondTitle = folded(text)
+    .split(folded(title))
+    .join(" ")
+    .trim()
+    .split(/\s+/u);
+  return beyondTitle.length >= 35 && new Set(beyondTitle).size >= 25;
+}
 export const permissionVersion = (s: Source) =>
   s.synopsisPermissionVersion ?? 1;
 export function processingAllowed(s: Source) {
@@ -59,14 +75,13 @@ export function itemRightsAllowed(
 ) {
   if (!rights) return true;
   const r = rights.toLowerCase().replace(/http:\/\//g, "https://");
-  if (
-    /all rights reserved|no adaptations|no derivatives|no reuse|todos os direitos reservados|sem deriva[çc][oõ]es|sem adapta[çc][oõ]es|\/by-(?:nc-)?nd\//i.test(
-      r,
-    )
-  )
-    return false;
+  if (itemRightsRestricted(r)) return false;
   return !!licence && r.includes(licence.toLowerCase());
 }
+export const itemRightsRestricted = (rights: string) =>
+  /all rights reserved|no adaptations|no derivatives|no reuse|todos os direitos reservados|sem deriva[çc][oõ]es|sem adapta[çc][oõ]es|\/by-(?:nc(?:-sa|-nd)?|nd)\//i.test(
+    rights,
+  );
 // A stable material identity; retrieval timestamps never authorize another inference.
 // Kept as canonical JSON so the additive SQLite migration can seed legacy records exactly.
 export function evidenceKey(e: Evidence) {
@@ -102,8 +117,10 @@ export function captureEvidence(
   text: string | null,
   itemRights: string | null,
   at: string,
+  observed?: Pick<EvidenceCapture, "descriptionPresent" | "bodyPresent">,
 ): EvidenceCapture | null {
-  if (!processingAllowed(s)) return null;
+  const authorized = processingAllowed(s);
+  if (!authorized && !observed) return null;
   let canonical: string;
   try {
     canonical = canonicalUrl(url);
@@ -112,7 +129,7 @@ export function captureEvidence(
   }
   const rights = itemRightsAllowed(itemRights, s.synopsisLicenseUrl);
   const parsed =
-    text && rights
+    authorized && text && rights
       ? evidenceSchema.safeParse({
           text,
           url: canonical,
@@ -127,17 +144,21 @@ export function captureEvidence(
         })
       : null;
   const evidence = parsed?.success ? parsed.data : null;
-  const blockCode = !rights
-    ? "rights"
-    : evidence
-      ? null
-      : "insufficient_evidence";
+  const blockCode =
+    (!rights && authorized) ||
+    itemRightsRestricted(itemRights ?? "") ||
+    s.synopsisAllowed === false
+      ? "rights"
+      : evidence
+        ? null
+        : "insufficient_evidence";
   return {
     canonicalUrl: canonical,
     evidence,
     permissionVersion: permissionVersion(s),
     itemRights,
     blockCode,
+    ...observed,
     materialKey: evidence
       ? evidenceKey(evidence)
       : JSON.stringify([
@@ -156,14 +177,18 @@ export function captureStatement(
 ) {
   return stmt(
     db,
-    `INSERT INTO synopsis_evidence_cache(source_id,canonical_url,evidence_json,material_key,permission_version,block_code,item_rights,observed_at)
+    `INSERT INTO synopsis_evidence_cache(source_id,canonical_url,evidence_json,material_key,permission_version,block_code,item_rights,observed_at,description_present,body_present)
     SELECT s.id,json_extract(j.value,'$.canonicalUrl'),json_extract(j.value,'$.evidence'),json_extract(j.value,'$.materialKey'),
-    json_extract(j.value,'$.permissionVersion'),json_extract(j.value,'$.blockCode'),json_extract(j.value,'$.itemRights'),?
+    json_extract(j.value,'$.permissionVersion'),json_extract(j.value,'$.blockCode'),json_extract(j.value,'$.itemRights'),?,
+    json_extract(j.value,'$.descriptionPresent'),json_extract(j.value,'$.bodyPresent')
     FROM json_each(?) j JOIN sources s ON s.id=? WHERE s.synopsis_permission_version=? AND s.status='approved'
     AND NOT EXISTS(SELECT 1 FROM contents c WHERE c.source_id=s.id AND c.canonical_url=json_extract(j.value,'$.canonicalUrl') AND c.expired_at IS NOT NULL)
     ON CONFLICT(source_id,canonical_url) DO UPDATE SET
     evidence_json=CASE WHEN synopsis_evidence_cache.material_key=excluded.material_key THEN synopsis_evidence_cache.evidence_json ELSE excluded.evidence_json END,
-    material_key=excluded.material_key,permission_version=excluded.permission_version,block_code=excluded.block_code,item_rights=excluded.item_rights,observed_at=excluded.observed_at`,
+    material_key=excluded.material_key,permission_version=excluded.permission_version,block_code=excluded.block_code,item_rights=excluded.item_rights,observed_at=excluded.observed_at,
+    description_present=COALESCE(excluded.description_present,synopsis_evidence_cache.description_present),
+    body_present=COALESCE(excluded.body_present,synopsis_evidence_cache.body_present)
+    WHERE excluded.observed_at>=synopsis_evidence_cache.observed_at`,
     at,
     JSON.stringify(captures),
     source.id,

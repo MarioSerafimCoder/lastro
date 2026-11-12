@@ -53,6 +53,16 @@ test("autopiloto editorial exibe controles funcionais, referências e rascunho n
   await page.route("**/api/editorial-autopilot/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/overview")) return route.fulfill({ json: view });
+    if (path.endsWith("/eligibility"))
+      return route.fulfill({
+        json: {
+          recent: { references: 4, rssDescriptions: 2, eligible: 1 },
+          eligible: 3,
+          publications: 3,
+          selection: { theme: "Tipografia", sources: run.sources },
+          exclusions: [{ reason: "rights", count: 3, examples: [] }],
+        },
+      });
     if (path.endsWith("/settings")) {
       expect(route.request().method()).toBe("PUT");
       view.enabled = route.request().postDataJSON().enabled;
@@ -85,6 +95,16 @@ test("autopiloto editorial exibe controles funcionais, referências e rascunho n
   page.on("dialog", (dialog) => dialog.accept());
   await expect(
     page.getByRole("heading", { name: "Autopiloto Editorial" }),
+  ).toBeVisible();
+  const eligibility = page.getByRole("region", {
+    name: "Elegibilidade das fontes",
+  });
+  await expect(
+    eligibility.getByRole("link", { name: /Fonte editorial/ }),
+  ).toHaveCount(3);
+  await eligibility.getByText("Motivos de exclusão nos últimos 7 dias").click();
+  await expect(
+    eligibility.getByText("Restrição de direitos · 3"),
   ).toBeVisible();
   await page.getByRole("button", { name: "Ativar automação" }).click();
   await expect(page.getByText("13/11/2026, 08:00")).toBeVisible();
