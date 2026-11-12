@@ -9,6 +9,7 @@ export type Area =
   | "analytics"
   | "oportunidades"
   | "newsletters"
+  | "autopiloto-editorial"
   | "saude";
 export type Suggestion = {
   title: string;

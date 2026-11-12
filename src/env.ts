@@ -1,5 +1,6 @@
 export type Env = {
   DB: D1Database;
+  EDITORIAL_AUTOPILOT_FREE_CONFIRMED?: string;
   RADAR_RETENTION_ENABLED?: string;
   ECOSYSTEM_HEALTH_ENABLED?: string;
   HEALTH_CF_ACCOUNT_ID?: string;
@@ -55,6 +56,7 @@ export type Env = {
         messages: { role: string; content: string }[];
         max_tokens: number;
         temperature: number;
+        chat_template_kwargs?: { enable_thinking: boolean };
         response_format?: {
           type: "json_object" | "json_schema";
           json_schema?: unknown;

@@ -19,6 +19,7 @@ import { ContentCard } from "./ReferenceCards";
 import Jarvis from "./Jarvis";
 import Pulso from "./Pulso";
 import EditorialPulse from "./EditorialPulse";
+import EditorialAutopilot from "./EditorialAutopilot";
 import AppearanceControls, {
   fullMotion,
   transitionLayout,
@@ -75,6 +76,7 @@ const areas: { id: Area; label: string; index: string }[] = [
   { id: "oportunidades", label: "Oportunidades", index: "07" },
   { id: "newsletters", label: "Newsletters", index: "08" },
   { id: "saude", label: "Saúde do Ecossistema", index: "09" },
+  { id: "autopiloto-editorial", label: "Autopiloto Editorial", index: "10" },
 ];
 const navigationGroups = [
   { label: "Navegação principal", areas: areas.slice(0, 3) },
@@ -712,6 +714,8 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                       <Mail size={18} />
                     ) : a.id === "saude" ? (
                       <Activity size={18} />
+                    ) : a.id === "autopiloto-editorial" ? (
+                      <SquarePen size={18} />
                     ) : (
                       <BookOpen size={18} />
                     )}
@@ -816,7 +820,9 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                             ? "Oportunidades"
                             : area === "newsletters"
                               ? "Newsletters"
-                              : "Publicações"}
+                              : area === "autopiloto-editorial"
+                                ? "Autopiloto Editorial"
+                                : "Publicações"}
             </h1>
             <p>
               {area === "for-you"
@@ -835,7 +841,9 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
                             ? "Acompanhe conversas e próximos passos de cada projeto."
                             : area === "newsletters"
                               ? "Acompanhe os leitores que chegam pelas suas edições."
-                              : "O próximo destino das suas ideias."}
+                              : area === "autopiloto-editorial"
+                                ? "Artigos desenvolvidos a partir do Radar e enviados para revisão no Studio."
+                                : "O próximo destino das suas ideias."}
             </p>
           </div>
           <form
@@ -1319,6 +1327,7 @@ function WorkspaceApp({ onLogout }: { onLogout: () => void }) {
         {area === "saude" && <Health navigate={navigate} />}
         {area === "oportunidades" && <Opportunities />}
         {area === "newsletters" && <Newsletters />}
+        {area === "autopiloto-editorial" && <EditorialAutopilot />}
       </main>
       <Jarvis
         context={{

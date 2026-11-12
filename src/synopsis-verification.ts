@@ -14,6 +14,7 @@ const ratesFor = (model: string) =>
     "@cf/meta/llama-3.2-3b-instruct": [4625, 30475],
     [LEGACY_VERIFIER]: [4119, 34868],
     [VERIFIER]: [26668, 204805],
+    "@cf/google/gemma-4-26b-a4b-it": [9091, 27273],
   })[model];
 const reportSchema = z
   .object({

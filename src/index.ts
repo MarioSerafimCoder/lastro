@@ -1,4 +1,15 @@
 import { synopsisGate } from "./synopsis-evidence";
+import {
+  EDITORIAL_CRON,
+  editorialOverview,
+  processRequestedEditorial,
+  queueEditorialRun,
+  retryEditorialRun,
+  runEditorialQueue,
+  scheduledEditorial,
+  setEditorialAutomation,
+} from "./editorial-autopilot";
+import { editorialId } from "../packages/contracts/editorial-article";
 import { summaryReadySql } from "./summary-ready";
 import { radarFeed, dailyWindowSql, dailyWindowArgs } from "./radar-feed";
 import { ecosystemHealth } from "./health";
@@ -806,6 +817,29 @@ app.post("/api/research-packages/:id/studio-draft", async (c) =>
 app.get("/api/integrations/overview", async (c) =>
   c.json(await integrationOverview(c.env)),
 );
+app.use("/api/editorial-autopilot/*", bodyLimit({ maxSize: 1024 }));
+app.get("/api/editorial-autopilot/overview", async (c) =>
+  c.json(await editorialOverview(c.env)),
+);
+app.put("/api/editorial-autopilot/settings", async (c) =>
+  c.json(
+    await setEditorialAutomation(
+      c.env,
+      (await json(c, z.strictObject({ enabled: z.boolean() }))).enabled,
+    ),
+  ),
+);
+app.post("/api/editorial-autopilot/runs", async (c) => {
+  const queued = await queueEditorialRun(c.env);
+  return c.json(await processRequestedEditorial(c.env, queued), 202);
+});
+app.post("/api/editorial-autopilot/runs/:id/retry", async (c) => {
+  const id = c.req.param("id");
+  if (!editorialId.test(id))
+    throw new ApiFault(400, "invalid_run", "Execução inválida.");
+  const queued = await retryEditorialRun(c.env, id);
+  return c.json(await processRequestedEditorial(c.env, queued), 202);
+});
 app.get("/api/integrations/weekly", async (c) =>
   c.json(await weeklySummary(c.env)),
 );
@@ -1431,18 +1465,26 @@ export default {
     env: Env,
     _ctx: ExecutionContext,
   ) => {
-    const sharedSchedule = _event.cron === INTEGRATION_AND_SEARCH_CRON;
+    const minute = new Date(_event.scheduledTime).getUTCMinutes();
+    if (_event.cron === EDITORIAL_CRON && minute === 0)
+      return scheduledEditorial(env, _event.scheduledTime);
+    const sharedSchedule =
+      _event.cron === INTEGRATION_AND_SEARCH_CRON ||
+      _event.cron === EDITORIAL_CRON;
     // Share one Cron Trigger without combining both jobs in the same invocation.
-    if (
-      sharedSchedule &&
-      new Date(_event.scheduledTime).getUTCMinutes() % 30 === 13
-    )
+    if (sharedSchedule && minute % 30 === 13)
       return scheduledSearchConsole(env);
     if (_event.cron === INTEGRATION_CRON || sharedSchedule) {
-      const result = await reconcile(env);
-      if (!result.processed && env.ECOSYSTEM_HEALTH_ENABLED === "true")
-        await ecosystemHealth(env, true);
-      return result;
+      try {
+        const result = await reconcile(env);
+        if (!result.processed && env.ECOSYSTEM_HEALTH_ENABLED === "true")
+          await ecosystemHealth(env, true);
+        return result;
+      } finally {
+        await runEditorialQueue(env).catch(() =>
+          console.error("editorial_queue_failed"),
+        );
+      }
     }
     // Separate invocation keeps the existing ingestion below D1 Free's query cap.
     if (_event.cron === "2-57/5 * * * *") return scheduledSynopses(env);

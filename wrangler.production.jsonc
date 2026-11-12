@@ -25,9 +25,10 @@
     },
   ],
   "triggers": {
-    "crons": ["*/5 * * * *", "2-57/5 * * * *", "13,17,43,47 * * * *"],
+    "crons": ["*/5 * * * *", "2-57/5 * * * *", "0,13,17,43,47 * * * *"],
   },
   "vars": {
+    "EDITORIAL_AUTOPILOT_FREE_CONFIRMED": "false",
     "ENVIRONMENT": "production",
     "PORTFOLIO_CONTACT_ENDPOINT": "https://script.google.com/macros/s/AKfycbyulPLIGLCQKtFhvcvRvz69KwrZIc4S_2TcQNU-4rWDanoisOmVMlyoATYTnHx3pToU/exec",
     "BRAIN_DRIVE_ENABLED": "true",

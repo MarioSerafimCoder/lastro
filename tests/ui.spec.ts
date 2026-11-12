@@ -1,6 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 import { contentFixture, fixtureSource } from "./fixtures";
 import { socialAnswer } from "../packages/contracts/jarvis-social";
+import type {
+  EditorialOverview,
+  EditorialRun,
+} from "../packages/contracts/editorial-autopilot";
 const dialogueView = {
   id: "12345678-1234-4234-8234-123456789012",
   revision: 0,
@@ -12,6 +16,105 @@ const dialogueView = {
   restored: false,
 };
 import { mkdir } from "node:fs/promises";
+
+test("autopiloto editorial exibe controles funcionais, referências e rascunho no desktop e no celular", async ({
+  page,
+}) => {
+  await mockApi(page);
+  const run: EditorialRun = {
+    id: "80000000-0000-4000-8000-000000000001",
+    date: "2026-11-12",
+    updatedAt: "2026-11-12T11:00:00Z",
+    title: "Onde a letra precisa agir",
+    theme: "Tipografia",
+    status: "failed",
+    reason: "Envio ao Studio indisponível.",
+    retryAt: null,
+    studio: null,
+    attempts: 1,
+    canRetry: true,
+    sources: [1, 2, 3].map((n) => ({
+      contentId: String(n),
+      sourceId: String(n),
+      title: `Fonte editorial ${n}`,
+      publication: `Publicação ${n}`,
+      url: `https://example.org/fonte-${n}`,
+      publishedAt: "2026-11-11T15:00:00Z",
+      kind: "authorized_feed_description",
+    })),
+  };
+  const view: EditorialOverview = {
+    available: true,
+    enabled: false,
+    nextExecution: null,
+    latestDraft: null,
+    history: [],
+  };
+  await page.route("**/api/editorial-autopilot/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/overview")) return route.fulfill({ json: view });
+    if (path.endsWith("/settings")) {
+      expect(route.request().method()).toBe("PUT");
+      view.enabled = route.request().postDataJSON().enabled;
+      view.nextExecution = view.enabled ? "2026-11-13T11:00:00Z" : null;
+      return route.fulfill({ json: { enabled: view.enabled } });
+    }
+    expect(route.request().method()).toBe("POST");
+    if (path.endsWith("/runs")) {
+      view.history = [run];
+      return route.fulfill({ json: run });
+    }
+    expect(path).toContain(run.id);
+    const draft: EditorialRun = {
+      ...run,
+      canRetry: false,
+      reason: null,
+      status: "draft_created",
+      studio: {
+        version: "editorial-1.0",
+        id: run.id,
+        revision: 1,
+        adminUrl: `https://studio.marioserafim.com.br/editor/${run.id}`,
+      },
+    };
+    view.history = [draft];
+    view.latestDraft = draft;
+    return route.fulfill({ json: draft });
+  });
+  await page.goto("/autopiloto-editorial");
+  page.on("dialog", (dialog) => dialog.accept());
+  await expect(
+    page.getByRole("heading", { name: "Autopiloto Editorial" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Ativar automação" }).click();
+  await expect(page.getByText("13/11/2026, 08:00")).toBeVisible();
+  await page.getByRole("button", { name: "Executar agora" }).click();
+  const history = page.getByRole("region", { name: "Histórico editorial" });
+  await expect(
+    history.getByText("Envio ao Studio indisponível."),
+  ).toBeVisible();
+  await expect(
+    history.getByRole("link", { name: /Fonte editorial/ }),
+  ).toHaveCount(3);
+  await page.getByRole("button", { name: "Reprocessar falha" }).click();
+  await expect(
+    history.getByRole("link", { name: /Abrir no Studio/ }),
+  ).toHaveAttribute(
+    "href",
+    `https://studio.marioserafim.com.br/editor/${run.id}`,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    history.getByRole("link", { name: /Abrir no Studio/ }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth),
+  ).toBeLessThanOrEqual(390);
+  await page.getByRole("button", { name: "Desativar automação" }).click();
+  await expect(
+    page.getByRole("button", { name: "Ativar automação" }),
+  ).toBeEnabled();
+});
 
 async function selectMenu(page: Page, label: string, choice: string) {
   await page.getByRole("combobox", { name: label, exact: true }).click();

@@ -20,6 +20,7 @@ import type {
 } from "./index";
 
 import type { AnalyticsOverview } from "./analytics";
+import type { EditorialOverview, EditorialRun } from "./editorial-autopilot";
 import type { HealthOverview } from "./health";
 import type { SearchDays, SearchOverview } from "./search-console";
 export class LastroApiError extends Error {
@@ -101,6 +102,19 @@ export function createLastroClient(
     return new URLSearchParams(values).toString();
   };
   return {
+    editorialOverview: () =>
+      request<EditorialOverview>("/editorial-autopilot/overview"),
+    setEditorialAutomation: (enabled: boolean) =>
+      request<{ enabled: boolean }>("/editorial-autopilot/settings", "PUT", {
+        enabled,
+      }),
+    queueEditorialRun: () =>
+      request<EditorialRun>("/editorial-autopilot/runs", "POST"),
+    retryEditorialRun: (id: string) =>
+      request<EditorialRun>(
+        `/editorial-autopilot/runs/${encodeURIComponent(id)}/retry`,
+        "POST",
+      ),
     integrationOverview: () =>
       request<import("./integration").IntegrationOverview>(
         "/integrations/overview",

@@ -3196,6 +3196,24 @@ section[aria-labelledby="feed-title"] > .filters {
   flex-wrap: wrap;
   gap: 1rem;
 }
+.editorial-autopilot .autopilot-actions {
+  justify-content: flex-start;
+}
+.editorial-autopilot .autopilot-metrics {
+  margin-top: 0;
+}
+.autopilot-sources {
+  margin: 0.75rem 0;
+  padding-inline-start: 1.25rem;
+}
+.autopilot-sources small {
+  display: block;
+  color: var(--muted);
+}
+.editorial-list .autopilot-sources li {
+  border: 0;
+  padding: 0.35rem 0;
+}
 @media (max-width: 700px) {
   .ecosystem .pub-grid {
     grid-template-columns: 1fr;

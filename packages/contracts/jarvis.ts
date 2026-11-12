@@ -8,6 +8,7 @@ export const areas = [
   "analytics",
   "oportunidades",
   "newsletters",
+  "autopiloto-editorial",
   "saude",
 ] as const;
 export const intents = [

@@ -19,8 +19,9 @@
       "migrations_dir": "migrations",
     },
   ],
-  "triggers": { "crons": ["*/5 * * * *", "17,47 * * * *"] },
+  "triggers": { "crons": ["*/5 * * * *", "0,13,17,43,47 * * * *"] },
   "vars": {
+    "EDITORIAL_AUTOPILOT_FREE_CONFIRMED": "false",
     "ENVIRONMENT": "production",
     "INTEGRATION_ENABLED": "false",
     "ALLOWED_ORIGIN": "http://127.0.0.1:5173",
