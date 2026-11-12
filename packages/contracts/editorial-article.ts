@@ -149,7 +149,23 @@ export function editorialReferences(references: EditorialReference[]) {
     "\n"
   );
 }
-export function editorialBodyValid(body: string) {
+export const EDITORIAL_PROMPT_VERSION = "lastro-editorial-1.2";
+export const EDITORIAL_MIN_CHARACTERS = 1900;
+export const EDITORIAL_MAX_CHARACTERS = 2000;
+
+export function editorialBodyCharacters(body: string) {
+  const visible = body
+    .normalize("NFC")
+    .replace(/\[S[1-3]\]/g, "")
+    .replace(/^ {0,3}#{1,6}[ \t]+/gm, "")
+    .replace(/^( {0,3})(?:[-+*]|\d+[.)]|>)[ \t]+/gm, "$1")
+    .replace(/(\*{1,3}|_{1,3})(?=\S)([^\n]+?)(?<=\S)\1/g, "$2")
+    .replace(/\s+/gu, " ")
+    .trim();
+  return [...visible].length;
+}
+
+export function editorialBodyValid(body: string, legacy = false) {
   if (
     body.length > 10000 ||
     /[\u0000-\u0008\u000b-\u001f\u007f<>{}`\\]|https?:|www\.|!\[|\]\s*\(|^\s*\[[^\]]+\]:|^\s*(?:---+|===+)\s*$/im.test(
@@ -157,16 +173,20 @@ export function editorialBodyValid(body: string) {
     )
   )
     return false;
-  const words =
-    body
-      .replace(/\[S[1-3]\]/g, "")
-      .match(/[\p{L}\p{N}]+(?:[-’'][\p{L}\p{N}]+)*/gu)?.length ?? 0;
+  const characters = editorialBodyCharacters(body);
+  const words = legacy
+    ? (body
+        .replace(/\[S[1-3]\]/g, "")
+        .match(/[\p{L}\p{N}]+(?:[-’'][\p{L}\p{N}]+)*/gu)?.length ?? 0)
+    : 0;
   const cites = [...body.matchAll(/\[S\d[^\]\n]*\]/gi)].map(
     (match) => match[0],
   );
   return (
-    words >= 600 &&
-    words <= 900 &&
+    (legacy
+      ? words >= 600 && words <= 900
+      : characters >= EDITORIAL_MIN_CHARACTERS &&
+        characters <= EDITORIAL_MAX_CHARACTERS) &&
     !body.startsWith("# ") &&
     cites.every((cite) => /^\[S[1-3]\]$/.test(cite)) &&
     new Set(cites).size === 3
@@ -230,7 +250,12 @@ export function parseEditorialArticle(value: unknown): EditorialArticle {
   const references = editorialReferences(article.references);
   if (
     !article.markdown.endsWith(references) ||
-    !editorialBodyValid(article.markdown.slice(0, -references.length))
+    !editorialBodyValid(
+      article.markdown.slice(0, -references.length),
+      ["lastro-editorial-1.0", "lastro-editorial-1.1"].includes(
+        article.generation.promptVersion,
+      ),
+    )
   )
     throw Error("invalid_editorial_markdown");
   return article;

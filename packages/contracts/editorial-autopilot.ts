@@ -16,6 +16,7 @@ export type EditorialRun = {
   updatedAt: string;
   status: EditorialRunStatus;
   title: string | null;
+  bodyCharacters: number | null;
   theme: string | null;
   sources: EditorialReference[];
   studio: EditorialReceipt | null;

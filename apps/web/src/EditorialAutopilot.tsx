@@ -335,6 +335,8 @@ export default function EditorialAutopilot() {
                   <strong>
                     <time dateTime={run.date}>{date(run.date)}</time>
                     {run.title && ` · ${run.title}`}
+                    {run.bodyCharacters != null &&
+                      ` · ${run.bodyCharacters.toLocaleString("pt-BR")} caracteres`}
                   </strong>
                   <RunDetails run={run} />
                   {run.canRetry && (

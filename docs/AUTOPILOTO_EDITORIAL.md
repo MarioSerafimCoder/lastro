@@ -70,3 +70,11 @@ Com esse trio, Workers AI gerou **O custo do cercamento**, com 848 palavras. Os 
 ## Ativação em produção
 
 Após autorização para deploy, confirme a disponibilidade de evidência, o plano gratuito e o saldo de IA. Aplique a migração do Studio e implante o Studio antes do Lastro. Aplique a migração do Lastro e implante o Lastro usando `wrangler.production.jsonc`, com a franquia confirmada na configuração. Valide uma execução manual e a edição do rascunho. Em seguida, ative **Autopiloto Editorial** na interface e confira o horário apresentado. Para pausar novas execuções diárias, use **Desativar automação**.
+
+## Revisão do limite editorial
+
+A versão 1.2 mede de 1.900 a 2.000 caracteres de corpo visível. Ela conta cada sequência de espaços ou quebras como um espaço, remove marcações de formatação aceitas e ignora as referências e os metadados. O histórico exibe a contagem, inclusive quando a extensão impede o envio. A integração aceita entregas pendentes das duas versões anteriores para preservar reenvios.
+
+O verificador anterior podia aceitar como interpretação um bloco com uma alegação técnica sem marcador. A checagem passou a examinar alegações dentro de opiniões e exemplos, exigir suporte explícito para mecanismos e escopo e reter termos técnicos monitorados sem citação literal compatível. A homologação com Creative Commons, InternetLab e BaixaCultura gerou três saídas retidas. Uma versão revisada manualmente com 1.996 caracteres passou no verificador e foi entregue como rascunho privado ao Studio. As três gerações e duas verificações somaram 312,30 neurônios.
+
+A simulação com dados de produção contou 12 referências elegíveis de três publicações. Após descontar as referências usadas e aplicar as mesmas regras no dia seguinte, o seletor não encontrou outra pauta. A consulta de faturamento da conta respondeu HTTP 403 e a confirmação da franquia da produção segue pendente.

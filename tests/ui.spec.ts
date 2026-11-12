@@ -27,6 +27,7 @@ test("autopiloto editorial exibe controles funcionais, referências e rascunho n
     updatedAt: "2026-11-12T11:00:00Z",
     title: "Onde a letra precisa agir",
     theme: "Tipografia",
+    bodyCharacters: null,
     status: "failed",
     reason: "Envio ao Studio indisponível.",
     retryAt: null,

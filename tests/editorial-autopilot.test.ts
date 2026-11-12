@@ -40,6 +40,8 @@ import { migrationStatements } from "./migration-statements";
 import type { Env } from "../src/env";
 import {
   EDITORIAL_ARTICLES,
+  editorialBodyCharacters,
+  editorialBodyValid,
   EDITORIAL_MEMORY,
   EDITORIAL_VERSION,
 } from "../packages/contracts/editorial-article";
@@ -354,6 +356,27 @@ test("compares titles and arguments before delivery; checks length, links, numer
   assert.equal(validateEditorialReport(report, valid, sources), true);
   report.blocks[4].quotes[0].text = "Trecho fabricado e sem respaldo";
   assert.equal(validateEditorialReport(report, valid, sources), false);
+});
+
+test("counts visible text and enforces both character boundaries", () => {
+  assert.equal(editorialBodyCharacters("## Ação\n\n**Texto** [S1]."), 12);
+  for (const length of [1899, 1900, 2000, 2001]) {
+    const body = "x".repeat(length - 1) + "[S1][S2][S3].";
+    assert.equal(editorialBodyCharacters(body), length);
+    assert.equal(editorialBodyValid(body), length >= 1900 && length <= 2000);
+  }
+});
+
+test("technical facts cannot pass as interpretation or with an unrelated quote", () => {
+  const article = { ...editorialDraft, title: "A tokenização é infinita" };
+  const report = editorialReport(sources);
+  assert.equal(validateEditorialReport(report, article, sources), false);
+  report.blocks[0] = {
+    index: 0,
+    verdict: "supported",
+    quotes: [{ source: 1, text: sources[0].quote }],
+  };
+  assert.equal(validateEditorialReport(report, article, sources), false);
 });
 
 test("insufficient or injected evidence skips generation without reserving quota", async () => {

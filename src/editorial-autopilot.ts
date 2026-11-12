@@ -4,6 +4,10 @@ import {
   EDITORIAL_MEMORY,
   EDITORIAL_VERSION,
   editorialId,
+  editorialBodyCharacters,
+  editorialReferences,
+  EDITORIAL_MIN_CHARACTERS,
+  EDITORIAL_MAX_CHARACTERS,
   editorialUrl,
   type EditorialArticle,
   type EditorialMemory,
@@ -51,6 +55,8 @@ const reasons = {
   repeat: "Título ou argumento muito próximo de um texto recente.",
   generation:
     "A IA falhou ou a execução foi interrompida após o início da inferência.",
+  length:
+    "O corpo editorial ficou fora do intervalo de 1.900 a 2.000 caracteres.",
   verification:
     "O artigo não passou nas verificações de formato, originalidade ou suporte factual.",
   permission: "Uma referência perdeu autorização ou mudou durante a execução.",
@@ -76,6 +82,7 @@ type RunRow = {
   sources_json: string | null;
   payload: string | null;
   receipt: string | null;
+  body_characters: number | null;
 };
 const memorySchema = z.strictObject({
   version: z.literal(EDITORIAL_VERSION),
@@ -126,14 +133,25 @@ function runView(run: RunRow, today: string): EditorialRun {
   const sources: SelectedSource[] = run.sources_json
     ? JSON.parse(run.sources_json)
     : [];
+  const article: EditorialArticle | null = run.payload
+    ? JSON.parse(run.payload)
+    : null;
   return {
     id: run.id,
+    bodyCharacters:
+      run.body_characters ??
+      (article
+        ? editorialBodyCharacters(
+            article.markdown.slice(
+              0,
+              -editorialReferences(article.references).length,
+            ),
+          )
+        : null),
     date: run.editorial_date,
     updatedAt: iso(run.updated_at),
     status: run.status,
-    title: run.payload
-      ? (JSON.parse(run.payload) as EditorialArticle).title
-      : null,
+    title: article?.title ?? null,
     theme: run.theme,
     sources: sources.map(({ reference }) => reference),
     studio: run.receipt ? JSON.parse(run.receipt) : null,
@@ -467,10 +485,20 @@ export async function runEditorialQueue(
         group.sources,
         utcDay,
       );
+      const bodyCharacters = generation.value
+        ? editorialBodyCharacters(generation.value.markdown)
+        : null;
       await update(
-        "status='validating',generation_usage=?",
+        "status='validating',generation_usage=?,body_characters=?",
         JSON.stringify(generation.usage),
+        bodyCharacters,
       );
+      if (
+        bodyCharacters !== null &&
+        (bodyCharacters < EDITORIAL_MIN_CHARACTERS ||
+          bodyCharacters > EDITORIAL_MAX_CHARACTERS)
+      )
+        return await finish("needs_review", "length");
       const article = validateGeneratedArticle(generation.value, group.sources);
       if (!article) return await finish("needs_review", "verification");
       if (repeatsArticle(article, memory.history))
