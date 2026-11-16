@@ -163,6 +163,13 @@ function Eligibility({
 function RunDetails({ run }: { run: EditorialRun }) {
   return (
     <>
+      {run.relevance && (
+        <span
+          className={`editorial-relevance ${run.relevance === "Em alta" ? "trending" : run.relevance === "Reflexão" ? "reflection" : "retrospective"}`}
+        >
+          {run.relevance}
+        </span>
+      )}
       <p>
         {statuses[run.status]}
         {run.theme && ` · ${run.theme}`}
@@ -347,6 +354,29 @@ export default function EditorialAutopilot() {
             </p>
           )}
           <Eligibility report={eligibility} error={eligibilityError} />
+          <section className="pub-card" aria-label="Reserva de pautas">
+            <h2>Reserva de pautas</h2>
+            <p>
+              Reavaliada diariamente às 6h. Preparação da matéria às 7h e envio
+              ao Studio às 8h, no horário de Fortaleza.
+            </p>
+            {!data.reserve?.length && (
+              <p>Aguardando referências para formar a reserva.</p>
+            )}
+            <ul className="editorial-list">
+              {data.reserve?.map((topic) => (
+                <li key={topic.id}>
+                  <span
+                    className={`editorial-relevance ${topic.relevance === "Em alta" ? "trending" : topic.relevance === "Reflexão" ? "reflection" : "retrospective"}`}
+                  >
+                    {topic.relevance}
+                  </span>
+                  <h3>{topic.theme}</h3>
+                  <References sources={topic.sources} />
+                </li>
+              ))}
+            </ul>
+          </section>
           {lastArticle && (
             <article className="pub-card">
               <h2>Artigo mais recente</h2>

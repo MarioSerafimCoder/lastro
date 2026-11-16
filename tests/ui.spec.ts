@@ -45,6 +45,7 @@ test("autopiloto editorial exibe controles funcionais, referências e rascunho n
     })),
   };
   const view: EditorialOverview = {
+    reserve: [{ id: "reserve-1", theme: "Tipografia em debate", relevance: "Em alta", sources: run.sources }],
     available: true,
     enabled: false,
     nextExecution: null,
@@ -57,6 +58,9 @@ test("autopiloto editorial exibe controles funcionais, referências e rascunho n
     if (path.endsWith("/eligibility"))
       return route.fulfill({
         json: {
+          trends: [],
+          trendsAvailable: true,
+          trendsError: null,
           recent: { references: 4, rssDescriptions: 2, eligible: 1 },
           eligible: 3,
           publications: 3,
@@ -97,6 +101,9 @@ test("autopiloto editorial exibe controles funcionais, referências e rascunho n
   await expect(
     page.getByRole("heading", { name: "Autopiloto Editorial" }),
   ).toBeVisible();
+  const reserve = page.getByRole("region", { name: "Reserva de pautas" });
+  await expect(reserve.getByText("Em alta")).toBeVisible();
+  await expect(reserve.getByRole("link")).toHaveCount(3);
   const eligibility = page.getByRole("region", {
     name: "Elegibilidade das fontes",
   });

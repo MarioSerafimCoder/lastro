@@ -312,6 +312,7 @@ export function selectEditorialSources(
   used: EditorialReference[],
   at: number,
   trendTitles: string[] = [],
+  allowRetroactive = false,
 ) {
   const usedUrls = new Set(used.map((ref) => ref.url));
   const frequency = new Map<string, number>();
@@ -348,7 +349,7 @@ export function selectEditorialSources(
         (age <= recentDays
           ? 20 * Math.exp(-age / 5) + (age <= 7 ? 10 : 0)
           : 0) +
-        Math.min(10, body.size / 6) -
+        Math.min(10, body.size / 6) +
         15 *
           Math.max(0, ...trending.map((trend) => similarity(subject, trend))) -
         45 * novelty -
@@ -430,7 +431,8 @@ export function selectEditorialSources(
           const group = [a, b, c];
           const focus = group.filter((s) => s.focus).length;
           if (
-            (!group.some((s) => s.recent && s.direct) &&
+            (!allowRetroactive &&
+              !group.some((s) => s.recent && s.direct) &&
               !group.every((s) => s.candidate.evergreen)) ||
             (!related && focus < 2) ||
             (related && (!focus || group.filter((s) => s.direct).length < 2))
@@ -440,7 +442,28 @@ export function selectEditorialSources(
             bc = connection(b, c);
           if (ac < 0 || bc < 0) continue;
           const score =
-            a.score + b.score + c.score + 8 * focus + 6 * (ab + ac + bc);
+            // Priority tiers dominate quality tie-breakers: current trends, then
+            // current news, then context. Older material cannot outrank news.
+            (group.some(
+              (s) =>
+                s.direct &&
+                at - Date.parse(s.candidate.reference.publishedAt) <= 7 * day,
+            )
+              ? 10000 +
+                (group.some(
+                  (s) =>
+                    at - Date.parse(s.candidate.reference.publishedAt) <=
+                      7 * day &&
+                    trending.some((t) => similarity(s.headline, t) > 0),
+                )
+                  ? 10000
+                  : 0)
+              : 0) +
+            a.score +
+            b.score +
+            c.score +
+            8 * focus +
+            6 * (ab + ac + bc);
           if (!best || score > best.score)
             best = {
               theme,

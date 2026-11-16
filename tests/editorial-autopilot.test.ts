@@ -16,6 +16,7 @@ import {
   runEditorialQueue,
   scheduledEditorial,
   setEditorialAutomation,
+  refreshEditorialReserve,
 } from "../src/editorial-autopilot";
 import {
   EDITORIAL_RESERVATION,
@@ -149,6 +150,7 @@ beforeEach(async () => {
   aiCalls = studioCalls = 0;
   sources = editorialFixtures();
   for (const table of [
+    "editorial_topic_reserve",
     "editorial_autopilot_runs",
     "synopsis_usage",
     "synopsis_evidence_cache",
@@ -385,7 +387,7 @@ test("insufficient or injected evidence skips generation without reserving quota
   assert.equal((await editorialCandidates(db, Date.now())).length, 2);
   await queueEditorialRun(env);
   await runEditorialQueue(env);
-  assert.equal((await editorialOverview(env)).history[0].status, "skipped");
+  assert.equal((await editorialOverview(env)).history[0].status, "failed");
   assert.equal(aiCalls, 0);
   assert.equal(await db.prepare("SELECT * FROM synopsis_usage").first(), null);
 });
@@ -432,9 +434,9 @@ test("08:00 Fortaleza uses 11:00 UTC, respects toggle and retains one date key a
   await scheduledEditorial(env, at, at);
   assert.equal((await editorialOverview(env, at)).history.length, 0);
   await setEditorialAutomation(env, true);
-  await scheduledEditorial(env, at - 60000, at);
+  await scheduledEditorial(env, at - 120 * 60000, at);
   const otherHour = Date.parse(
-    new Date().toISOString().slice(0, 10) + "T10:00:00Z",
+    new Date().toISOString().slice(0, 10) + "T08:00:00Z",
   );
   await worker.scheduled(
     { cron: EDITORIAL_CRON, scheduledTime: otherHour } as ScheduledController,
@@ -443,13 +445,74 @@ test("08:00 Fortaleza uses 11:00 UTC, respects toggle and retains one date key a
   );
   assert.equal((await editorialOverview(env, at)).history.length, 0);
   await Promise.all([
-    scheduledEditorial(env, at, at),
-    scheduledEditorial(env, at, at),
+    scheduledEditorial(env, at + 17_123, at + 18_000),
+    scheduledEditorial(env, at + 17_123, at + 18_000),
   ]);
   const history = (await editorialOverview(env, at)).history;
   assert.equal(history.length, 1);
   assert.equal(history[0].date, "2026-11-12");
   assert.equal(history[0].attempts, 1);
+});
+
+test("reserve is revalidated, draft prepared at 07 and delivered only at 08, once", async (t) => {
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  let now = Date.parse(tomorrow + "T10:00:17Z");
+  t.mock.method(Date, "now", () => now);
+  await seedEditorial(db, sources);
+  await setEditorialAutomation(env, true);
+  await refreshEditorialReserve(env);
+  assert.equal((await editorialOverview(env)).reserve.length, 1);
+  await scheduledEditorial(env, now);
+  assert.equal((await editorialOverview(env)).history[0].status, "sending");
+  assert.equal(studioCalls, 0);
+  assert.equal(aiCalls, 2);
+  now = Date.parse(tomorrow + "T10:59:59Z");
+  await scheduledEditorial(env, now);
+  assert.equal(studioCalls, 0);
+  now = Date.parse(tomorrow + "T11:00:17Z");
+  await scheduledEditorial(env, now);
+  await scheduledEditorial(env, now + 1000);
+  assert.equal(studioCalls, 1);
+  assert.equal(aiCalls, 2);
+  const overview = await editorialOverview(env);
+  assert.equal(overview.latestDraft?.relevance, "Reflexão");
+  assert.equal(overview.reserve.length, 0);
+});
+
+test("source shortage retries without spending AI, reserve cannot override revoked permissions", async () => {
+  await seedEditorial(db, sources);
+  await refreshEditorialReserve(env);
+  await db
+    .prepare(
+      "UPDATE sources SET config_json=json_set(config_json,'$.synopsisAllowed',json('false'))",
+    )
+    .run();
+  await queueEditorialRun(env);
+  await runEditorialQueue(env);
+  const run = (await editorialOverview(env)).history[0];
+  assert.equal(run.status, "failed");
+  assert.ok(run.retryAt);
+  assert.equal(aiCalls, 0);
+  assert.equal(studioCalls, 0);
+});
+
+test("retrospective fallback is explicit and still requires independent sources", () => {
+  const old = sources.map((s) => ({
+    ...s,
+    reference: {
+      ...s.reference,
+      publishedAt: new Date(Date.now() - 60 * 86400000).toISOString(),
+    },
+  }));
+  assert.equal(selectEditorialSources(old, [], [], Date.now()), null);
+  assert.equal(
+    selectEditorialSources(old, [], [], Date.now(), [], true)?.sources.length,
+    3,
+  );
+  assert.equal(
+    selectEditorialSources(old, [], [old[0].reference], Date.now(), [], true),
+    null,
+  );
 });
 
 test("owner endpoint and concurrent claims produce one article and one delivery", async () => {

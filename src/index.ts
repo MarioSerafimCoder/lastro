@@ -8,6 +8,7 @@ import {
   retryEditorialRun,
   runEditorialQueue,
   scheduledEditorial,
+  refreshEditorialReserve,
   setEditorialAutomation,
 } from "./editorial-autopilot";
 import { editorialId } from "../packages/contracts/editorial-article";
@@ -825,6 +826,10 @@ app.get("/api/editorial-autopilot/overview", async (c) =>
 app.get("/api/editorial-autopilot/eligibility", async (c) =>
   c.json(await editorialEligibility(c.env)),
 );
+app.post("/api/editorial-autopilot/reserve/refresh", async (c) => {
+  await refreshEditorialReserve(c.env);
+  return c.json(await editorialOverview(c.env));
+});
 app.put("/api/editorial-autopilot/settings", async (c) =>
   c.json(
     await setEditorialAutomation(
@@ -1470,6 +1475,12 @@ export default {
     _ctx: ExecutionContext,
   ) => {
     const minute = new Date(_event.scheduledTime).getUTCMinutes();
+    if (
+      _event.cron === EDITORIAL_CRON &&
+      minute === 0 &&
+      new Date(_event.scheduledTime).getUTCHours() === 9
+    )
+      return refreshEditorialReserve(env, _event.scheduledTime);
     if (_event.cron === EDITORIAL_CRON && minute === 0)
       return scheduledEditorial(env, _event.scheduledTime);
     const sharedSchedule =
@@ -1485,7 +1496,7 @@ export default {
           await ecosystemHealth(env, true);
         return result;
       } finally {
-        await runEditorialQueue(env).catch(() =>
+        await scheduledEditorial(env, _event.scheduledTime).catch(() =>
           console.error("editorial_queue_failed"),
         );
       }

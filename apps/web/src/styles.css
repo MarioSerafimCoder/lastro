@@ -3626,3 +3626,24 @@ section[aria-labelledby="feed-title"] > .filters {
     flex-basis: 100%;
   }
 }
+
+.editorial-relevance {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid currentColor;
+}
+.editorial-relevance.trending {
+  color: #9c3300;
+  background: #fff0df;
+}
+.editorial-relevance.reflection {
+  color: #3546a4;
+  background: #edf0ff;
+}
+.editorial-relevance.retrospective {
+  color: #5c4b6e;
+  background: #f0eaf6;
+}

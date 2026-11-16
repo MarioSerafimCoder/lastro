@@ -11,6 +11,7 @@ export type EditorialRunStatus =
   | "failed"
   | "skipped";
 export type EditorialRun = {
+  relevance?: "Em alta" | "Reflexão" | "Retroativo";
   id: string;
   date: string;
   updatedAt: string;
@@ -26,6 +27,12 @@ export type EditorialRun = {
   canRetry: boolean;
 };
 export type EditorialOverview = {
+  reserve: {
+    id: string;
+    theme: string;
+    relevance: string;
+    sources: EditorialReference[];
+  }[];
   available: boolean;
   enabled: boolean;
   nextExecution: string | null;

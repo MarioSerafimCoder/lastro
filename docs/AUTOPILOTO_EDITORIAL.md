@@ -13,7 +13,11 @@ O Lastro reutiliza o binding `AI`, o serviço `STUDIO`, `INTEGRATION_ENABLED`, `
 
 `EDITORIAL_AUTOPILOT_FREE_CONFIRMED` habilita o recurso no ambiente. Os arquivos versionados começam com `false`. O controle no Lastro começa desativado e habilita as execuções diárias após a homologação. A execução manual funciona com esse controle desativado quando o ambiente está habilitado.
 
-O gatilho compartilhado roda em `0,13,17,43,47 * * * *`. No minuto zero, somente o horário de 11:00 UTC dispara o autopiloto, às 08:00 em Fortaleza. As outras 23 chamadas no minuto zero encerram sem acesso ao D1. Os horários de Integrações, Search Console, ingestão e sinopses preservam a cadência atual. A conta já usa cinco gatilhos e a configuração mantém esse total. [Limites de Workers](https://developers.cloudflare.com/workers/platform/limits/)
+O gatilho compartilhado roda em `0,13,17,43,47 * * * *`. Às 06:00 (09:00 UTC), reavalia uma reserva de até sete pautas; às 07:00 prepara a matéria e persiste o resultado; às 08:00 libera o envio ao Studio. Os ciclos posteriores recuperam uma chamada perdida usando a chave única da data editorial. Segundos e milissegundos do evento não impedem o disparo. A fila continua recuperando entregas pendentes nos ciclos de integração. Horários em Fortaleza/Brasília, UTC−3.
+
+A migração `0020_editorial_reserve.sql` adiciona a reserva, relevância e horário mínimo de entrega. O endpoint autenticado `POST /api/editorial-autopilot/reserve/refresh` permite recompor a reserva. Pautas atuais têm precedência; a reserva é revalidada contra permissões e memória antes de ser usada. Após entrega, remove-se qualquer pauta reservada que reutilize suas referências. Selos: **Em alta** (referência dos últimos sete dias relacionada ao Trends), **Reflexão** (referência recente sem correspondência no Trends) e **Retroativo** (fontes anteriores). O Trends indica interesse e não comprova fatos.
+
+Falta de fontes agenda nova tentativa, sem consumir inferência. Há até quatro tentativas por execução; falhas de geração/verificação continuam exigindo revisão e o limite de IA continua valendo. Agendamento ativo não equivale a garantia incondicional de entrega: fontes insuficientes, indisponibilidade do provedor ou reprovação factual aparecem no histórico. A validação não é removida para preencher o horário.
 
 ## Fontes, memória e custo
 

@@ -33,6 +33,7 @@ import {
   selectEditorialSources,
   sourceFingerprint,
   type SelectedSource,
+  terms,
 } from "./editorial-sources";
 import {
   editorialPayload,
@@ -69,6 +70,8 @@ const reasons = {
 };
 type Reason = keyof typeof reasons;
 type RunRow = {
+  release_at: number;
+  relevance: EditorialRun["relevance"] | null;
   id: string;
   editorial_date: string;
   status: EditorialRunStatus;
@@ -138,6 +141,7 @@ function runView(run: RunRow, today: string): EditorialRun {
     ? JSON.parse(run.payload)
     : null;
   return {
+    relevance: run.relevance ?? undefined,
     id: run.id,
     bodyCharacters:
       run.body_characters ??
@@ -168,7 +172,7 @@ export async function editorialOverview(
   env: Env,
   at = Date.now(),
 ): Promise<EditorialOverview> {
-  const [setting, history, lastDraft] = await Promise.all([
+  const [setting, history, lastDraft, reserve] = await Promise.all([
     first<{ enabled: number }>(
       env.DB,
       "SELECT enabled FROM editorial_autopilot_settings WHERE id=1",
@@ -181,11 +185,27 @@ export async function editorialOverview(
       env.DB,
       "SELECT * FROM editorial_autopilot_runs WHERE status='draft_created' ORDER BY editorial_date DESC LIMIT 1",
     ),
+    rows<{
+      id: string;
+      theme: string;
+      relevance: string;
+      sources_json: string;
+    }>(
+      env.DB,
+      "SELECT * FROM editorial_topic_reserve WHERE expires_at>? ORDER BY created_at,id",
+      at,
+    ),
   ]);
   const enabled = !!setting?.enabled,
     configured = available(env),
     today = editorialDay(at);
   return {
+    reserve: reserve.map((item) => ({
+      id: item.id,
+      theme: item.theme,
+      relevance: item.relevance,
+      sources: JSON.parse(item.sources_json),
+    })),
     available: configured,
     enabled,
     nextExecution:
@@ -210,14 +230,15 @@ async function enqueue(env: Env, at: number, automatic: boolean) {
   const queued = await first<RunRow>(
     env.DB,
     `INSERT INTO editorial_autopilot_runs
-    (id,editorial_date,status,started_at,updated_at,next_at)
-    SELECT ?,?,'scheduled',?,?,? WHERE ?=0 OR (SELECT enabled FROM editorial_autopilot_settings WHERE id=1)=1
+    (id,editorial_date,status,started_at,updated_at,next_at,release_at)
+    SELECT ?,?,'scheduled',?,?,?,? WHERE ?=0 OR (SELECT enabled FROM editorial_autopilot_settings WHERE id=1)=1
     ON CONFLICT(editorial_date) DO NOTHING RETURNING *`,
     id(),
     date,
     at,
     at,
     at,
+    automatic ? Date.parse(date + "T08:00:00-03:00") : 0,
     Number(automatic),
   );
   return (
@@ -458,7 +479,7 @@ export async function runEditorialQueue(
   try {
     if (!payload) {
       const candidates = await editorialCandidates(env.DB, at);
-      if (candidates.length < 3) return await finish("skipped", "sources");
+      if (candidates.length < 3) return await finish("failed", "sources", true);
       const trends = await googleTrends(at).catch(() => []);
       let memory;
       try {
@@ -466,14 +487,47 @@ export async function runEditorialQueue(
       } catch {
         return await finish("failed", "memory", true);
       }
-      const group = selectEditorialSources(
+      let group = selectEditorialSources(
         candidates,
         memory.history,
         memory.sources,
         at,
         trends.map((trend) => trend.title),
       );
-      if (!group) return await finish("skipped", "sources");
+      // Revalidate stored topics against current permissions and publication memory.
+      // A newly available current topic always takes precedence over the reserve.
+      if (!group) {
+        const reserve = await rows<{ sources_json: string }>(
+          env.DB,
+          "SELECT sources_json FROM editorial_topic_reserve WHERE expires_at>? ORDER BY created_at,id",
+          at,
+        );
+        for (const topic of reserve) {
+          const ids = new Set(
+            (JSON.parse(topic.sources_json) as EditorialReference[]).map(
+              (s) => s.contentId,
+            ),
+          );
+          group = selectEditorialSources(
+            candidates.filter((s) => ids.has(s.reference.contentId)),
+            memory.history,
+            memory.sources,
+            at,
+            [],
+            true,
+          );
+          if (group) break;
+        }
+      }
+      group ??= selectEditorialSources(
+        candidates,
+        memory.history,
+        memory.sources,
+        at,
+        [],
+        true,
+      );
+      if (!group) return await finish("failed", "sources", true);
       selected = await Promise.all(
         group.sources.map(async (s) => ({
           reference: s.reference,
@@ -481,9 +535,14 @@ export async function runEditorialQueue(
         })),
       );
       await update(
-        "theme=?,sources_json=?",
+        "theme=?,sources_json=?,relevance=?",
         group.theme,
         JSON.stringify(selected),
+        topicRelevance(
+          group.sources.map((s) => s.reference),
+          trends.map((t) => t.title),
+          at,
+        ),
       );
       const utcDay = iso(Date.now()).slice(0, 10);
       if (!(await reserveEditorialBudget(env.DB, utcDay)))
@@ -543,6 +602,13 @@ export async function runEditorialQueue(
       );
       if (!saved.meta.changes) return;
     }
+    if (run.release_at > Date.now()) {
+      await update(
+        "status='sending',next_at=?,lease_token=NULL,lease_until=0",
+        run.release_at,
+      );
+      return;
+    }
     const sources = await editorialCandidates(
       env.DB,
       Date.now(),
@@ -563,6 +629,13 @@ export async function runEditorialQueue(
       "status='draft_created',receipt=?,next_at=NULL,lease_token=NULL,lease_until=0",
       JSON.stringify(receipt),
     );
+    await stmt(
+      env.DB,
+      `DELETE FROM editorial_topic_reserve WHERE EXISTS
+      (SELECT 1 FROM json_each(sources_json) WHERE json_extract(value,'$.contentId') IN
+        (SELECT value FROM json_each(?)))`,
+      JSON.stringify(selected.map((s) => s.reference.contentId)),
+    ).run();
   } catch (error) {
     if (payload) {
       const rejected = error instanceof ApiFault && error.status === 422;
@@ -581,11 +654,68 @@ export async function scheduledEditorial(
 ) {
   if (!available(env)) return;
   const date = editorialDay(scheduledTime);
-  if (
-    date !== editorialDay(at) ||
-    scheduledTime !== Date.parse(date + "T08:00:00-03:00")
-  )
-    return;
-  const run = await enqueue(env, scheduledTime, true);
-  if (run) await runEditorialQueue(env, at, date);
+  if (date !== editorialDay(at)) return;
+  if (scheduledTime >= Date.parse(date + "T07:00:00-03:00"))
+    await enqueue(env, scheduledTime, true);
+  await runEditorialQueue(env, at);
+}
+
+function topicRelevance(
+  sources: EditorialReference[],
+  trends: string[],
+  at: number,
+): NonNullable<EditorialRun["relevance"]> {
+  const recent = sources.filter(
+    (s) => at - Date.parse(s.publishedAt) <= 7 * 86400000,
+  );
+  const words = terms(recent.map((s) => s.title).join(" "));
+  if (trends.some((title) => [...terms(title)].some((word) => words.has(word))))
+    return "Em alta";
+  return recent.length ? "Reflexão" : "Retroativo";
+}
+
+export async function refreshEditorialReserve(env: Env, at = Date.now()) {
+  if (!available(env)) return;
+  const [candidates, memory, trends] = await Promise.all([
+    editorialCandidates(env.DB, at),
+    editorialMemory(env),
+    googleTrends(at).catch(() => []),
+  ]);
+  const used = [...memory.sources];
+  const updates = [stmt(env.DB, "DELETE FROM editorial_topic_reserve")];
+  for (let index = 0; index < 7; index++) {
+    const group =
+      selectEditorialSources(
+        candidates,
+        memory.history,
+        used,
+        at,
+        trends.map((t) => t.title),
+      ) ??
+      selectEditorialSources(candidates, memory.history, used, at, [], true);
+    if (!group) break;
+    const sources = group.sources.map((s) => s.reference);
+    used.push(...sources);
+    updates.push(
+      stmt(
+        env.DB,
+        "INSERT INTO editorial_topic_reserve VALUES (?,?,?,?,?,?,?)",
+        sources
+          .map((s) => s.contentId)
+          .sort()
+          .join("/"),
+        group.theme,
+        group.category,
+        topicRelevance(
+          sources,
+          trends.map((t) => t.title),
+          at,
+        ),
+        JSON.stringify(sources),
+        at,
+        at + 86400000,
+      ),
+    );
+  }
+  await env.DB.batch(updates);
 }
