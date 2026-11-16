@@ -83,6 +83,34 @@ function Eligibility({
               </dd>
             </div>
           </dl>
+          <div>
+            <h3>Em alta no Google Trends</h3>
+            <p>
+              Buscas recentes usadas para priorizar pautas. Os fatos do artigo
+              são conferidos nas referências do Radar.
+            </p>
+            {!report.trendsAvailable && (
+              <p>Consulta ao Google Trends indisponível no momento.</p>
+            )}
+            {report.trendsAvailable && report.trends.length === 0 && (
+              <p>Nenhuma busca recente alinhada aos temas do Lastro.</p>
+            )}
+            {report.trends.length > 0 && (
+              <ul className="editorial-list">
+                {report.trends.map((trend) => (
+                  <li key={`${trend.title}-${trend.publishedAt}`}>
+                    <a
+                      href={trend.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {trend.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           {report.exclusions.length > 0 && (
             <details>
               <summary>Motivos de exclusão nos últimos 7 dias</summary>

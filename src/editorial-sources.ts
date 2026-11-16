@@ -311,6 +311,7 @@ export function selectEditorialSources(
   history: EditorialMemory[],
   used: EditorialReference[],
   at: number,
+  trendTitles: string[] = [],
 ) {
   const usedUrls = new Set(used.map((ref) => ref.url));
   const frequency = new Map<string, number>();
@@ -319,6 +320,7 @@ export function selectEditorialSources(
   const pastTerms = history.map((item) =>
     terms(item.title + " " + item.summary + " " + item.argument),
   );
+  const trending = trendTitles.map(terms);
   const pool = candidates
     .flatMap((candidate) => {
       const { reference, text, topics, quality, authority, originality } =
@@ -347,6 +349,8 @@ export function selectEditorialSources(
           ? 20 * Math.exp(-age / 5) + (age <= 7 ? 10 : 0)
           : 0) +
         Math.min(10, body.size / 6) -
+        15 *
+          Math.max(0, ...trending.map((trend) => similarity(subject, trend))) -
         45 * novelty -
         4 * (frequency.get(reference.sourceId) ?? 0);
       return [

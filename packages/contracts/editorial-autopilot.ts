@@ -49,6 +49,9 @@ export type EligibilityExample = {
   url: string | null;
 };
 export type EditorialEligibility = {
+  trendsAvailable: boolean;
+  trendsError: string | null;
+  trends: { title: string; publishedAt: string; url: string }[];
   recent: { references: number; rssDescriptions: number; eligible: number };
   eligible: number;
   publications: number;

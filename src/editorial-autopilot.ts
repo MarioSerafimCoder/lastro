@@ -25,6 +25,7 @@ import type { Env } from "./env";
 import { ApiFault } from "./errors";
 import { remote } from "./integration";
 import { editorialDay } from "./schedule";
+import { googleTrends } from "./google-trends";
 import {
   editorialCandidates,
   inspectEditorialCandidates,
@@ -313,10 +314,19 @@ export async function editorialEligibility(
   env: Env,
   at = Date.now(),
 ): Promise<EditorialEligibility> {
-  const [inspected, memory] = await Promise.all([
+  const [inspected, memory, trendResult] = await Promise.all([
     inspectEditorialCandidates(env.DB, at),
     savedEditorialMemory(env),
+    googleTrends(at).then(
+      (items) => ({ items, available: true, error: null }),
+      (error: unknown) => ({
+        items: [],
+        available: false,
+        error: error instanceof Error ? error.message : "unknown",
+      }),
+    ),
   ]);
+  const trends = trendResult.items;
   const candidates = inspected.flatMap(({ candidate }) =>
     candidate ? [candidate] : [],
   );
@@ -342,8 +352,12 @@ export async function editorialEligibility(
     memory.history,
     memory.sources,
     at,
+    trends.map((trend) => trend.title),
   );
   return {
+    trendsAvailable: trendResult.available,
+    trendsError: trendResult.error,
+    trends,
     recent: {
       references: recent.length,
       rssDescriptions: recent.filter(({ hasDescription }) => hasDescription)
@@ -445,6 +459,7 @@ export async function runEditorialQueue(
     if (!payload) {
       const candidates = await editorialCandidates(env.DB, at);
       if (candidates.length < 3) return await finish("skipped", "sources");
+      const trends = await googleTrends(at).catch(() => []);
       let memory;
       try {
         memory = await editorialMemory(env);
@@ -456,6 +471,7 @@ export async function runEditorialQueue(
         memory.history,
         memory.sources,
         at,
+        trends.map((trend) => trend.title),
       );
       if (!group) return await finish("skipped", "sources");
       selected = await Promise.all(
