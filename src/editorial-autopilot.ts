@@ -201,11 +201,11 @@ export async function editorialOverview(
     ),
     rows<RunRow>(
       env.DB,
-      "SELECT * FROM editorial_autopilot_runs ORDER BY editorial_date DESC LIMIT 30",
+      "SELECT * FROM editorial_autopilot_runs ORDER BY editorial_date DESC,updated_at DESC,id DESC LIMIT 30",
     ),
     first<RunRow>(
       env.DB,
-      "SELECT * FROM editorial_autopilot_runs WHERE status='draft_created' ORDER BY editorial_date DESC LIMIT 1",
+      "SELECT * FROM editorial_autopilot_runs WHERE status='draft_created' ORDER BY editorial_date DESC,updated_at DESC,id DESC LIMIT 1",
     ),
     rows<{
       id: string;
@@ -743,14 +743,14 @@ export async function runEditorialQueue(
         return await finish("needs_review", "verification_format");
       if (!validateEditorialReport(verification.value, article, group.sources))
         return await finish("needs_review", "verification");
-      payload = editorialPayload(
+      const approvedPayload = editorialPayload(
         run.id,
         run.editorial_date,
         group.category,
         article,
         group.sources,
       );
-      const serialized = JSON.stringify(payload);
+      const serialized = JSON.stringify(approvedPayload);
       verifiedHash = await payloadDigest(serialized);
       const saved = await update(
         "status='sending',payload=?,verified_payload_sha256=?,settlement_neurons=?",
@@ -761,6 +761,7 @@ export async function runEditorialQueue(
           : null,
       );
       if (!saved.meta.changes) return;
+      payload = approvedPayload;
     }
     if (
       verifiedHash &&

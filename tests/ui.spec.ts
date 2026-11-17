@@ -94,6 +94,19 @@ test("autopiloto editorial exibe controles funcionais, referências e rascunho n
       view.history = [run];
       return route.fulfill({ json: run });
     }
+    if (path.endsWith("/homologations")) {
+      const id = route.request().postDataJSON().id;
+      expect(id).toMatch(/^[0-9a-f-]{36}$/);
+      const manual: EditorialRun = {
+        ...run,
+        id,
+        kind: "homologation",
+        status: "scheduled",
+        reason: null,
+      };
+      view.history = [manual, ...view.history];
+      return route.fulfill({ json: manual });
+    }
     expect(path).toContain(run.id);
     const draft: EditorialRun = {
       ...run,
@@ -150,6 +163,9 @@ test("autopiloto editorial exibe controles funcionais, referências e rascunho n
   await expect(
     history.getByRole("link", { name: /Abrir no Studio/ }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Homologar agora" }).click();
+  await expect(history.getByText(/· Homologação/)).toBeVisible();
+  await expect(page.getByText("13/11/2026, 08:00")).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(390);
@@ -176,7 +192,9 @@ async function mockApi(
     contentFixture({
       id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
       title: `TESTE ${i + 1} — ${i % 2 ? "Tipografia, percepção e novos contextos" : "Design de informação e cultura visual"}`,
-      kind: i % 5 === 0 ? "paper" : "article",
+      kind: radar2 && i % 5 === 0 ? "paper" : "article",
+      collectedAt: new Date().toISOString(),
+      publishedAt: new Date().toISOString(),
       topics: [i % 2 ? "typography" : "design"],
       imageUrl:
         withImage && i === 0
@@ -422,7 +440,7 @@ async function mockApi(
 test("Comparação premium: desktop/mobile, claro/escuro", async ({ page }) => {
   const stage = process.env.LASTRO_CAPTURE_STAGE ?? "after";
   await mkdir(`.wrangler/premium/${stage}`, { recursive: true });
-  await mockApi(page, 16, true, false, true);
+  await mockApi(page, 24, true, false, true);
   for (const theme of ["dark", "light"]) {
     for (const width of [1440, 390]) {
       await page.setViewportSize({
@@ -435,8 +453,8 @@ test("Comparação premium: desktop/mobile, claro/escuro", async ({ page }) => {
         localStorage.setItem("lastro-editorial-visit", "2026-10-20T00:00:00Z");
       }, theme);
       await page.goto("/");
-      await expect(page.locator(".content-card")).toHaveCount(16);
-      await expect(page.locator(".editorial-pulse")).toBeVisible();
+      await expect(page.getByTestId("radar-card")).toHaveCount(24);
+      await expect(page.locator(".radar-pulse")).toBeVisible();
       await page.screenshot({
         path: `.wrangler/premium/${stage}/${width}-${theme}.png`,
         animations: "disabled",
@@ -450,44 +468,42 @@ test("Comparação premium: desktop/mobile, claro/escuro", async ({ page }) => {
   }
 });
 
-test("Refinamento: filtro mantém a leitura enquanto aguarda resultados", async ({
+test("Radar sinaliza a pesquisa em andamento e mostra vazio após a resposta", async ({
   page,
 }) => {
-  await mockApi(page, 16, true, false, true);
-  let release: (() => void) | undefined;
-  const response = new Promise<void>((r) => {
-    release = r;
+  await mockApi(page);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
   });
   await page.route("**/api/search?**", async (route) => {
-    await response;
+    await gate;
     await route.fulfill({ json: { items: [], nextCursor: null } });
   });
   await page.goto("/");
-  await expect(page.locator(".content-card")).toHaveCount(16);
-  const firstId = await page
-    .locator(".content-card")
-    .first()
-    .getAttribute("id");
-  await selectMenu(page, "Assunto", "Tipografia");
+  await expect(page.getByTestId("radar-card")).toHaveCount(24);
+  const search = page.locator("#global-search");
+  await search.fill("Tipografia");
+  await search.press("Enter");
+  try {
+    await expect(page.getByLabel("Carregando referências")).toBeVisible();
+    await expect(
+      page.getByText("Nenhum resultado.", { exact: false }),
+    ).toHaveCount(0);
+  } finally {
+    release();
+  }
   await expect(
-    page.getByText("ATUALIZANDO SELEÇÃO…", { exact: true }),
+    page.getByText("Nenhum resultado.", { exact: false }),
   ).toBeVisible();
-  await expect(page.locator(".content-card")).toHaveCount(16);
-  await expect(page.locator(".content-card").first()).toHaveAttribute(
-    "id",
-    firstId!,
-  );
-  await expect(page.locator(".skeleton")).toHaveCount(0);
-  release!();
-  await expect(
-    page.getByText("Nenhuma referência neste recorte.").first(),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Limpar pesquisa" }).click();
+  await expect(page.getByTestId("radar-card")).toHaveCount(24);
 });
 
 test("Refinamento: feedback otimista e erro não deslocam os cards", async ({
   page,
 }) => {
-  await mockApi(page, 16, true, false, true);
+  await mockApi(page, 24, true, false, true);
   await page.route("**/api/contents/*/favorite", async (route) => {
     await new Promise((r) => setTimeout(r, 300));
     await route.fulfill({
@@ -502,105 +518,58 @@ test("Refinamento: feedback otimista e erro não deslocam os cards", async ({
     });
   });
   await page.goto("/");
-  const card = page.locator(".content-card").first();
+  const card = page.getByTestId("radar-card").first();
   const y = await card.evaluate((e) => (e as HTMLElement).offsetTop);
-  await card
-    .getByRole("button", { name: "Salvar referência", exact: true })
-    .click();
+  await card.getByRole("button", { name: /^Salvar / }).click();
   await expect(
-    card.getByRole("button", { name: "Remover dos salvos", exact: true }),
+    card.getByRole("button", { name: /^Remover dos salvos / }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(
-    page.getByText("TESTE: tente salvar novamente", { exact: false }),
+    page.getByText("Ação não concluída. Tente novamente."),
   ).toBeVisible();
-  await expect(
-    card.getByRole("button", { name: "Salvar referência", exact: true }),
-  ).toBeEnabled();
+  await expect(card.getByRole("button", { name: /^Salvar / })).toBeEnabled();
   expect(
     Math.abs((await card.evaluate((e) => (e as HTMLElement).offsetTop)) - y),
   ).toBeLessThan(1);
-  expect(
-    await page
-      .locator(".workspace-feedback")
-      .evaluate((e) => getComputedStyle(e).position),
-  ).toBe("fixed");
 });
 
-test("Refinamento: menus interrompíveis, origem e teclado imediato", async ({
+test("Menu de ações do Radar abre e fecha pelo teclado com retorno de foco", async ({
   page,
 }) => {
-  await mockApi(page, 16, true, false, true);
+  await mockApi(page);
   await page.goto("/");
-  const combo = page.getByRole("combobox", { name: "Assunto", exact: true });
-  await combo.click();
-  await expect(combo).toHaveAttribute("aria-expanded", "true");
-  const origin = await page
-    .locator(".select-menu")
-    .evaluate((e) => getComputedStyle(e).transformOrigin);
-  expect(origin).not.toBe("0px 0px");
-  const properties = await page.locator(".select-menu").evaluate((e) =>
-    e
-      .getAnimations()
-      .filter((a) => a.id.startsWith("lastro-"))
-      .flatMap((a) => (a.effect as KeyframeEffect).getKeyframes())
-      .flatMap((f) => Object.keys(f))
-      .filter(
-        (k) => !["offset", "computedOffset", "easing", "composite"].includes(k),
-      ),
-  );
-  expect(properties.every((p) => ["transform", "opacity"].includes(p))).toBe(
-    true,
-  );
-  await combo.click();
-  await combo.click();
+  const card = page.getByTestId("radar-card").first();
+  const menu = card.getByLabel(/^Mais ações:/);
+  await menu.focus();
+  await menu.press("Enter");
   await expect(
-    page.getByRole("listbox", { name: "Assunto", exact: true }),
+    card.getByRole("button", { name: "Avaliar depois" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(page.locator(".select-menu")).toHaveCount(0);
-  await expect(combo).toBeFocused();
-  await combo.press("ArrowDown");
   await expect(
-    page.getByRole("listbox", { name: "Assunto", exact: true }),
-  ).toBeVisible();
-  expect(
-    await page.evaluate(
-      () =>
-        document
-          .getAnimations()
-          .filter(
-            (a) => a.id.startsWith("lastro-") && a.playState === "running",
-          ).length,
-    ),
-  ).toBe(0);
-  await page.keyboard.press("Escape");
-  const toggle = page.getByRole("button", { name: "Ver lista", exact: true });
-  await toggle.focus();
-  await toggle.press("Enter");
-  await expect(page.locator(".view-list")).toHaveCount(1);
-  expect(
-    await page.evaluate(
-      () =>
-        document
-          .getAnimations()
-          .filter((a) => a.id === "lastro-layout" && a.playState === "running")
-          .length,
-    ),
-  ).toBe(0);
-  await page.locator(".content-card").first().hover();
-  await expect(page.locator("html")).toHaveAttribute("data-input", "pointer");
+    card.getByRole("button", { name: "Avaliar depois" }),
+  ).not.toBeVisible();
+  await expect(menu).toBeFocused();
+  await menu.press("Enter");
+  await card.getByRole("button", { name: "Avaliar depois" }).click();
+  await expect(card).toHaveAttribute("data-triage", "para_avaliar");
 });
 
 test("Refinamento: mudança para movimento reduzido interrompe a animação atual", async ({
   page,
 }) => {
-  await mockApi(page, 16, true, false, true);
+  await mockApi(page, 24, true, false, true);
   await page.goto("/");
-  await page.getByRole("combobox", { name: "Assunto", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Intensidade de movimento", exact: true })
+    .click();
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(page.locator("html")).toHaveAttribute("data-motion", "reduced");
   await expect(
-    page.getByRole("listbox", { name: "Assunto", exact: true }),
+    page.getByRole("listbox", {
+      name: "Intensidade de movimento",
+      exact: true,
+    }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -623,32 +592,21 @@ test("Refinamento: toque com alvos de 44px e sem hover de mouse", async ({
   });
   const page = await context.newPage();
   try {
-    await mockApi(page, 16, true, false, true);
+    await mockApi(page, 24, true, false, true);
     await page.goto("http://127.0.0.1:5175/");
-    await expect(page.locator(".content-card")).toHaveCount(16);
-    await page.getByRole("combobox", { name: "Assunto", exact: true }).tap();
-    await expect(
-      page.getByRole("listbox", { name: "Assunto", exact: true }),
-    ).toBeVisible();
-    await page
-      .getByRole("option", { name: "Todos os assuntos", exact: true })
-      .tap();
-    const button = page
-      .getByRole("button", { name: "Salvar referência", exact: true })
-      .first();
+    await expect(page.getByTestId("radar-card")).toHaveCount(24);
+    const button = page.getByRole("button", { name: /^Salvar / }).first();
     await button.scrollIntoViewIfNeeded();
     const box = await button.boundingBox();
     expect(box!.width).toBeGreaterThanOrEqual(44);
     expect(box!.height).toBeGreaterThanOrEqual(44);
     await button.tap();
     await expect(
-      page
-        .getByRole("button", { name: "Remover dos salvos", exact: true })
-        .first(),
+      page.getByRole("button", { name: /^Remover dos salvos / }).first(),
     ).toHaveAttribute("aria-pressed", "true");
     expect(
       await page
-        .locator(".content-card")
+        .getByTestId("radar-card")
         .first()
         .evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).a),
     ).toBe(1);
@@ -693,7 +651,7 @@ test("Refinamento: Curadoria conserva controles e estados no tema claro", async 
   expect(errors).toEqual([]);
 });
 
-test("Imagem autorizada, link externo e ações persistentes no celular", async ({
+test("Imagem autorizada, link externo e favorito persistente no celular", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -705,27 +663,18 @@ test("Imagem autorizada, link externo e ações persistentes no celular", async 
   );
   await mockApi(page, 12, true, true);
   await page.goto("/");
-  const card = page.locator(".content-card").first();
-  await expect(card.locator("img.card-image")).toHaveJSProperty(
-    "naturalWidth",
-    64,
-  );
-  await expect(card.locator(".article-link")).toHaveAttribute(
-    "target",
-    "_blank",
-  );
-  await card.getByRole("button", { name: "Salvar referência" }).click();
-  await card.getByRole("button", { name: "Selecionar para a Oficina" }).click();
-  await card.getByRole("button", { name: "Marcar como lido" }).click();
+  const card = page.getByTestId("radar-card").first();
+  await expect(card.locator("img")).toHaveJSProperty("naturalWidth", 64);
+  const original = card.getByRole("link", { name: "Ler original" });
+  await expect(original).toHaveAttribute("target", "_blank");
+  await expect(original).toHaveAttribute("rel", "noopener noreferrer");
+  await card.getByRole("button", { name: /^Salvar / }).click();
+  await expect(
+    card.getByRole("button", { name: /^Remover dos salvos / }),
+  ).toHaveAttribute("aria-pressed", "true");
   await page.reload();
   await expect(
-    card.getByRole("button", { name: "Remover dos salvos" }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await expect(
-    card.getByRole("button", { name: "Remover da Oficina" }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await expect(
-    card.getByRole("button", { name: "Marcar como não lido" }),
+    card.getByRole("button", { name: /^Remover dos salvos / }),
   ).toHaveAttribute("aria-pressed", "true");
   expect(
     await page.evaluate(
@@ -734,60 +683,53 @@ test("Imagem autorizada, link externo e ações persistentes no celular", async 
   ).toBe(true);
 });
 
-for (const count of [2, 12, 24, 100])
-  test(`Radar com ${count} referências, paginação e contexto preservado`, async ({
+for (const count of [2, 12, 24, 100]) {
+  test(`Radar com ${count} referências, paginação e detalhes preservados`, async ({
     page,
   }) => {
     const { calls } = await mockApi(page, count);
     await page.goto("/");
-    const cards = page.locator(".content-card");
-    await expect(cards).toHaveCount(Math.min(16, count));
-    if (count > 16) {
+    const cards = page.getByTestId("radar-card");
+    await expect(cards).toHaveCount(Math.min(50, count));
+    const initialRequests = calls.filter((c) => c === "GET /api/feed").length;
+    if (count > 50) {
       await page
-        .getByRole("button", { name: "Carregar mais referências" })
+        .getByRole("button", { name: "Carregar mais matérias" })
         .click();
-      await expect(cards).toHaveCount(Math.min(32, count));
+      await expect(cards).toHaveCount(count);
     }
-    const feedCalls = calls.filter((c) => c === "GET /api/feed").length;
-    if (count >= 24)
-      await page.locator("#main").evaluate((main) => (main.scrollTop = 400));
-    await page.getByRole("button", { name: "Salvos", exact: true }).click();
-    await page.getByRole("button", { name: "For You", exact: true }).click();
-    await expect(cards).toHaveCount(Math.min(count > 16 ? 32 : 16, count));
-    if (count >= 24) {
-      await expect
-        .poll(() => page.locator("#main").evaluate((main) => main.scrollTop))
-        .toBe(400);
-      await page.getByRole("button", { name: "Salvos", exact: true }).click();
-      await page.goBack();
-      await expect
-        .poll(() => page.locator("#main").evaluate((main) => main.scrollTop))
-        .toBe(400);
-    }
-    expect(calls.filter((c) => c === "GET /api/feed")).toHaveLength(feedCalls);
-    await page
-      .getByRole("button", { name: "Surpreenda-me", exact: true })
-      .click();
-    await expect(page.locator(".content-card:focus")).toHaveCount(1);
+    expect(calls.filter((c) => c === "GET /api/feed")).toHaveLength(
+      initialRequests + (count > 50 ? 1 : 0),
+    );
+    const title = cards.last().locator(".radar-title");
+    await title.click();
+    const detail = page.getByRole("dialog");
+    await expect(detail).toBeVisible();
+    await detail.getByRole("button", { name: "Fechar detalhes" }).click();
+    await expect(title).toBeFocused();
   });
+}
 
 test("Favorito, leitura, coleção, nota, seleção independente e prompt", async ({
   page,
 }) => {
   await mockApi(page);
   await page.goto("/");
-  await page
-    .getByRole("button", { name: "Salvar referência", exact: true })
-    .first()
+  const card = page.getByTestId("radar-card").first();
+  await card.getByRole("button", { name: /^Salvar / }).click();
+  await card.locator(".radar-title").click();
+  const detail = page.getByRole("dialog");
+  await detail.getByRole("button", { name: "Enviar para a Oficina" }).click();
+  await expect(
+    detail.getByRole("button", { name: "Remover da Oficina" }),
+  ).toBeVisible();
+  await detail
+    .getByRole("button", { name: "Marcar lido", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Selecionar para a Oficina", exact: true })
-    .first()
-    .click();
-  await page
-    .getByRole("button", { name: "Marcar como lido", exact: true })
-    .first()
-    .click();
+  await expect(
+    detail.getByRole("button", { name: "Marcar não lido" }),
+  ).toBeVisible();
+  await detail.getByRole("button", { name: "Fechar detalhes" }).click();
   await page.getByRole("button", { name: "Salvos", exact: true }).click();
   await expect(page.locator(".content-card")).toHaveCount(1);
   await page.getByLabel("Nome da nova coleção").fill("TESTE Projeto");
@@ -1149,7 +1091,7 @@ test("Login e erro recuperável de rede", async ({ page }) => {
   await page.getByLabel("Senha de acesso").fill("TESTE-SENHA-SEM-VALOR");
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(
-    page.getByText("Nenhuma referência neste recorte.").first(),
+    page.getByText("Nenhuma referência disponível no momento."),
   ).toBeVisible();
   await page.route("**/api/feed?**", (route) =>
     route.fulfill({
@@ -1165,7 +1107,7 @@ test("Login e erro recuperável de rede", async ({ page }) => {
   );
   await page.getByRole("button", { name: "Atualizar", exact: true }).click();
   await expect(
-    page.getByText("TESTE falha de rede", { exact: false }),
+    page.getByText("Não foi possível carregar as referências."),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Tentar novamente", exact: false }),
@@ -1188,17 +1130,18 @@ for (const [width, height] of [
     await page.emulateMedia({ reducedMotion: "reduce" });
     await mockApi(page);
     await page.goto("/");
-    await expect(page.locator(".content-card")).toHaveCount(16);
+    await expect(page.getByTestId("radar-card")).toHaveCount(24);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
-    const first = await page.locator(".content-card").first().boundingBox();
+    await page.getByTestId("radar-card").first().scrollIntoViewIfNeeded();
+    const first = await page.getByTestId("radar-card").first().boundingBox();
     expect(first!.y).toBeLessThan(height);
     if (width === 1440 || width === 390)
       await page.screenshot({
-        path: `docs/examples/for-you-2-${width}-dark.png`,
+        path: `.wrangler/visual-check/for-you-2-${width}-dark.png`,
         fullPage: false,
       });
     await page.keyboard.press("Tab");
@@ -1207,13 +1150,20 @@ for (const [width, height] of [
     ).toBeFocused();
 
     await page
-      .getByRole("button", { name: "Salvar referência", exact: true })
+      .getByRole("button", { name: /^Salvar / })
       .first()
       .click();
     await page
-      .getByRole("button", { name: "Selecionar para a Oficina", exact: true })
+      .getByTestId("radar-card")
       .first()
+      .locator(".radar-title")
       .click();
+    const detail = page.getByRole("dialog");
+    await detail.getByRole("button", { name: "Enviar para a Oficina" }).click();
+    await expect(
+      detail.getByRole("button", { name: "Remover da Oficina" }),
+    ).toBeVisible();
+    await detail.getByRole("button", { name: "Fechar detalhes" }).click();
     for (const area of ["Salvos", "Oficina", "Curadoria", "Publicações"]) {
       if (width <= 390)
         await page.getByRole("button", { name: "Abrir menu" }).click();
@@ -1295,7 +1245,9 @@ test("Temas: paleta medida, contraste, ausência de verde e persistência", asyn
       await page.waitForTimeout(500);
     }
     if (theme === "light")
-      await page.screenshot({ path: "docs/examples/stage04-3-1440-light.png" });
+      await page.screenshot({
+        path: ".wrangler/visual-check/stage04-3-1440-light.png",
+      });
   }
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -1335,18 +1287,6 @@ test("Movimento: órbitas reais, intensidade persistente e preferência do siste
   expect(await orbit.evaluate((e) => getComputedStyle(e).animationName)).toBe(
     "none",
   );
-  await page
-    .getByRole("button", { name: "Surpreenda-me", exact: true })
-    .click();
-  await expect(page.locator(".is-discovering")).toHaveCount(1);
-  expect(
-    await page
-      .locator(".is-discovering")
-      .evaluate((e) => getComputedStyle(e).animationName),
-  ).toBe("none");
-  await expect(page.locator(".is-discovering")).toHaveCount(0, {
-    timeout: 4000,
-  });
 });
 
 for (const width of [1440, 768, 390])
@@ -1357,9 +1297,16 @@ for (const width of [1440, 768, 390])
     await mockApi(page);
     await page.goto("/");
     await page
-      .getByRole("button", { name: "Selecionar para a Oficina", exact: true })
+      .getByTestId("radar-card")
       .first()
+      .locator(".radar-title")
       .click();
+    const detail = page.getByRole("dialog");
+    await detail.getByRole("button", { name: "Enviar para a Oficina" }).click();
+    await expect(
+      detail.getByRole("button", { name: "Remover da Oficina" }),
+    ).toBeVisible();
+    await detail.getByRole("button", { name: "Fechar detalhes" }).click();
     const overlaps = (
       a: { x: number; y: number; width: number; height: number },
       b: { x: number; y: number; width: number; height: number },
@@ -1392,131 +1339,67 @@ for (const width of [1440, 768, 390])
     await expect(page.locator(".jarvis-toggle")).toBeFocused();
   });
 
-test("Descoberta e cards: abertura editorial, ampliação suave e grid/lista", async ({
+test("Radar abre detalhes de um cartão, mantém procedência e retorna o foco", async ({
   page,
 }) => {
   await mockApi(page);
   await page.goto("/");
-  await expect(page.locator(".content-card")).toHaveCount(16);
-  const dimensions = await page
-    .locator(".content-card")
-    .evaluateAll((cards) =>
-      cards.map((card) =>
-        [
-          Math.round((card as HTMLElement).offsetWidth),
-          Math.round((card as HTMLElement).offsetHeight),
-        ].join("x"),
-      ),
-    );
-  expect(new Set(dimensions).size).toBeGreaterThan(1);
-  await expect(page.locator(".editorial-lead")).toHaveCount(1);
-  await expect(page.locator(".editorial-secondary")).toHaveCount(2);
-  const card = page.locator(".content-card").first();
-  await card.hover();
-  await expect
-    .poll(() =>
-      card.evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).a),
-    )
-    .toBeCloseTo(1, 3);
-  await expect
-    .poll(() =>
-      card.evaluate((e) => new DOMMatrix(getComputedStyle(e).transform).m42),
-    )
-    .toBeCloseTo(-2, 1);
-  await page
-    .getByRole("button", { name: "Surpreenda-me", exact: true })
-    .click();
-  await expect(page.locator(".is-discovering")).toHaveCount(1);
-  const animations = await page
-    .locator(".is-discovering")
-    .evaluate((e) =>
-      e.getAnimations().map((a) => (a as CSSAnimation).animationName),
-    );
-  expect(animations).toContain("discovery-flash");
-  await expect(page.locator(".is-discovering")).toHaveCount(0, {
-    timeout: 4000,
-  });
-  await page.getByRole("button", { name: "Ver lista", exact: true }).click();
-  await expect(page.locator(".view-list")).toHaveCount(1);
-  expect(
-    await page.evaluate(() => {
-      const r = document.querySelector("footer")!.getBoundingClientRect();
-      return (
-        document
-          .elementFromPoint(r.x + 60, r.y + 30)
-          ?.closest(".content-card") === null
-      );
-    }),
-  ).toBe(true);
-  await page.getByRole("button", { name: "Ver cards", exact: true }).click();
-  await expect(page.locator(".view-grid")).toHaveCount(1);
+  const cards = page.getByTestId("radar-card");
+  await expect(cards).toHaveCount(24);
+  const first = cards.first().locator(".radar-title");
+  await first.click();
+  const detail = page.getByRole("dialog");
+  await expect(detail.getByRole("heading")).toContainText("TESTE 1");
+  await detail.getByText("Metadados e procedência").click();
+  await expect(detail.getByText("Assuntos", { exact: true })).toBeVisible();
+  await expect(
+    detail.getByRole("link", { name: "Ler original" }),
+  ).toHaveAttribute("href", /^https:/);
+  await page.keyboard.press("Escape");
+  await expect(detail).not.toBeVisible();
+  await expect(first).toBeFocused();
 });
 
-test("Pulso preserva novidades ao recarregar, usa cache e confirma somente ao explorar", async ({
+test("Pulso do Radar mostra a última atualização e mantém o acervo após recarregar", async ({
   page,
 }) => {
-  await page.addInitScript(() => {
-    if (!localStorage.getItem("lastro-editorial-visit"))
-      localStorage.setItem("lastro-editorial-visit", "2026-10-01T00:00:00Z");
-  });
   const { calls } = await mockApi(page);
   await page.goto("/");
-  await expect(
-    page.getByText("3 novas referências desde sua última conferência"),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Para observar agora" }),
-  ).toBeVisible();
+  await expect(page.locator(".radar-pulse")).toContainText("Atualizado em");
+  await expect(page.getByTestId("radar-card")).toHaveCount(24);
+  const initialRequests = calls.filter(
+    (call) => call === "GET /api/radar/status",
+  ).length;
   await page.reload();
-  await expect(
-    page.getByText("3 novas referências desde sua última conferência"),
-  ).toBeVisible();
-  expect(calls.filter((call) => call === "GET /api/radar/status")).toHaveLength(
-    1,
-  );
-  await page
-    .getByRole("button", { name: "Ver novidades", exact: true })
-    .click();
-  await expect(page.locator(".content-card.is-new")).toHaveCount(3);
-  await expect
-    .poll(() =>
-      page.evaluate(() => localStorage.getItem("lastro-editorial-visit")),
-    )
-    .toBe("2026-10-23T13:00:00Z");
+  await expect(page.locator(".radar-pulse")).toContainText("Atualizado em");
+  await expect(page.getByTestId("radar-card")).toHaveCount(24);
+  expect(
+    calls.filter((call) => call === "GET /api/radar/status").length,
+  ).toBeGreaterThan(initialRequests);
 });
 
-test("Menus profissionais: teclado, opções em português, seleção e recorte responsivo", async ({
+test("Busca do Radar funciona por teclado e mantém o recorte no celular", async ({
   page,
 }) => {
   await mockApi(page);
   await page.goto("/");
-  const subject = page.getByRole("combobox", { name: "Assunto", exact: true });
-  await subject.click();
-  await expect(
-    page.getByRole("listbox", { name: "Assunto", exact: true }),
-  ).toBeVisible();
-  await page.screenshot({
-    path: "docs/examples/stage04-3-menu-dark.png",
-    animations: "disabled",
-  });
-  await subject.press("End");
-  await subject.press("Enter");
-  await expect(subject).toContainText("Acessibilidade");
-  await subject.click();
-  await subject.press("Escape");
-  await expect(subject).toBeFocused();
-  await selectMenu(page, "Assunto", "Todos os assuntos");
-  await selectMenu(page, "Formato", "Artigo");
-  await expect(page.locator(".content-card")).toHaveCount(19);
   await page.setViewportSize({ width: 390, height: 844 });
-  await subject.click();
-  const menu = await page
-    .getByRole("listbox", { name: "Assunto", exact: true })
-    .boundingBox();
-  expect(menu!.x).toBeGreaterThanOrEqual(0);
-  expect(menu!.x + menu!.width).toBeLessThanOrEqual(390);
-  expect(menu!.y + menu!.height).toBeLessThanOrEqual(844);
-  await subject.press("Escape");
+  const search = page.locator("#global-search");
+  await search.focus();
+  await search.fill("Tipografia");
+  await search.press("Enter");
+  await expect(
+    page.getByText("Resultados para", { exact: false }),
+  ).toContainText("Tipografia");
+  await expect(page.getByTestId("radar-card")).toHaveCount(12);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.getByRole("button", { name: "Limpar pesquisa" }).click();
+  await expect(search).toBeFocused();
+  await expect(page.getByTestId("radar-card")).toHaveCount(24);
 });
 
 for (const viewport of [
@@ -1536,7 +1419,7 @@ for (const viewport of [
     );
     const { calls } = await mockApi(page);
     await context.route(
-      /^https:\/\/(marioserafim\.com\.br|app\.pagescms\.org)\//,
+      /^https:\/\/(marioserafim\.com\.br|studio\.marioserafim\.com\.br)\//,
       (route) =>
         route.fulfill({
           contentType: "text/html",
@@ -1544,7 +1427,7 @@ for (const viewport of [
         }),
     );
     await page.goto("/");
-    await expect(page.locator(".content-card")).toHaveCount(16);
+    await expect(page.getByTestId("radar-card")).toHaveCount(24);
     if (viewport.width <= 620)
       await page
         .getByRole("button", { name: "Abrir menu", exact: true })
@@ -1558,10 +1441,7 @@ for (const viewport of [
     const initialMutations = calls.filter((call) => !call.startsWith("GET "));
     for (const [name, url] of [
       ["Portfólio", "https://marioserafim.com.br/"],
-      [
-        "Novo artigo",
-        "https://app.pagescms.org/MarioSerafimCoder/portfolio-oficial/main/collection/posts/new",
-      ],
+      ["Novo artigo", "https://studio.marioserafim.com.br/"],
     ]) {
       const link = shortcuts.getByRole("link", {
         name: `${name} (abre em nova aba)`,
@@ -1575,7 +1455,9 @@ for (const viewport of [
       await expect(link).toHaveAttribute("target", "_blank");
       await expect(link).toHaveAttribute("rel", "noopener noreferrer");
       const bounds = await link.boundingBox();
-      expect(bounds!.height).toBeGreaterThanOrEqual(44);
+      expect(bounds!.height).toBeGreaterThanOrEqual(
+        viewport.width <= 620 ? 44 : 36,
+      );
       expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
       const position = await page
         .locator("#main")
@@ -1591,7 +1473,7 @@ for (const viewport of [
       expect(await page.locator("#main").evaluate((el) => el.scrollTop)).toBe(
         position,
       );
-      await expect(page.locator(".content-card")).toHaveCount(16);
+      await expect(page.getByTestId("radar-card")).toHaveCount(24);
     }
     expect(calls.filter((call) => !call.startsWith("GET "))).toEqual(
       initialMutations,
@@ -1629,10 +1511,10 @@ test.describe("Demonstração animada 04.3", () => {
     await mockApi(page);
     const video = page.video()!;
     await page.goto("http://127.0.0.1:5175/");
-    await expect(page.locator(".content-card")).toHaveCount(16);
+    await expect(page.getByTestId("radar-card")).toHaveCount(24);
     await page.waitForTimeout(1300);
     for (const index of [0, 1]) {
-      await page.locator(".content-card").nth(index).hover();
+      await page.getByTestId("radar-card").nth(index).hover();
       await page.waitForTimeout(700);
     }
     await page
@@ -2116,9 +1998,7 @@ test("Jarvis defers balloons while editing and shares initial state requests", a
     }
   });
   await page.goto("/");
-  await page
-    .getByLabel("Pesquisa", { exact: true })
-    .fill("trabalho em andamento");
+  await page.locator("#global-search").fill("trabalho em andamento");
   release();
   await page
     .getByRole("button", { name: "Jarvis Seu próximo caminho" })

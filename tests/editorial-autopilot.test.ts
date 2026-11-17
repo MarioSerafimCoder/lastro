@@ -760,6 +760,9 @@ test(
       : "Provide EDITORIAL_STUDIO_DIR after building Studio",
   },
   async () => {
+    const prior = Date.now() - 86400000;
+    const release = nextEditorialExecution(prior - (prior % 86400000));
+    sources = editorialFixtures(release - 3600000);
     await seedEditorial(db, sources);
     const send = async (path: string, input?: unknown) =>
       realStudio.fetch(
@@ -789,9 +792,10 @@ test(
         return response;
       },
     } as Fetcher;
-    const run = await queueEditorialRun(env);
-    await runEditorialQueue(env);
+    await setEditorialAutomation(env, true);
+    await scheduledEditorial(env, release, release + 1);
     const view = (await editorialOverview(env)).history[0];
+    const run = view;
     assert.equal(view.status, "failed", view.reason ?? "");
     assert.ok(view.retryAt);
     assert.equal(aiCalls, 2);

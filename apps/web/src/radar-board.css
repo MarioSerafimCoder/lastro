@@ -29,8 +29,10 @@
   font-size: 12px;
 }
 .radar-feedback:not(:has(button)):has(span:empty) {
-  min-height: 0;
   margin: 0;
+}
+.radar-board > .radar-feedback {
+  min-height: 1.4em;
 }
 .radar-grid {
   display: grid;

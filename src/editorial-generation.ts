@@ -73,8 +73,8 @@ const generationOutputSchema = generationSchema
     expansions: z.array(z.string().trim().min(1).max(320)).max(3).optional(),
   });
 const verificationSchema = z.strictObject({
-  portuguese: z.literal(true),
-  coherent: z.literal(true),
+  portuguese: z.boolean(),
+  coherent: z.boolean(),
   blocks: z
     .array(
       z.strictObject({
@@ -273,7 +273,8 @@ export function validateEditorialReport(
   const report = verificationSchema.safeParse(raw).data;
   const blocks = articleBlocks(article);
   if (
-    !report ||
+    !report?.portuguese ||
+    !report.coherent ||
     report.blocks.length !== blocks.length ||
     new Set(report.blocks.map((b) => b.index)).size !== blocks.length
   )
