@@ -21,6 +21,7 @@ import { injectionPattern, type SourceEvidence } from "./editorial-sources";
 export const EDITORIAL_MODEL = "@cf/google/gemma-4-26b-a4b-it";
 export const PROMPT_VERSION = EDITORIAL_PROMPT_VERSION;
 export const EDITORIAL_BUDGET = 1000;
+const HOMOLOGATION_BUDGET = 1500;
 const phases = {
   generation: { model: EDITORIAL_MODEL, inputBytes: 10000, outputTokens: 2200 },
   completion: { model: EDITORIAL_MODEL, inputBytes: 9600, outputTokens: 550 },
@@ -55,8 +56,8 @@ export function reserveEditorialBudget(
       AND reserved_neurons+editorial_neurons+editorial_homologation_neurons+excluded.${column}<=? RETURNING day`,
     utcDay,
     EDITORIAL_RESERVATION,
-    EDITORIAL_BUDGET,
-    DAILY_BUDGET + 2 * EDITORIAL_BUDGET,
+    kind === "daily" ? EDITORIAL_BUDGET : HOMOLOGATION_BUDGET,
+    DAILY_BUDGET + EDITORIAL_BUDGET + HOMOLOGATION_BUDGET,
   );
 }
 
@@ -423,6 +424,8 @@ function fitEditorialBody(
 ) {
   const body = blocks.join("\n\n");
   const characters = editorialBodyCharacters(body);
+  if (characters > EDITORIAL_MAX_CHARACTERS)
+    return trimEditorialBody(blocks, body, characters, sourceCount);
   if (characters >= EDITORIAL_MIN_CHARACTERS || blocks.length === 12)
     return body;
   const options = expansions.filter(
@@ -444,6 +447,58 @@ function fitEditorialBody(
     }
   }
   return fitted;
+}
+
+function trimEditorialBody(
+  blocks: string[],
+  original: string,
+  characters: number,
+  sourceCount: number,
+) {
+  const minimum = characters - EDITORIAL_MAX_CHARACTERS;
+  const maximum = characters - EDITORIAL_MIN_CHARACTERS;
+  if (maximum > 700) return original;
+  const segmenter = new Intl.Segmenter("pt-BR", { granularity: "sentence" });
+  let variants = new Map<number, { blocks: string[]; cuts: number }>([
+    [0, { blocks: [], cuts: 0 }],
+  ]);
+  for (const block of blocks) {
+    const sentences = [...segmenter.segment(block)];
+    const originalLength = editorialBodyCharacters(block);
+    const options = [{ text: block, savings: 0, cuts: 0 }];
+    for (let index = sentences.length - 1; index >= 1; index--) {
+      const sentence = sentences[index];
+      if (citationIds(sentence.segment).length) break;
+      const text = block.slice(0, sentence.index).trimEnd();
+      const savings = originalLength - editorialBodyCharacters(text);
+      if (savings > maximum) break;
+      options.push({ text, savings, cuts: sentences.length - index });
+    }
+    const next = new Map<number, { blocks: string[]; cuts: number }>();
+    for (const [saved, variant] of variants) {
+      for (const option of options) {
+        const total = saved + option.savings;
+        const cuts = variant.cuts + option.cuts;
+        if (
+          total <= maximum &&
+          cuts <= 3 &&
+          cuts < (next.get(total)?.cuts ?? Infinity)
+        )
+          next.set(total, { blocks: [...variant.blocks, option.text], cuts });
+      }
+    }
+    variants = next;
+  }
+  const targetSavings = (minimum + maximum) / 2;
+  const best = [...variants]
+    .filter(([saved]) => saved >= minimum)
+    .sort(
+      ([a, left], [b, right]) =>
+        left.cuts - right.cuts ||
+        Math.abs(a - targetSavings) - Math.abs(b - targetSavings),
+    )[0]?.[1]
+    .blocks.join("\n\n");
+  return best && editorialBodyValid(best, false, sourceCount) ? best : original;
 }
 
 export async function verifyEditorialArticle(

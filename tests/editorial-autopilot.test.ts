@@ -412,6 +412,33 @@ test("a short generation can use one supplied optional paragraph before factual 
   assert.ok(validateGeneratedArticle(result.value, sources));
 });
 
+test("long copy loses complete uncited sentences before it reaches the verifier", async () => {
+  const { markdown, ...metadata } = editorialDraft;
+  const paragraphs = markdown.split("\n\n");
+  const optional =
+    " Uma alternativa hipotética seria começar por comparar a leitura em movimento com a leitura de quem pode sentar e escolher o próprio ritmo.";
+  paragraphs[1] += optional;
+  paragraphs[3] += optional;
+  assert.ok(editorialBodyCharacters(paragraphs.join("\n\n")) > 2000);
+  const mock = {
+    ...env,
+    AI: { run: async () => ({ response: { ...metadata, paragraphs } }) },
+  } as Env;
+  const result = await generateEditorialArticle(
+    mock,
+    "Tipografia",
+    sources,
+    utcDay(),
+  );
+  assert.ok(result.value);
+  assert.ok(editorialBodyValid(result.value.markdown));
+  assert.equal(
+    editorialBodyCharacters(result.value.markdown),
+    editorialBodyCharacters(markdown),
+  );
+  assert.ok(validateGeneratedArticle(result.value, sources));
+});
+
 test("technical facts cannot pass as interpretation or with an unrelated quote", () => {
   const article = { ...editorialDraft, title: "A tokenização é infinita" };
   const report = editorialReport(sources);
