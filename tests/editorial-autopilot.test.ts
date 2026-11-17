@@ -496,6 +496,70 @@ test("source shortage retries without spending AI, reserve cannot override revok
   assert.equal(studioCalls, 0);
 });
 
+test("newly collected evidence reactivates an exhausted source failure with its original run id", async () => {
+  const run = await queueEditorialRun(env);
+  await db
+    .prepare(
+      `UPDATE editorial_autopilot_runs
+    SET status='failed',reason='sources',next_at=NULL,attempts=4,updated_at=?
+    WHERE id=?`,
+    )
+    .bind(Date.now() - 2 * 3600000, run.id)
+    .run();
+  await runEditorialQueue(env);
+  assert.equal(aiCalls, 0);
+  await seedEditorial(db, sources);
+  await runEditorialQueue(env);
+  const receipt = (await editorialOverview(env)).latestDraft;
+  assert.equal(receipt?.id, run.id);
+  assert.equal(receipt?.attempts, 5);
+  assert.equal(aiCalls, 2);
+  assert.equal(studioCalls, 1);
+});
+
+test("a primary report and an independent excerpt can sustain a connected pair", () => {
+  const [first, second] = sources;
+  const overlap =
+    " A leitura contextual considera contraste tipográfico, hierarquia editorial, distância e legibilidade.";
+  const primary: typeof first = {
+    ...first,
+    reference: { ...first.reference, kind: "authorized_abstract" },
+    text: first.text + overlap,
+  };
+  const independent = { ...second, text: second.text + overlap };
+  const group = selectEditorialSources(
+    [primary, independent],
+    [],
+    [],
+    Date.now(),
+  );
+  assert.equal(group?.sources.length, 2);
+  assert.ok(
+    group?.sources.some(
+      ({ reference }) => reference.kind === "authorized_abstract",
+    ),
+  );
+  assert.equal(selectEditorialSources([primary], [], [], Date.now()), null);
+  assert.equal(
+    selectEditorialSources(
+      [primary, independent],
+      [],
+      [primary.reference],
+      Date.now(),
+    ),
+    null,
+  );
+  assert.equal(editorialBodyValid(editorialDraft.markdown, false, 2), false);
+  assert.equal(
+    editorialBodyValid(
+      editorialDraft.markdown.replace("[S3]", "[S2]"),
+      false,
+      2,
+    ),
+    true,
+  );
+});
+
 test("retrospective fallback is explicit and still requires independent sources", () => {
   const old = sources.map((s) => ({
     ...s,
@@ -703,6 +767,18 @@ test(
       editorialDraft,
       sources,
     );
+    const pair = editorialPayload(
+      crypto.randomUUID(),
+      run.date,
+      "direcao-de-arte",
+      {
+        ...editorialDraft,
+        title: "Outro estudo tipográfico",
+        markdown: editorialDraft.markdown.replace("[S3]", "[S2]"),
+      },
+      sources.slice(0, 2),
+    );
+    assert.equal((await send(EDITORIAL_ARTICLES, pair)).status, 200);
     assert.equal(
       (await send(EDITORIAL_ARTICLES, { ...payload, status: "published" }))
         .status,

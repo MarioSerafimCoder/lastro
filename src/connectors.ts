@@ -161,6 +161,12 @@ export function parseRss(
         onCapture || licensedEvidence
           ? feedText(e["content:encoded"] ?? e.content, 1201)
           : null;
+      const rightsText = [description, body].filter(Boolean).join(" ");
+      const thirdParty =
+        /\b(?:originally published (?:by|on|in)|republished (?:from|with permission)|reproduced with permission|texto (?:publicado originalmente|republicado com permiss[aã]o)|conte[uú]do de terceiros)\b/iu.test(
+          rightsText,
+        );
+      const rights = thirdParty ? "third-party material" : entryRights;
       const summary =
         description && (!body || !description.includes(body))
           ? description
@@ -170,7 +176,10 @@ export function parseRss(
           ? boundedBodyExcerpt(body)
           : null;
       const synopsisText =
-        (forSynopsis || onCapture) && mayProcess && !conflictingRights
+        (forSynopsis || onCapture) &&
+        mayProcess &&
+        !conflictingRights &&
+        !thirdParty
           ? excerpt &&
             (sufficientEvidence(excerpt, title) ||
               !summary ||
@@ -192,7 +201,7 @@ export function parseRss(
         kind,
         description: forSynopsis
           ? synopsisText
-          : s.summaryAllowed && !conflictingRights
+          : s.summaryAllowed && !conflictingRights && !thirdParty
             ? generateFeedSummary(
                 feedValue(e.description ?? e.summary),
                 s.feedTextSummaryAllowed
@@ -215,8 +224,10 @@ export function parseRss(
         const captured = captureEvidence(
           s,
           url,
-          synopsisText,
-          entryRights,
+          synopsisText && sufficientEvidence(synopsisText, title)
+            ? synopsisText
+            : null,
+          rights,
           new Date().toISOString(),
           { descriptionPresent: !!description, bodyPresent: !!body },
         );
@@ -387,11 +398,27 @@ export async function collect(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10000);
     try {
-      response = await fetcher(url, {
-        headers,
-        redirect: "manual",
-        signal: controller.signal,
-      });
+      let target = url;
+      for (let redirects = 0; ; redirects++) {
+        response = await fetcher(target, {
+          headers,
+          redirect: "manual",
+          signal: controller.signal,
+        });
+        if (![301, 302, 303, 307, 308].includes(response.status)) break;
+        const location = response.headers.get("Location");
+        await response.body?.cancel();
+        if (!location) throw new UpstreamError(response.status);
+        if (redirects >= 2 || s.connector !== "rss")
+          throw new Error("invalid_feed_redirect");
+        target = validateFetchUrl(new URL(location, target).href, env, "rss");
+        if (
+          processingAllowed(s) &&
+          target.hostname.replace(/^www\./, "") !==
+            url.hostname.replace(/^www\./, "")
+        )
+          throw new Error("invalid_feed_redirect");
+      }
       if (response.status === 304)
         return {
           items: [],
@@ -436,7 +463,9 @@ export async function collect(
     } catch (e) {
       if (
         e instanceof Error &&
-        (/^(upstream_|invalid_|unsupported_|response_)/.test(e.message) ||
+        (/^(upstream_|invalid_|unsupported_|response_|fetch_host_not_allowed|credential_in_source_url)/.test(
+          e.message,
+        ) ||
           e instanceof SyntaxError)
       )
         throw e;

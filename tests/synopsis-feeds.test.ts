@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseRss } from "../src/connectors";
+import { collect, parseRss } from "../src/connectors";
+import type { Env } from "../src/env";
+import type { EvidenceCapture } from "../src/synopsis-evidence";
 import { normalizeCandidate } from "../src/normalize";
 import { sufficientEvidence } from "../src/synopses";
 import { fixtureSource, rss, atom } from "./fixtures";
@@ -104,5 +106,63 @@ test("usa a descrição autorizada quando o início do corpo é insuficiente", (
       item.evidence,
     ]),
     [[true, true, "rights", null]],
+  );
+});
+
+test("a coleta bloqueia licenças divergentes, republicações e excertos insuficientes", () => {
+  const cases: [string, EvidenceCapture["blockCode"]][] = [
+    [xml, null],
+    [rss, "insufficient_evidence"],
+    [
+      xml.replace(
+        "</item>",
+        "<cc:license>https://creativecommons.org/licenses/by-nc/4.0/</cc:license></item>",
+      ),
+      "rights",
+    ],
+    [
+      xml.replace(
+        text,
+        "Republished with permission from an external publisher. " + text,
+      ),
+      "rights",
+    ],
+  ];
+  for (const [feed, expected] of cases) {
+    const captures: EvidenceCapture[] = [];
+    parseRss(feed, licensed, false, (capture) => captures.push(capture));
+    assert.equal(captures[0].blockCode, expected);
+    assert.equal(Boolean(captures[0].evidence), expected === null);
+  }
+});
+
+test("a coleta registra indisponibilidade e só segue redirecionamentos autorizados", async () => {
+  const origin = new URL(licensed.url).hostname;
+  const env = { ALLOWED_FETCH_HOSTS: origin } as Env;
+  const cache = { etag: null, last_modified: null };
+  let count = 0;
+  await assert.rejects(
+    collect(licensed, env, cache, async () => {
+      count++;
+      return Response.redirect("https://other.example/feed");
+    }),
+    /fetch_host_not_allowed/,
+  );
+  assert.equal(count, 1);
+  const redirected = await collect(licensed, env, cache, async () =>
+    ++count === 2
+      ? Response.redirect(`https://${origin}/rss`)
+      : new Response(xml),
+  );
+  assert.equal(redirected.captures?.[0].evidence?.licenseUrl, licence);
+  await assert.rejects(
+    collect(
+      licensed,
+      env,
+      cache,
+      async () => new Response(null, { status: 503 }),
+      async () => {},
+    ),
+    /upstream_503/,
   );
 });

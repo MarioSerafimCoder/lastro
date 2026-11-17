@@ -21,7 +21,7 @@ import {
 import { ApiFault, must } from "./errors";
 import type { Env } from "./env";
 import { canonicalUrl, normalizeCandidate, folded } from "./normalize";
-import { captureStatement } from "./synopsis-evidence";
+import { captureStatement, processingAllowed } from "./synopsis-evidence";
 import { refreshFeedSummaries } from "./feed-summary-refresh";
 import { classifyRadar } from "./ranking";
 import { expireRadar, retentionDue } from "./radar-retention";
@@ -367,7 +367,8 @@ export async function ingestSource(
     source = sourceView(row);
   if (
     source.connector === "rss" &&
-    !["BR", "US"].includes(source.country ?? "")
+    !["BR", "US"].includes(source.country ?? "") &&
+    !(processingAllowed(source) && source.synopsisLicenseUrl)
   )
     throw new ApiFault(
       409,
@@ -652,7 +653,16 @@ export async function scheduledIngest(
       lastError: string | null = null;
     const due = await rows<{ id: string }>(
       env.DB,
-      "SELECT id FROM sources WHERE status='approved' AND (connector='openalex' OR json_extract(config_json,'$.country') IN ('BR','US')) AND json_extract(config_json,'$.metadataAllowed')=1 AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?) AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id) OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (connector='rss' OR last_cycle_key IS NULL OR last_cycle_key<>CASE WHEN connector='openalex' THEN ? ELSE ? END))) ORDER BY COALESCE(last_processed_at,'') ASC,id LIMIT 1",
+      `SELECT id FROM sources WHERE status='approved' AND json_extract(config_json,'$.metadataAllowed')=1
+       AND (connector='openalex' OR json_extract(config_json,'$.country') IN ('BR','US')
+         OR (json_extract(config_json,'$.synopsisAllowed')=1
+           AND length(trim(json_extract(config_json,'$.synopsisRightsNote')))>=20
+           AND json_extract(config_json,'$.synopsisLicenseUrl') IS NOT NULL))
+       AND (retry_at IS NULL OR retry_at<=?) AND (lease_until IS NULL OR lease_until<?)
+       AND (EXISTS(SELECT 1 FROM ingestion_queue WHERE source_id=sources.id)
+         OR ((next_fetch_at IS NULL OR next_fetch_at<=?) AND (connector='rss'
+           OR last_cycle_key IS NULL OR last_cycle_key<>CASE WHEN connector='openalex' THEN ? ELSE ? END)))
+       ORDER BY COALESCE(last_processed_at,'') ASC,id LIMIT 1`,
       new Date(clock).toISOString(),
       new Date(clock).toISOString(),
       new Date(clock).toISOString(),

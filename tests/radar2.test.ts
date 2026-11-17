@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { migrationStatements } from "./migration-statements";
-import { fixtureSource, fixtureCandidate, contentFixture } from "./fixtures";
+import {
+  fixtureSource,
+  fixtureCandidate,
+  contentFixture,
+  rss,
+} from "./fixtures";
 import {
   defaultPolicy,
   sourceInputSchema,
@@ -113,6 +118,32 @@ async function create(
     firstSeen,
   );
 }
+
+test("a coleta agendada inclui fontes licenciadas fora de BR e US", async () => {
+  await isolated(async (env, source) => {
+    const gb = { ...source, country: "GB" };
+    const update = (config: object) =>
+      env.DB.prepare("UPDATE sources SET config_json=? WHERE id=?")
+        .bind(JSON.stringify(config), source.id)
+        .run();
+    await update(gb);
+    let requests = 0;
+    const fetcher = async () => {
+      requests++;
+      return new Response(rss);
+    };
+    await scheduledIngest(env, fetcher, clock);
+    assert.equal(requests, 0);
+    await update({
+      ...gb,
+      synopsisAllowed: true,
+      synopsisRightsNote: "Licença aberta verificada para o texto do feed.",
+      synopsisLicenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+    });
+    await scheduledIngest(env, fetcher, clock);
+    assert.equal(requests, 1);
+  });
+});
 const xml = (date: string, ids = ["a", "b"]) =>
   `<rss><channel><language>en</language>${ids.map((id) => `<item><title>Graphic design identity ${id}</title><link>https://fixtures.example.test/${id}</link><guid>${id}</guid><author>Test Writer</author><pubDate>${date}</pubDate><category>design</category></item>`).join("")}</channel></rss>`;
 

@@ -42,6 +42,16 @@ export function event(
     now(),
   );
 }
+export class RemoteIntegrationFault extends ApiFault {
+  constructor(public remoteStatus: number) {
+    super(
+      remoteStatus === 429 || remoteStatus >= 500 ? 502 : 422,
+      "integration_remote_error",
+      "Serviço indisponível ou contrato recusado.",
+    );
+  }
+}
+
 export async function remote(
   env: Env,
   target: "studio" | "crm",
@@ -105,12 +115,7 @@ export async function remote(
     target === "studio" && env.STUDIO
       ? await env.STUDIO.fetch(request)
       : await fetch(request);
-  if (!response.ok)
-    throw new ApiFault(
-      response.status === 429 || response.status >= 500 ? 502 : 422,
-      "integration_remote_error",
-      "Serviço indisponível ou contrato recusado.",
-    );
+  if (!response.ok) throw new RemoteIntegrationFault(response.status);
   // Bounded responses; no remote errors, headers or content are logged.
   const reader = response.body?.getReader();
   let body = "",

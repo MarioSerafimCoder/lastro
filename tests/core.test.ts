@@ -328,7 +328,7 @@ test("prompt preserva metadados, notas e incerteza; nenhuma fonte é presumida c
   ])
     assert.ok(text.includes(part), part);
 });
-test("requisições limitam retries, não seguem redirects e não enviam segredo a RSS", async () => {
+test("requisições limitam retries, rejeitam redirects sem destino e não enviam segredo a RSS", async () => {
   const env: any = {
     ALLOWED_FETCH_HOSTS: "fixtures.example.test,api.openalex.org",
     OPENALEX_API_KEY: "test-key",

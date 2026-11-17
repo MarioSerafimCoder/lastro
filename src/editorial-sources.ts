@@ -67,6 +67,18 @@ const themes = [
   ],
   [
     "processo",
+    "Economia criativa e trabalho",
+    /economia criativa|creative economy|creative industr\w*|mercado de design|economia digital|digital economy|creative labor/,
+    /creative work|trabalho criativo|design business|creative business/,
+  ],
+  [
+    "processo",
+    "Experiência e interfaces digitais",
+    /user experience|experiencia do usuario|interface design|design de interface|usabil\w*|\bux\b/,
+    /user research|pesquisa com usuarios|design de produto|product design|interaction design/,
+  ],
+  [
+    "processo",
     "Autoria e licenças na criação",
     /creative commons|copyright|direitos autorais|autor\w*|authorship|licenc\w*/,
   ],
@@ -110,6 +122,12 @@ export type SourceEvidence = {
 export type SelectedSource = {
   reference: EditorialReference;
   fingerprint: string;
+};
+type TopicSelection = {
+  theme: string;
+  category: EditorialArticle["category"];
+  sources: SourceEvidence[];
+  score: number;
 };
 type CandidateRow = SourceRow & {
   content_id: string;
@@ -313,7 +331,7 @@ export function selectEditorialSources(
   at: number,
   trendTitles: string[] = [],
   allowRetroactive = false,
-) {
+): TopicSelection | null {
   const usedUrls = new Set(used.map((ref) => ref.url));
   const frequency = new Map<string, number>();
   for (const ref of used)
@@ -382,6 +400,9 @@ export function selectEditorialSources(
     if (
       left.sourceId === right.sourceId ||
       a.host === b.host ||
+      a.host.endsWith("." + b.host) ||
+      b.host.endsWith("." + a.host) ||
+      folded(left.publication) === folded(right.publication) ||
       left.url === right.url
     )
       return -1;
@@ -396,12 +417,7 @@ export function selectEditorialSources(
     pairs.set(key, score);
     return score;
   };
-  let best: {
-    theme: string;
-    category: EditorialArticle["category"];
-    sources: SourceEvidence[];
-    score: number;
-  } | null = null;
+  let best: TopicSelection | null = null;
   for (const [category, theme, pattern, related] of themes) {
     const perPublication = new Map<string, number>();
     const ranked = pool
@@ -420,57 +436,67 @@ export function selectEditorialSources(
         return [{ ...item, focus, direct }];
       })
       .slice(0, 24);
+    const consider = (group: typeof ranked, overlap: number) => {
+      const focus = group.filter((s) => s.focus).length;
+      const direct = group.filter((s) => s.direct);
+      if (
+        (!allowRetroactive &&
+          !direct.some((s) => s.recent) &&
+          !group.every((s) => s.candidate.evergreen)) ||
+        (related ? !focus || direct.length < 2 : focus < 2)
+      )
+        return;
+      // A pair needs direct evidence in both publications and shared subject
+      // matter in the excerpts, beyond a match on a generic headline topic.
+      if (group.length === 2 && (direct.length < 2 || overlap < 0.045)) return;
+      const current = direct.filter(
+        (s) => at - Date.parse(s.candidate.reference.publishedAt) <= 7 * day,
+      );
+      const tier = current.length
+        ? 30000 +
+          (current.some((s) =>
+            trending.some((t) => similarity(s.headline, t) > 0),
+          )
+            ? 10000
+            : 0)
+        : direct.some((s) => s.recent)
+          ? 20000
+          : 10000;
+      const primary = group.some(
+        (s) =>
+          s.candidate.reference.kind === "authorized_abstract" ||
+          s.host.endsWith(".gov.uk") ||
+          s.host.endsWith(".gov.br") ||
+          s.host.endsWith(".gov"),
+      );
+      const score =
+        tier +
+        (group.length === 3 ? 1000 : 0) +
+        group.reduce((total, s) => total + s.score, 0) +
+        8 * focus +
+        6 * overlap +
+        (primary ? 8 : 0);
+      if (!best || score > best.score)
+        best = {
+          theme,
+          category,
+          score,
+          sources: group.map((s) => s.candidate),
+        };
+    };
     for (let i = 0; i < ranked.length; i++) {
       for (let j = i + 1; j < ranked.length; j++) {
         const a = ranked[i],
           b = ranked[j];
         const ab = connection(a, b);
         if (ab < 0) continue;
+        consider([a, b], ab);
         for (let k = j + 1; k < ranked.length; k++) {
           const c = ranked[k];
-          const group = [a, b, c];
-          const focus = group.filter((s) => s.focus).length;
-          if (
-            (!allowRetroactive &&
-              !group.some((s) => s.recent && s.direct) &&
-              !group.every((s) => s.candidate.evergreen)) ||
-            (!related && focus < 2) ||
-            (related && (!focus || group.filter((s) => s.direct).length < 2))
-          )
-            continue;
           const ac = connection(a, c),
             bc = connection(b, c);
           if (ac < 0 || bc < 0) continue;
-          const score =
-            // Priority tiers dominate quality tie-breakers: current trends, then
-            // current news, then context. Older material cannot outrank news.
-            (group.some(
-              (s) =>
-                s.direct &&
-                at - Date.parse(s.candidate.reference.publishedAt) <= 7 * day,
-            )
-              ? 10000 +
-                (group.some(
-                  (s) =>
-                    at - Date.parse(s.candidate.reference.publishedAt) <=
-                      7 * day &&
-                    trending.some((t) => similarity(s.headline, t) > 0),
-                )
-                  ? 10000
-                  : 0)
-              : 0) +
-            a.score +
-            b.score +
-            c.score +
-            8 * focus +
-            6 * (ab + ac + bc);
-          if (!best || score > best.score)
-            best = {
-              theme,
-              category,
-              score,
-              sources: group.map((s) => s.candidate),
-            };
+          consider([a, b, c], ab + ac + bc);
         }
       }
     }

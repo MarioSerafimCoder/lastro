@@ -23,9 +23,9 @@ import type {
 import { first, id, rows, stmt } from "./db";
 import type { Env } from "./env";
 import { ApiFault } from "./errors";
-import { remote } from "./integration";
+import { remote, RemoteIntegrationFault } from "./integration";
 import { editorialDay } from "./schedule";
-import { googleTrends } from "./google-trends";
+import { googleTrends, googleTrendsStatus } from "./google-trends";
 import {
   editorialCandidates,
   inspectEditorialCandidates,
@@ -51,7 +51,7 @@ const maxAttempts = 4;
 const leaseMs = 16 * 60_000; // Scheduled Workers can live up to 15 minutes.
 const reasons = {
   sources:
-    "O Radar ainda não tem três referências autorizadas, independentes e conectadas.",
+    "O Radar ainda não encontrou referências autorizadas de publicações independentes que sustentem a mesma pauta.",
   memory: "O Studio não conseguiu fornecer a memória editorial.",
   budget: "Orçamento de Workers AI indisponível.",
   repeat: "Título ou argumento muito próximo de um texto recente.",
@@ -63,6 +63,11 @@ const reasons = {
     "O artigo não passou nas verificações de formato, originalidade ou suporte factual.",
   permission: "Uma referência perdeu autorização ou mudou durante a execução.",
   studio: "Envio ao Studio indisponível. O artigo foi preservado para reenvio.",
+  authentication:
+    "O Studio recusou a autenticação da integração. Revise a configuração antes de reenviar.",
+  conflict:
+    "O Studio encontrou um conflito com esse rascunho. Revise a execução antes de tentar novamente.",
+  deleted: "O rascunho associado foi excluído no Studio.",
   contract:
     "O Studio recusou o contrato ou o rascunho correspondente foi excluído.",
   technical: "Falha técnica durante a pesquisa.",
@@ -126,10 +131,10 @@ function checkAvailable(env: Env) {
     );
 }
 const canRetry = (run: RunRow, today: string) =>
-  run.attempts < maxAttempts &&
   (run.status === "failed" || run.status === "skipped") &&
+  (run.attempts < maxAttempts || run.reason === "sources") &&
   (run.payload
-    ? run.reason === "studio" || run.reason === "contract"
+    ? ["studio", "authentication", "conflict"].includes(run.reason ?? "")
     : run.editorial_date === today &&
       ["sources", "memory", "budget", "technical"].includes(run.reason ?? ""));
 
@@ -188,7 +193,10 @@ export async function editorialOverview(
     rows<{
       id: string;
       theme: string;
+      category: string;
       relevance: string;
+      created_at: number;
+      expires_at: number;
       sources_json: string;
     }>(
       env.DB,
@@ -199,12 +207,31 @@ export async function editorialOverview(
   const enabled = !!setting?.enabled,
     configured = available(env),
     today = editorialDay(at);
+  const topics = reserve.map((item) => ({
+    id: item.id,
+    theme: item.theme,
+    category: item.category,
+    relevance: item.relevance,
+    validatedAt: iso(item.created_at),
+    expiresAt: iso(item.expires_at),
+    sources: JSON.parse(item.sources_json) as EditorialReference[],
+  }));
+  const reservedIds = topics.flatMap(({ sources }) =>
+    sources.map((s) => s.contentId),
+  );
+  const validIds = new Set(
+    reservedIds.length
+      ? (await editorialCandidates(env.DB, at, reservedIds)).map(
+          (s) => s.reference.contentId,
+        )
+      : [],
+  );
   return {
-    reserve: reserve.map((item) => ({
-      id: item.id,
-      theme: item.theme,
-      relevance: item.relevance,
-      sources: JSON.parse(item.sources_json),
+    reserve: topics.map((topic) => ({
+      ...topic,
+      blockedReason: topic.sources.every((s) => validIds.has(s.contentId))
+        ? undefined
+        : "Uma referência da reserva perdeu elegibilidade.",
     })),
     available: configured,
     enabled,
@@ -273,7 +300,7 @@ export async function retryEditorialRun(
     canRetry(current, editorialDay(at)) &&
     (await first<RunRow>(
       env.DB,
-      `UPDATE editorial_autopilot_runs SET status='scheduled',updated_at=?,next_at=?,reason=NULL
+      `UPDATE editorial_autopilot_runs SET status='scheduled',updated_at=?,next_at=?
       WHERE id=? AND status=? AND attempts=? AND lease_token IS NULL RETURNING *`,
       at,
       at,
@@ -335,16 +362,18 @@ export async function editorialEligibility(
   env: Env,
   at = Date.now(),
 ): Promise<EditorialEligibility> {
-  const [inspected, memory, trendResult] = await Promise.all([
+  const [inspected, memory, trendResult, collection] = await Promise.all([
     inspectEditorialCandidates(env.DB, at),
     savedEditorialMemory(env),
-    googleTrends(at).then(
-      (items) => ({ items, available: true, error: null }),
-      (error: unknown) => ({
-        items: [],
-        available: false,
-        error: error instanceof Error ? error.message : "unknown",
-      }),
+    googleTrendsStatus(at),
+    rows<{ name: string; last_success: string | null; error: string | null }>(
+      env.DB,
+      `SELECT s.name,s.last_success_at last_success,r.error
+       FROM sources s LEFT JOIN ingestion_runs r ON r.id=(
+         SELECT id FROM ingestion_runs WHERE source_id=s.id
+         ORDER BY started_at DESC,id DESC LIMIT 1)
+       WHERE s.status='approved' AND json_extract(s.config_json,'$.metadataAllowed')=1
+       ORDER BY s.name`,
     ),
   ]);
   const trends = trendResult.items;
@@ -374,10 +403,31 @@ export async function editorialEligibility(
     memory.sources,
     at,
     trends.map((trend) => trend.title),
+    true,
   );
   return {
-    trendsAvailable: trendResult.available,
-    trendsError: trendResult.error,
+    trendsAvailable: trendResult.regions.some((region) => region.available),
+    trendsError: trendResult.regions.every((region) => region.available)
+      ? null
+      : "Consulta indisponível em um ou mais países.",
+    trendRegions: trendResult.regions,
+    collection: {
+      active: collection.length,
+      functional: collection.filter(
+        (source) => source.last_success && !source.error,
+      ).length,
+      issues: collection
+        .filter((source) => source.error || !source.last_success)
+        .map((source) => ({
+          name: source.name,
+          reason:
+            source.error === "upstream_403"
+              ? "O provedor recusou a coleta (HTTP 403)."
+              : source.error
+                ? "A última tentativa de coleta falhou."
+                : "Aguardando a primeira coleta bem-sucedida.",
+        })),
+    },
     trends,
     recent: {
       references: recent.length,
@@ -431,7 +481,17 @@ export async function runEditorialQueue(
     `UPDATE editorial_autopilot_runs
     SET status=CASE WHEN payload IS NULL THEN 'researching' ELSE 'sending' END,
       lease_token=?,lease_until=?,updated_at=?,attempts=attempts+1,reason=NULL
-    WHERE id=(SELECT id FROM editorial_autopilot_runs r WHERE r.next_at<=? AND r.lease_until<=? AND r.attempts<?
+    WHERE id=(SELECT id FROM editorial_autopilot_runs r WHERE r.lease_until<=?
+      AND ((r.next_at<=? AND (r.attempts<? OR (r.status='scheduled' AND r.reason='sources')))
+        OR (r.status='failed' AND r.reason='sources' AND r.next_at IS NULL AND EXISTS (
+          SELECT 1 FROM synopsis_evidence_cache e
+          JOIN sources s ON s.id=e.source_id
+          JOIN contents c ON c.source_id=e.source_id AND c.canonical_url=e.canonical_url
+          WHERE e.evidence_json IS NOT NULL AND e.block_code IS NULL
+            AND e.permission_version=s.synopsis_permission_version AND s.status='approved'
+            AND c.editorial_status='approved' AND c.purged_at IS NULL
+            AND e.observed_at>strftime('%Y-%m-%dT%H:%M:%fZ',r.updated_at/1000.0,'unixepoch')
+        )))
       AND (r.editorial_date=? OR r.payload IS NOT NULL) AND (? IS NULL OR r.editorial_date=?)
       AND r.status IN ('scheduled','researching','sending','failed')
       AND NOT EXISTS(SELECT 1 FROM editorial_autopilot_runs active WHERE active.lease_until>?)
@@ -479,8 +539,8 @@ export async function runEditorialQueue(
   try {
     if (!payload) {
       const candidates = await editorialCandidates(env.DB, at);
-      if (candidates.length < 3) return await finish("failed", "sources", true);
-      const trends = await googleTrends(at).catch(() => []);
+      if (candidates.length < 2) return await finish("failed", "sources", true);
+      const trends = await googleTrends(at);
       let memory;
       try {
         memory = await editorialMemory(env);
@@ -616,7 +676,7 @@ export async function runEditorialQueue(
     );
     const fingerprints = await Promise.all(sources.map(sourceFingerprint));
     if (
-      selected.length !== 3 ||
+      selected.length !== payload.references.length ||
       !selected.every((s) => fingerprints.includes(s.fingerprint))
     )
       return await finish("needs_review", "permission");
@@ -638,8 +698,14 @@ export async function runEditorialQueue(
     ).run();
   } catch (error) {
     if (payload) {
-      const rejected = error instanceof ApiFault && error.status === 422;
-      return finish("failed", rejected ? "contract" : "studio", !rejected);
+      const status =
+        error instanceof RemoteIntegrationFault ? error.remoteStatus : null;
+      if (status === 401 || status === 403)
+        return finish("failed", "authentication");
+      if (status === 409) return finish("failed", "conflict");
+      if (status === 410) return finish("failed", "deleted");
+      if (status === 400 || status === 422) return finish("failed", "contract");
+      return finish("failed", "studio", true);
     }
     return inference
       ? finish("needs_review", "generation")
@@ -679,7 +745,7 @@ export async function refreshEditorialReserve(env: Env, at = Date.now()) {
   const [candidates, memory, trends] = await Promise.all([
     editorialCandidates(env.DB, at),
     editorialMemory(env),
-    googleTrends(at).catch(() => []),
+    googleTrends(at),
   ]);
   const used = [...memory.sources];
   const updates = [stmt(env.DB, "DELETE FROM editorial_topic_reserve")];

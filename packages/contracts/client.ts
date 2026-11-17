@@ -110,6 +110,11 @@ export function createLastroClient(
       request<EditorialOverview>("/editorial-autopilot/overview"),
     editorialEligibility: () =>
       request<EditorialEligibility>("/editorial-autopilot/eligibility"),
+    refreshEditorialReserve: () =>
+      request<EditorialOverview>(
+        "/editorial-autopilot/reserve/refresh",
+        "POST",
+      ),
     setEditorialAutomation: (enabled: boolean) =>
       request<{ enabled: boolean }>("/editorial-autopilot/settings", "PUT", {
         enabled,

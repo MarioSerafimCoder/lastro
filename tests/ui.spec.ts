@@ -45,7 +45,17 @@ test("autopiloto editorial exibe controles funcionais, referências e rascunho n
     })),
   };
   const view: EditorialOverview = {
-    reserve: [{ id: "reserve-1", theme: "Tipografia em debate", relevance: "Em alta", sources: run.sources }],
+    reserve: [
+      {
+        id: "reserve-1",
+        theme: "Tipografia em debate",
+        category: "direcao-de-arte",
+        relevance: "Em alta",
+        validatedAt: "2026-11-12T09:00:00Z",
+        expiresAt: "2026-11-13T09:00:00Z",
+        sources: run.sources,
+      },
+    ],
     available: true,
     enabled: false,
     nextExecution: null,
@@ -61,6 +71,11 @@ test("autopiloto editorial exibe controles funcionais, referências e rascunho n
           trends: [],
           trendsAvailable: true,
           trendsError: null,
+          trendRegions: [
+            { region: "BR", available: true },
+            { region: "US", available: true },
+          ],
+          collection: { active: 8, functional: 7, issues: [] },
           recent: { references: 4, rssDescriptions: 2, eligible: 1 },
           eligible: 3,
           publications: 3,

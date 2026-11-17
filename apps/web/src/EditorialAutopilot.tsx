@@ -65,6 +65,14 @@ function Eligibility({
         <>
           <dl className="editorial-metrics">
             <div>
+              <dt>Fontes ativas</dt>
+              <dd>{report.collection?.active ?? "—"}</dd>
+            </div>
+            <div>
+              <dt>Fontes com coleta funcional</dt>
+              <dd>{report.collection?.functional ?? "—"}</dd>
+            </div>
+            <div>
               <dt>Aprovadas nos últimos 7 dias</dt>
               <dd>{report.recent.references}</dd>
             </div>
@@ -83,6 +91,18 @@ function Eligibility({
               </dd>
             </div>
           </dl>
+          {report.collection?.issues.length > 0 && (
+            <details>
+              <summary>Fontes com coleta pendente ou falha</summary>
+              <ul className="editorial-list">
+                {report.collection.issues.map(({ name, reason }) => (
+                  <li key={name}>
+                    {name} · {reason}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
           <div>
             <h3>Em alta no Google Trends</h3>
             <p>
@@ -92,19 +112,26 @@ function Eligibility({
             {!report.trendsAvailable && (
               <p>Consulta ao Google Trends indisponível no momento.</p>
             )}
+            {report.trendRegions?.map(({ region, available }) => (
+              <p key={region}>
+                {region} · {available ? "Disponível" : "Indisponível"}
+              </p>
+            ))}
             {report.trendsAvailable && report.trends.length === 0 && (
               <p>Nenhuma busca recente alinhada aos temas do Lastro.</p>
             )}
             {report.trends.length > 0 && (
               <ul className="editorial-list">
                 {report.trends.map((trend) => (
-                  <li key={`${trend.title}-${trend.publishedAt}`}>
+                  <li
+                    key={`${trend.region}-${trend.title}-${trend.publishedAt}`}
+                  >
                     <a
                       href={trend.url}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      {trend.title}
+                      {trend.title} · {trend.region}
                     </a>
                   </li>
                 ))}
@@ -149,9 +176,9 @@ function Eligibility({
             </>
           ) : (
             <p>
-              {report.publications < 3
-                ? "Faltam evidências elegíveis de três publicações independentes."
-                : "Há evidências elegíveis, mas a seleção não encontrou três referências independentes que sustentem a mesma pauta."}
+              {report.publications < 2
+                ? `O Radar encontrou evidências elegíveis em ${report.publications} publicação(ões). São necessárias pelo menos duas publicações independentes.`
+                : "As evidências elegíveis não formaram uma pauta com referências independentes e relacionadas."}
             </p>
           )}
         </>
@@ -262,8 +289,7 @@ export default function EditorialAutopilot() {
   };
   const busy = !!action;
   const latest = data?.history[0];
-  const lastArticle =
-    data?.history.find((run) => run.title) ?? data?.latestDraft;
+  const lastArticle = data?.latestDraft;
   return (
     <section
       className="page-section ecosystem editorial-autopilot"
@@ -312,7 +338,7 @@ export default function EditorialAutopilot() {
           disabled={busy}
           onClick={() => void perform("Atualizando…", async () => "")}
         >
-          Atualizar
+          Verificar fontes e testar elegibilidade
         </button>
       </div>
       {action && <p role="status">{action}</p>}
@@ -323,6 +349,11 @@ export default function EditorialAutopilot() {
         </p>
       )}
       {!data && !error && <p role="status">Carregando execuções…</p>}
+      {latest?.reason && ["failed", "needs_review"].includes(latest.status) && (
+        <p className="notice error" role="alert">
+          {latest.reason}
+        </p>
+      )}
       {data && (
         <>
           <dl className="pub-card editorial-metrics autopilot-metrics">
@@ -346,6 +377,10 @@ export default function EditorialAutopilot() {
               <dt>Última execução</dt>
               <dd>{latest ? date(latest.date) : "—"}</dd>
             </div>
+            <div>
+              <dt>Pautas na reserva</dt>
+              <dd>{data.reserve?.length ?? 0} de 7</dd>
+            </div>
           </dl>
           {!data.available && (
             <p className="notice">
@@ -356,6 +391,18 @@ export default function EditorialAutopilot() {
           <Eligibility report={eligibility} error={eligibilityError} />
           <section className="pub-card" aria-label="Reserva de pautas">
             <h2>Reserva de pautas</h2>
+            <button
+              className="secondary-button"
+              disabled={!data.available || busy}
+              onClick={() =>
+                void perform("Atualizando reserva…", async () => {
+                  const result = await api.refreshEditorialReserve();
+                  return `Pautas na reserva: ${result.reserve.length}.`;
+                })
+              }
+            >
+              Atualizar reserva
+            </button>
             <p>
               Reavaliada diariamente às 6h. Preparação da matéria às 7h e envio
               ao Studio às 8h, no horário de Fortaleza.
@@ -372,6 +419,10 @@ export default function EditorialAutopilot() {
                     {topic.relevance}
                   </span>
                   <h3>{topic.theme}</h3>
+                  {topic.expiresAt && (
+                    <p>Válida até {editorialDate(topic.expiresAt)}.</p>
+                  )}
+                  {topic.blockedReason && <p>{topic.blockedReason}</p>}
                   <References sources={topic.sources} />
                 </li>
               ))}
@@ -379,7 +430,7 @@ export default function EditorialAutopilot() {
           </section>
           {lastArticle && (
             <article className="pub-card">
-              <h2>Artigo mais recente</h2>
+              <h2>Último rascunho confirmado no Studio</h2>
               <h3>{lastArticle.title}</h3>
               <RunDetails run={lastArticle} />
             </article>

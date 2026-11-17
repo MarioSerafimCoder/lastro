@@ -149,7 +149,7 @@ export function editorialReferences(references: EditorialReference[]) {
     "\n"
   );
 }
-export const EDITORIAL_PROMPT_VERSION = "lastro-editorial-1.2";
+export const EDITORIAL_PROMPT_VERSION = "lastro-editorial-1.3";
 export const EDITORIAL_MIN_CHARACTERS = 1900;
 export const EDITORIAL_MAX_CHARACTERS = 2000;
 
@@ -165,7 +165,11 @@ export function editorialBodyCharacters(body: string) {
   return [...visible].length;
 }
 
-export function editorialBodyValid(body: string, legacy = false) {
+export function editorialBodyValid(
+  body: string,
+  legacy = false,
+  sourceCount = 3,
+) {
   if (
     body.length > 10000 ||
     /[\u0000-\u0008\u000b-\u001f\u007f<>{}`\\]|https?:|www\.|!\[|\]\s*\(|^\s*\[[^\]]+\]:|^\s*(?:---+|===+)\s*$/im.test(
@@ -188,8 +192,10 @@ export function editorialBodyValid(body: string, legacy = false) {
       : characters >= EDITORIAL_MIN_CHARACTERS &&
         characters <= EDITORIAL_MAX_CHARACTERS) &&
     !body.startsWith("# ") &&
-    cites.every((cite) => /^\[S[1-3]\]$/.test(cite)) &&
-    new Set(cites).size === 3
+    cites.every(
+      (cite) => /^\[S[1-3]\]$/.test(cite) && Number(cite[2]) <= sourceCount,
+    ) &&
+    new Set(cites).size === sourceCount
   );
 }
 export function parseEditorialArticle(value: unknown): EditorialArticle {
@@ -226,11 +232,15 @@ export function parseEditorialArticle(value: unknown): EditorialArticle {
     article.slug.length > 150 ||
     !editorialCategories.includes(article.category) ||
     !Array.isArray(article.references) ||
-    article.references.length !== 3 ||
+    article.references.length < 2 ||
+    article.references.length > 3 ||
     !article.references.every(editorialReference) ||
-    new Set(article.references.map((r) => r.contentId)).size !== 3 ||
-    new Set(article.references.map((r) => r.sourceId)).size !== 3 ||
-    new Set(article.references.map((r) => r.url)).size !== 3 ||
+    new Set(article.references.map((r) => r.contentId)).size !==
+      article.references.length ||
+    new Set(article.references.map((r) => r.sourceId)).size !==
+      article.references.length ||
+    new Set(article.references.map((r) => r.url)).size !==
+      article.references.length ||
     !record(article.generation, [
       "model",
       "verificationModel",
@@ -255,6 +265,7 @@ export function parseEditorialArticle(value: unknown): EditorialArticle {
       ["lastro-editorial-1.0", "lastro-editorial-1.1"].includes(
         article.generation.promptVersion,
       ),
+      article.references.length,
     )
   )
     throw Error("invalid_editorial_markdown");

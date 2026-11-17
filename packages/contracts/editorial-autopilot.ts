@@ -30,7 +30,11 @@ export type EditorialOverview = {
   reserve: {
     id: string;
     theme: string;
+    category: string;
     relevance: string;
+    validatedAt: string;
+    expiresAt: string;
+    blockedReason?: string;
     sources: EditorialReference[];
   }[];
   available: boolean;
@@ -58,7 +62,18 @@ export type EligibilityExample = {
 export type EditorialEligibility = {
   trendsAvailable: boolean;
   trendsError: string | null;
-  trends: { title: string; publishedAt: string; url: string }[];
+  trendRegions: { region: "BR" | "US"; available: boolean }[];
+  trends: {
+    title: string;
+    publishedAt: string;
+    url: string;
+    region: "BR" | "US";
+  }[];
+  collection: {
+    active: number;
+    functional: number;
+    issues: { name: string; reason: string }[];
+  };
   recent: { references: number; rssDescriptions: number; eligible: number };
   eligible: number;
   publications: number;

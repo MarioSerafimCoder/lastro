@@ -79,7 +79,7 @@ export function itemRightsAllowed(
   return !!licence && r.includes(licence.toLowerCase());
 }
 export const itemRightsRestricted = (rights: string) =>
-  /all rights reserved|no adaptations|no derivatives|no reuse|todos os direitos reservados|sem deriva[çc][oõ]es|sem adapta[çc][oõ]es|\/by-(?:nc(?:-sa|-nd)?|nd)\//i.test(
+  /all rights reserved|no adaptations|no derivatives|no reuse|third-party material|todos os direitos reservados|sem deriva[çc][oõ]es|sem adapta[çc][oõ]es|\/by-(?:nc(?:-sa|-nd)?|nd)\//i.test(
     rights,
   );
 // A stable material identity; retrieval timestamps never authorize another inference.

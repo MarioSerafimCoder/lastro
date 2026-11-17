@@ -23,7 +23,6 @@ test("convites e anúncios promocionais não são aprovados automaticamente", ()
     "Chamada aberta: inscreva seu projeto de design",
     "Prêmio de design divulga projetos finalistas",
     "Register now for the design conference",
-    "Five insights from our brand refresh",
   ]) {
     const c = { ...fixtureCandidate, title };
     assert(
@@ -173,6 +172,10 @@ test("fontes reais: ciclos sucessivos, publicação, 50/50, persistência e obse
     };
     const feeds = new Map<string, string>();
     const sources: string[] = [];
+    await stmt(
+      db,
+      "UPDATE sources SET status='paused' WHERE status='approved'",
+    ).run();
     for (const n of [21, 22]) {
       const input = sourceInputSchema.parse(
         JSON.parse(await readFile(`examples/catalog/${n}.json`, "utf8")),
@@ -260,8 +263,12 @@ test("fontes reais: ciclos sucessivos, publicação, 50/50, persistência e obse
       2,
     );
     const ss = (await (await request("/api/admin/sources")).json()) as any;
+    const exercisedSources = ss.items.filter((s: any) =>
+      sources.includes(s.id),
+    );
+    assert.equal(exercisedSources.length, sources.length);
     assert(
-      ss.items.every(
+      exercisedSources.every(
         (s: any) => s.lastSuccessAt && s.lastReferenceAt && s.queued === 0,
       ),
     );

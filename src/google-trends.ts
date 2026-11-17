@@ -2,12 +2,24 @@ import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { readBounded, type Fetcher } from "./connectors";
 import { folded } from "./normalize";
 
-export type TrendSignal = { title: string; publishedAt: string; url: string };
-const FEED_URL = "https://trends.google.com/trending/rss?geo=BR";
+const regions = ["BR", "US"] as const;
+type Region = (typeof regions)[number];
+export type TrendSignal = {
+  title: string;
+  publishedAt: string;
+  url: string;
+  region: Region;
+};
+const feedUrl = (region: Region) =>
+  `https://trends.google.com/trending/rss?geo=${region}`;
 const RELEVANT =
-  /\b(design|marca|branding|arte|artista|cultura|criativ\w*|inteligencia artificial|\bia\b|tecnologia|tipografia|fotografia|ilustracao|arquitetura|cinema|publicidade|moda|inovacao|pesquisa|estudo)\b/u;
+  /\b(design|marca|branding|arte|artista|cultura|criativ\w*|inteligencia artificial|ia|tecnologia|tipografia|fotografia|ilustracao|arquitetura|cinema|publicidade|moda|inovacao|pesquisa|estudo|art|artist|culture|creativ\w*|artificial intelligence|generative ai|ai|copyright|technology|typography|photography|illustration|architecture|innovation|creative economy|economia criativa)\b/u;
 
-export function parseGoogleTrends(xml: string, at = Date.now()): TrendSignal[] {
+export function parseGoogleTrends(
+  xml: string,
+  at = Date.now(),
+  region: Region = "BR",
+): TrendSignal[] {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml) || XMLValidator.validate(xml) !== true)
     throw new Error("invalid_trends_feed");
   const rss = new XMLParser({
@@ -37,27 +49,58 @@ export function parseGoogleTrends(xml: string, at = Date.now()): TrendSignal[] {
       )
         return [];
       return [
-        { title, publishedAt: new Date(time).toISOString(), url: FEED_URL },
+        {
+          title,
+          publishedAt: new Date(time).toISOString(),
+          url: feedUrl(region),
+          region,
+        },
       ];
     })
     .slice(0, 20);
+}
+
+async function regionalTrends(
+  region: Region,
+  at: number,
+  fetcher: Fetcher,
+): Promise<TrendSignal[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetcher(feedUrl(region), {
+      headers: { Accept: "application/rss+xml" },
+      redirect: "manual",
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`trends_${response.status}`);
+    return parseGoogleTrends(await readBounded(response, 300_000), at, region);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function googleTrendsStatus(
+  at = Date.now(),
+  fetcher: Fetcher = fetch,
+) {
+  const results = await Promise.allSettled(
+    regions.map((region) => regionalTrends(region, at, fetcher)),
+  );
+  return {
+    items: results.flatMap((result) =>
+      result.status === "fulfilled" ? result.value : [],
+    ),
+    regions: regions.map((region, index) => ({
+      region,
+      available: results[index].status === "fulfilled",
+    })),
+  };
 }
 
 export async function googleTrends(
   at = Date.now(),
   fetcher: Fetcher = fetch,
 ): Promise<TrendSignal[]> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-  try {
-    const response = await fetcher(FEED_URL, {
-      headers: { Accept: "application/rss+xml" },
-      redirect: "manual",
-      signal: controller.signal,
-    });
-    if (!response.ok) throw new Error(`trends_${response.status}`);
-    return parseGoogleTrends(await readBounded(response, 300_000), at);
-  } finally {
-    clearTimeout(timeout);
-  }
+  return (await googleTrendsStatus(at, fetcher)).items;
 }
