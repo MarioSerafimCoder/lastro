@@ -79,6 +79,8 @@ Após autorização para deploy, confirme a disponibilidade de evidência, o pla
 
 ## Revisão do limite editorial
 
+Quando a primeira resposta fica aquém do tamanho exigido, o Lastro pode encaixar acréscimos opcionais de interpretação produzidos na mesma resposta. O ajuste precisa preservar a faixa de 1.900 a 2.000 caracteres e as citações exigidas. O artigo ajustado passa pela validação de originalidade e pela checagem factual completa.
+
 A versão 1.2 mede de 1.900 a 2.000 caracteres de corpo visível. Ela conta cada sequência de espaços ou quebras como um espaço, remove marcações de formatação aceitas e ignora as referências e os metadados. O histórico exibe a contagem, inclusive quando a extensão impede o envio. A integração aceita entregas pendentes das duas versões anteriores para preservar reenvios.
 
 O verificador anterior podia aceitar como interpretação um bloco com uma alegação técnica sem marcador. A checagem passou a examinar alegações dentro de opiniões e exemplos, exigir suporte explícito para mecanismos e escopo e reter termos técnicos monitorados sem citação literal compatível. A homologação com Creative Commons, InternetLab e BaixaCultura gerou três saídas retidas. Uma versão revisada manualmente com 1.996 caracteres passou no verificador e foi entregue como rascunho privado ao Studio. As três gerações e duas verificações somaram 312,30 neurônios.

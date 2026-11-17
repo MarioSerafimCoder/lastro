@@ -1,6 +1,9 @@
 import { z } from "zod";
 import {
+  editorialBodyCharacters,
   editorialBodyValid,
+  EDITORIAL_MAX_CHARACTERS,
+  EDITORIAL_MIN_CHARACTERS,
   EDITORIAL_PROMPT_VERSION,
   editorialReferences,
   EDITORIAL_VERSION,
@@ -60,6 +63,7 @@ const generationOutputSchema = generationSchema
   .omit({ markdown: true })
   .extend({
     paragraphs: z.array(z.string().trim().min(1).max(1100)).min(5).max(12),
+    expansions: z.array(z.string().trim().min(1).max(320)).max(3).optional(),
   });
 const verificationSchema = z.strictObject({
   portuguese: z.literal(true),
@@ -316,13 +320,13 @@ export async function generateEditorialArticle(
 Escreva como quem conhece o trabalho criativo. Use vocabulário simples e preciso, exemplos que o leitor consiga imaginar, ritmo variado e ironia pontual quando couber. Prefira um título curto. Corte jargão, grandiloquência, perguntas em série, vivências inventadas e fórmulas como “Em um mundo cada vez mais”, “Não se trata apenas de” e “Em resumo”.
 Os únicos fatos permitidos são descrições precisas sustentadas literalmente pelos trechos. Atribua-os à fonte na própria frase e acrescente o marcador [S1] a [S${sources.length}] correspondente. Use marcadores separados quando houver mais de uma fonte. Use todas as fontes fornecidas. Fora dessas descrições, use raciocínio, opiniões e exemplos claramente hipotéticos. Evite afirmações sobre efeitos, intenções, tendências e públicos que o material não demonstra. O título, o resumo e a tese devem apresentar a leitura editorial sem inventar fatos.
 Use um parágrafo de evidência por fonte, cada qual com apenas uma afirmação factual simples e diretamente atribuída. Ao descrever um ensaio, atribua a tese ao autor como interpretação dele. Não trate metáforas do autor como descrições técnicas. Nos demais parágrafos desenvolva a sua interpretação e o contraponto, sem marcadores e sem acrescentar fatos externos. Preserve as limitações de estudos. Evite datas, percentuais e enumerações quando o argumento puder ser feito sem esses números.
-Retorne JSON com title, summary, argument e paragraphs. Use cinco parágrafos. Planeje cerca de 390 caracteres por parágrafo. Use ${sources.length} parágrafos de evidência e dedique os demais à abertura, à interpretação ou ao fechamento. O corpo visível deve ter entre 1.900 e 2.000 caracteres, incluindo espaços e pontuação. Mire 1.950. Conte cada separação entre parágrafos como um espaço. Exclua título, resumo, argumento e marcadores de fonte da contagem. Escreva em texto simples e revise o comprimento antes de responder, mantendo todas as frases completas. Varie a ordem e a estrutura conforme a pauta. Evite H1, frontmatter, HTML, aspas duplas, links, imagens, código e referências finais.`,
+Retorne JSON com title, summary, argument, paragraphs e expansions. Use cinco parágrafos no corpo. Planeje cerca de 390 caracteres por parágrafo. Use ${sources.length} parágrafos de evidência e dedique os demais à abertura, à interpretação ou ao fechamento. O corpo visível deve ter entre 1.900 e 2.000 caracteres, incluindo espaços e pontuação. Mire 1.950. Conte cada separação entre parágrafos como um espaço. Exclua título, resumo, argumento e marcadores de fonte da contagem. Em expansions, inclua três acréscimos opcionais de aproximadamente 90, 155 e 230 caracteres. Cada acréscimo deve ser uma frase completa ou um parágrafo curto que encaixe antes da conclusão de forma independente. Use somente interpretação ou um exemplo hipotético, explore um ângulo novo e evite marcadores de fonte e fatos adicionais. Esses acréscimos ficam fora de paragraphs. Escreva em texto simples e revise o comprimento antes de responder. Evite H1, frontmatter, HTML, aspas duplas, links, imagens, código e referências finais.`,
     { theme, sources: material(sources) },
     utcDay,
   );
   const generated = generationOutputSchema.safeParse(result.value).data;
   if (!generated) return { ...result, value: null };
-  const { paragraphs, ...metadata } = generated;
+  const { paragraphs, expansions = [], ...metadata } = generated;
   // Some models return a Markdown heading as its own array entry.
   // Attach it to the following paragraph before counting prose blocks.
   const markdown = paragraphs
@@ -333,8 +337,41 @@ Retorne JSON com title, summary, argument e paragraphs. Use cinco parágrafos. P
     return { ...result, value: null };
   return {
     ...result,
-    value: { ...metadata, markdown },
+    value: {
+      ...metadata,
+      markdown: fitEditorialBody(blocks, expansions, sources.length),
+    },
   };
+}
+
+function fitEditorialBody(
+  blocks: string[],
+  expansions: string[],
+  sourceCount: number,
+) {
+  const body = blocks.join("\n\n");
+  const characters = editorialBodyCharacters(body);
+  if (characters >= EDITORIAL_MIN_CHARACTERS || blocks.length === 12)
+    return body;
+  const options = expansions.filter(
+    (item) =>
+      !/[\r\n]|\[S\d|^[#>-]/i.test(item) && !injectionPattern.test(item),
+  );
+  let fitted = body;
+  let distance = Infinity;
+  const target = (EDITORIAL_MIN_CHARACTERS + EDITORIAL_MAX_CHARACTERS) / 2;
+  for (let mask = 1; mask < 2 ** options.length; mask++) {
+    const extra = options.filter((_, index) => mask & (1 << index)).join(" ");
+    const candidate = [...blocks.slice(0, -1), extra, blocks.at(-1)].join(
+      "\n\n",
+    );
+    const gap = Math.abs(editorialBodyCharacters(candidate) - target);
+    if (gap < distance && editorialBodyValid(candidate, false, sourceCount)) {
+      distance = gap;
+      fitted = candidate;
+    }
+  }
+  return fitted;
 }
 
 export async function verifyEditorialArticle(
