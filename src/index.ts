@@ -6,6 +6,7 @@ import {
   processRequestedEditorial,
   queueEditorialRun,
   queueEditorialHomologation,
+  dispatchEditorialHomologation,
   retryEditorialRun,
   runEditorialQueue,
   scheduledEditorial,
@@ -850,6 +851,14 @@ app.post("/api/editorial-autopilot/homologations", async (c) => {
   );
   const queued = await queueEditorialHomologation(c.env, id);
   return c.json(await processRequestedEditorial(c.env, queued), 202);
+});
+app.post("/ops/editorial-homologation/:id", async (c) => {
+  const run = await dispatchEditorialHomologation(
+    c.env,
+    c.req.param("id"),
+    c.req.header("Authorization"),
+  );
+  return c.json(run, 202, { "Cache-Control": "no-store" });
 });
 app.post("/api/editorial-autopilot/runs/:id/retry", async (c) => {
   const id = c.req.param("id");

@@ -5,7 +5,7 @@ import {
   type EditorialArticle,
 } from "../packages/contracts/editorial-article";
 import { policy, rows, sourceView, type SourceRow } from "./db";
-import { folded } from "./normalize";
+import { folded, plainText } from "./normalize";
 import {
   evidenceAllowed,
   evidenceKey,
@@ -235,13 +235,10 @@ export async function inspectEditorialCandidates(
       return exclude("capture_pending");
     if (!evidenceAllowed(parsed.data, source, row.canonical_url))
       return exclude("permission_unverified");
-    if (!sufficientEvidence(parsed.data.text, row.title))
+    const text = plainText(parsed.data.text, 1800);
+    if (!text || !sufficientEvidence(text, row.title))
       return exclude("insufficient");
-    if (
-      injectionPattern.test(
-        [row.title, source.name, parsed.data.text].join(" "),
-      )
-    )
+    if (injectionPattern.test([row.title, source.name, text].join(" ")))
       return exclude("invalid");
     if (row.quality_score < minimum) return exclude("quality");
     const reference = {
@@ -273,7 +270,7 @@ export async function inspectEditorialCandidates(
     const candidate: SourceEvidence = {
       reference,
       materialKey: evidenceKey(parsed.data),
-      text: parsed.data.text.slice(0, 1800),
+      text,
       topics: metadata.topics ?? [],
       quality: row.quality_score,
       authority: source.authority,

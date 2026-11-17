@@ -61,7 +61,7 @@ let aiCalls: number,
   outboundWrites = 0;
 let sources = editorialFixtures();
 let env: Env;
-const fakeUsage = { prompt_tokens: 1250, completion_tokens: 1010 };
+const fakeUsage = { prompt_tokens: 1250, completion_tokens: 760 };
 const admin = {
   email: "admin@example.test",
   password: "local-studio-test-password",
@@ -540,6 +540,44 @@ test("homologation is independently idempotent and sends outside the daily relea
     (await queueEditorialRun(env, Date.now() + 86400000)).kind,
     "daily",
   );
+  assert.equal(studioCalls, 1);
+});
+
+test("the operator dispatch accepts only the unexpired single-use credential for its own homologation", async () => {
+  await seedEditorial(db, sources);
+  const run = await queueEditorialHomologation(env, crypto.randomUUID());
+  const token = "d".repeat(64);
+  const hash = Array.from(
+    new Uint8Array(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)),
+    ),
+  )
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  const setExpiry = (expires: number) =>
+    db
+      .prepare(
+        "UPDATE editorial_autopilot_runs SET dispatch_hash=?,dispatch_expires_at=? WHERE id=?",
+      )
+      .bind(hash, expires, run.id)
+      .run();
+  const dispatch = (bearer: string) =>
+    app.request(
+      `https://lastro.test/ops/editorial-homologation/${run.id}`,
+      { method: "POST", headers: { Authorization: `Bearer ${bearer}` } },
+      env,
+    );
+  await setExpiry(Date.now() - 1);
+  assert.equal((await dispatch(token)).status, 401);
+  await setExpiry(Date.now() + 60000);
+  assert.equal((await dispatch("e".repeat(64))).status, 401);
+  const results = await Promise.all([dispatch(token), dispatch(token)]);
+  assert.deepEqual(results.map((r) => r.status).sort(), [202, 401]);
+  assert.equal(
+    ((await results.find((r) => r.ok)!.json()) as { status: string }).status,
+    "draft_created",
+  );
+  assert.equal(aiCalls, 2);
   assert.equal(studioCalls, 1);
 });
 

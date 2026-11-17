@@ -42,6 +42,7 @@ import {
   completeEditorialArticle,
   measuredEditorialCost,
   editorialReportHasFormat,
+  editorialVerificationFindings,
   generateEditorialArticle,
   reserveEditorialBudget,
   validateEditorialReport,
@@ -335,6 +336,39 @@ export async function queueEditorialHomologation(
   return runView(run, date);
 }
 
+export async function dispatchEditorialHomologation(
+  env: Env,
+  runId: string,
+  authorization: string | undefined,
+) {
+  const token = authorization?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
+  if (!editorialId.test(runId) || !token)
+    throw new ApiFault(
+      401,
+      "editorial_dispatch_denied",
+      "Autorização de despacho inválida.",
+    );
+  checkAvailable(env);
+  const at = Date.now();
+  const row = await first<RunRow>(
+    env.DB,
+    `UPDATE editorial_autopilot_runs SET dispatch_hash=NULL,dispatch_expires_at=NULL
+     WHERE id=? AND kind='homologation' AND status='scheduled' AND attempts=0
+       AND editorial_date=? AND dispatch_hash=? AND dispatch_expires_at>? RETURNING *`,
+    runId,
+    editorialDay(at),
+    await payloadDigest(token),
+    at,
+  );
+  if (!row)
+    throw new ApiFault(
+      401,
+      "editorial_dispatch_denied",
+      "Autorização de despacho inválida.",
+    );
+  return processRequestedEditorial(env, runView(row, editorialDay(at)));
+}
+
 export async function retryEditorialRun(
   env: Env,
   runId: string,
@@ -531,7 +565,8 @@ export async function runEditorialQueue(
     env.DB,
     `UPDATE editorial_autopilot_runs
     SET status=CASE WHEN payload IS NULL THEN 'researching' ELSE 'sending' END,
-      lease_token=?,lease_until=?,updated_at=?,attempts=attempts+1,reason=NULL
+      lease_token=?,lease_until=?,updated_at=?,attempts=attempts+1,reason=NULL,
+      dispatch_hash=NULL,dispatch_expires_at=NULL
     WHERE id=(SELECT id FROM editorial_autopilot_runs r WHERE r.lease_until<=?
       AND ((r.next_at<=? AND (r.attempts<? OR (r.status='scheduled' AND r.reason='sources')))
         OR (r.status='failed' AND r.reason='sources' AND r.next_at IS NULL AND EXISTS (
@@ -738,7 +773,11 @@ export async function runEditorialQueue(
       const verificationCost = measuredEditorialCost(verification.usage);
       if (preparationCost !== null && verificationCost !== null)
         measuredSpend = preparationCost + verificationCost;
-      await update("verification_usage=?", JSON.stringify(verification.usage));
+      await update(
+        "verification_usage=?,verification_findings=?",
+        JSON.stringify(verification.usage),
+        JSON.stringify(editorialVerificationFindings(verification.value)),
+      );
       if (!editorialReportHasFormat(verification.value))
         return await finish("needs_review", "verification_format");
       if (!validateEditorialReport(verification.value, article, group.sources))

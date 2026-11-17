@@ -24,7 +24,7 @@ export const EDITORIAL_BUDGET = 1000;
 const phases = {
   generation: { model: EDITORIAL_MODEL, inputBytes: 10000, outputTokens: 2200 },
   completion: { model: EDITORIAL_MODEL, inputBytes: 9600, outputTokens: 550 },
-  verification: { model: VERIFIER, inputBytes: 16000, outputTokens: 1300 },
+  verification: { model: VERIFIER, inputBytes: 13000, outputTokens: 1000 },
 };
 // Use published rates per model. UTF-8 bytes bound the tokenized
 // request, plus 1,024 framing tokens per call. Release only measured phases.
@@ -315,6 +315,26 @@ export function validateEditorialReport(
   });
 }
 
+export function editorialVerificationFindings(value: unknown) {
+  const result = verificationSchema.safeParse(value);
+  if (!result.success)
+    return {
+      invalidFields: result.error.issues
+        .map(({ path, code }) => ({ path, code }))
+        .slice(0, 24),
+    };
+  const { portuguese, coherent, blocks } = result.data;
+  return {
+    portuguese,
+    coherent,
+    blocks: blocks.map(({ index, verdict, quotes }) => ({
+      index,
+      verdict,
+      citedSources: quotes.map(({ source }) => source),
+    })),
+  };
+}
+
 export async function generateEditorialArticle(
   env: Env,
   theme: string,
@@ -327,7 +347,7 @@ export async function generateEditorialArticle(
     `Redija um artigo autoral em português brasileiro para um blog de design, arte e tecnologia. Encontre uma decisão concreta do ofício que seja sustentada pelas fontes. Formule uma tese discutível sobre essa decisão, examine o que se ganha e perde em cada alternativa e desenvolva um contraponto. Evite resumir uma notícia de cada vez.
 Escreva como quem conhece o trabalho criativo. Use vocabulário simples e preciso, exemplos que o leitor consiga imaginar, ritmo variado e ironia pontual quando couber. Prefira um título curto. Corte jargão, grandiloquência, perguntas em série, vivências inventadas e fórmulas como “Em um mundo cada vez mais”, “Não se trata apenas de” e “Em resumo”.
 Os únicos fatos permitidos são descrições precisas sustentadas literalmente pelos trechos. Atribua-os à fonte na própria frase e acrescente o marcador [S1] a [S${sources.length}] correspondente. Use marcadores separados quando houver mais de uma fonte. Use todas as fontes fornecidas. Fora dessas descrições, use raciocínio, opiniões e exemplos claramente hipotéticos. Evite afirmações sobre efeitos, intenções, tendências e públicos que o material não demonstra. O título, o resumo e a tese devem apresentar a leitura editorial sem inventar fatos.
-Use um parágrafo de evidência por fonte, cada qual com apenas uma afirmação factual simples e diretamente atribuída. Ao descrever um ensaio, atribua a tese ao autor como interpretação dele. Não trate metáforas do autor como descrições técnicas. Nos demais parágrafos desenvolva a sua interpretação e o contraponto, sem marcadores e sem acrescentar fatos externos. Preserve as limitações de estudos. Evite datas, percentuais e enumerações quando o argumento puder ser feito sem esses números.
+Use um parágrafo de evidência por fonte. Nele, descreva um único ato concreto que o trecho relata expressamente, em uma frase curta e atribuída. Em seguida, marque a passagem para sua interpretação com uma hipótese ou uma decisão de projeto imaginada. Evite analogias que atribuam à fonte uma tese que ela não defende. Nos outros parágrafos, assim como no resumo e na tese, concentre-se na decisão do leitor, sem alegações históricas, institucionais ou sobre mecanismos de IA. Preserve as limitações de estudos. Evite datas, percentuais e enumerações.
 Retorne JSON com title, summary, argument, paragraphs e expansions. Use cinco parágrafos no corpo. Planeje cerca de 390 caracteres por parágrafo. Use ${sources.length} parágrafos de evidência e dedique os demais à abertura, à interpretação ou ao fechamento. O corpo visível deve ter entre 1.900 e 2.000 caracteres, incluindo espaços e pontuação. Mire 1.950. Conte cada separação entre parágrafos como um espaço. Exclua título, resumo, argumento e marcadores de fonte da contagem. Em expansions, inclua três acréscimos opcionais de aproximadamente 90, 155 e 230 caracteres. Cada acréscimo deve ser uma frase completa ou um parágrafo curto que encaixe antes da conclusão de forma independente. Use somente interpretação ou um exemplo hipotético, explore um ângulo novo e evite marcadores de fonte e fatos adicionais. Esses acréscimos ficam fora de paragraphs. Escreva em texto simples e revise o comprimento antes de responder. Evite H1, frontmatter, HTML, aspas duplas, links, imagens, código e referências finais.`,
     { theme, sources: material(sources) },
     utcDay,

@@ -42,6 +42,8 @@ Para um RSS fora do recorte BR/US, a coleta exige autorização de metadados, au
 
 A ação **Homologar agora** cria uma execução independente e usa o UUID enviado pelo cliente como chave idempotente. O mesmo fluxo seleciona a pauta, gera, verifica e envia ao Studio imediatamente. A fila também coleta execuções enfileiradas pelo operador no D1 com `kind='homologation'` e `release_at=0`. A migração `0021_editorial_homologation.sql` preserva os registros existentes e mantém a unicidade diária.
 
+Um operador com acesso de escrita ao D1 pode despachar uma homologação pendente via `POST /ops/editorial-homologation/:id`. Gere uma credencial aleatória de 32 bytes em hexadecimal e registre somente seu SHA-256 em `dispatch_hash`, com validade curta em `dispatch_expires_at` em milissegundos Unix. Envie a credencial no cabeçalho Authorization Bearer, sem gravá-la em logs. O despacho consome a credencial e só aceita a execução de homologação correspondente, na data editorial vigente e antes da primeira tentativa. A migração `0022_editorial_dispatch.sql` também guarda os vereditos por bloco, sem armazenar o texto das citações em logs.
+
 Homologação e automação têm limites próprios de 1.000 neurônios por dia UTC. A reserva conjunta com o Radar fica abaixo da franquia de 10.000. Chamadas concluídas com uso conhecido liberam a parcela não utilizada. Falhas com consumo incerto mantêm a reserva. Um texto curto pode receber uma complementação adicional sob a reserva original. A versão final passa pela checagem inteira e o Lastro registra a impressão digital do payload antes de enviá-lo.
 
 1. No checkout do Studio, instale as dependências com `pnpm install --frozen-lockfile` e execute `pnpm check`, `pnpm test` e `pnpm build`.
