@@ -121,6 +121,10 @@ export function createLastroClient(
       }),
     queueEditorialRun: () =>
       request<EditorialRun>("/editorial-autopilot/runs", "POST"),
+    queueEditorialHomologation: (id: string) =>
+      request<EditorialRun>("/editorial-autopilot/homologations", "POST", {
+        id,
+      }),
     retryEditorialRun: (id: string) =>
       request<EditorialRun>(
         `/editorial-autopilot/runs/${encodeURIComponent(id)}/retry`,

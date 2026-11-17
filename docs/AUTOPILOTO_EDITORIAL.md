@@ -40,6 +40,10 @@ Para um RSS fora do recorte BR/US, a coleta exige autorização de metadados, au
 
 ## Homologação
 
+A ação **Homologar agora** cria uma execução independente e usa o UUID enviado pelo cliente como chave idempotente. O mesmo fluxo seleciona a pauta, gera, verifica e envia ao Studio imediatamente. A fila também coleta execuções enfileiradas pelo operador no D1 com `kind='homologation'` e `release_at=0`. A migração `0021_editorial_homologation.sql` preserva os registros existentes e mantém a unicidade diária.
+
+Homologação e automação têm limites próprios de 1.000 neurônios por dia UTC. A reserva conjunta com o Radar fica abaixo da franquia de 10.000. Chamadas concluídas com uso conhecido liberam a parcela não utilizada. Falhas com consumo incerto mantêm a reserva. Um texto curto pode receber uma complementação adicional sob a reserva original. A versão final passa pela checagem inteira e o Lastro registra a impressão digital do payload antes de enviá-lo.
+
 1. No checkout do Studio, instale as dependências com `pnpm install --frozen-lockfile` e execute `pnpm check`, `pnpm test` e `pnpm build`.
 2. No Lastro, aponte `EDITORIAL_STUDIO_DIR` para a pasta do checkout do Studio e rode `npm test`. O teste integrado abre o Worker compilado do Studio no runtime do próprio projeto, aplica as migrações em dois bancos locais e exercita HMAC, perda de recibo, reenvio, edição autenticada e exclusão. A geração do teste integrado usa uma resposta controlada.
 3. Execute `npm run typecheck`, `npm run web:typecheck`, `npm run build` e `npm run test:ui -- --grep "autopiloto editorial"` no Lastro.

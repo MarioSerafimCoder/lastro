@@ -39,6 +39,9 @@ import {
   editorialPayload,
   EDITORIAL_MODEL,
   EDITORIAL_RESERVATION,
+  completeEditorialArticle,
+  measuredEditorialCost,
+  editorialReportHasFormat,
   generateEditorialArticle,
   reserveEditorialBudget,
   validateEditorialReport,
@@ -55,10 +58,13 @@ const reasons = {
   memory: "O Studio não conseguiu fornecer a memória editorial.",
   budget: "Orçamento de Workers AI indisponível.",
   repeat: "Título ou argumento muito próximo de um texto recente.",
-  generation:
-    "A IA falhou ou a execução foi interrompida após o início da inferência.",
+  generation: "A chamada à IA falhou.",
+  interrupted: "A execução foi interrompida após iniciar a inferência.",
+  generation_format: "O modelo não devolveu os campos exigidos.",
+  verification_format: "O verificador devolveu uma resposta inválida.",
   length:
     "O corpo editorial ficou fora do intervalo de 1.900 a 2.000 caracteres.",
+  length_long: "O corpo editorial excedeu 2.000 caracteres.",
   verification:
     "O artigo não passou nas verificações de formato, originalidade ou suporte factual.",
   permission: "Uma referência perdeu autorização ou mudou durante a execução.",
@@ -75,6 +81,8 @@ const reasons = {
 };
 type Reason = keyof typeof reasons;
 type RunRow = {
+  kind: "daily" | "homologation";
+  verified_payload_sha256: string | null;
   release_at: number;
   relevance: EditorialRun["relevance"] | null;
   id: string;
@@ -118,6 +126,14 @@ const available = (env: Env) =>
   !!env.STUDIO_ORIGIN &&
   (env.STUDIO_INTEGRATION_SECRET?.length ?? 0) >= 32;
 const iso = (at: number) => new Date(at).toISOString();
+const payloadDigest = async (payload: string) =>
+  Array.from(
+    new Uint8Array(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload)),
+    ),
+  )
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 export function nextEditorialExecution(at: number) {
   const today = Date.parse(editorialDay(at) + "T08:00:00-03:00");
   return today > at ? today : today + 86400000;
@@ -146,6 +162,7 @@ function runView(run: RunRow, today: string): EditorialRun {
     ? JSON.parse(run.payload)
     : null;
   return {
+    kind: run.kind,
     relevance: run.relevance ?? undefined,
     id: run.id,
     bodyCharacters:
@@ -259,7 +276,7 @@ async function enqueue(env: Env, at: number, automatic: boolean) {
     `INSERT INTO editorial_autopilot_runs
     (id,editorial_date,status,started_at,updated_at,next_at,release_at)
     SELECT ?,?,'scheduled',?,?,?,? WHERE ?=0 OR (SELECT enabled FROM editorial_autopilot_settings WHERE id=1)=1
-    ON CONFLICT(editorial_date) DO NOTHING RETURNING *`,
+    ON CONFLICT(editorial_date) WHERE kind='daily' DO NOTHING RETURNING *`,
     id(),
     date,
     at,
@@ -272,7 +289,7 @@ async function enqueue(env: Env, at: number, automatic: boolean) {
     queued ??
     first<RunRow>(
       env.DB,
-      "SELECT * FROM editorial_autopilot_runs WHERE editorial_date=?",
+      "SELECT * FROM editorial_autopilot_runs WHERE editorial_date=? AND kind='daily'",
       date,
     )
   );
@@ -282,6 +299,40 @@ export async function queueEditorialRun(env: Env, at = Date.now()) {
   checkAvailable(env);
   const run = await enqueue(env, at, false);
   return runView(run!, editorialDay(at));
+}
+
+export async function queueEditorialHomologation(
+  env: Env,
+  runId: string,
+  at = Date.now(),
+) {
+  checkAvailable(env);
+  const date = editorialDay(at);
+  const run =
+    (await first<RunRow>(
+      env.DB,
+      `INSERT INTO editorial_autopilot_runs
+      (id,editorial_date,kind,status,started_at,updated_at,next_at)
+      VALUES (?,?,'homologation','scheduled',?,?,?)
+      ON CONFLICT(id) DO NOTHING RETURNING *`,
+      runId,
+      date,
+      at,
+      at,
+      at,
+    )) ??
+    (await first<RunRow>(
+      env.DB,
+      "SELECT * FROM editorial_autopilot_runs WHERE id=? AND kind='homologation'",
+      runId,
+    ));
+  if (!run)
+    throw new ApiFault(
+      409,
+      "editorial_run_conflict",
+      "Identificador de execução indisponível.",
+    );
+  return runView(run, date);
 }
 
 export async function retryEditorialRun(
@@ -319,7 +370,7 @@ export async function retryEditorialRun(
 
 export async function processRequestedEditorial(env: Env, run: EditorialRun) {
   if (run.status !== "scheduled") return run;
-  await runEditorialQueue(env, Date.now(), run.date);
+  await runEditorialQueue(env, Date.now(), run.id);
   const current = await first<RunRow>(
     env.DB,
     "SELECT * FROM editorial_autopilot_runs WHERE id=?",
@@ -451,7 +502,7 @@ export async function editorialEligibility(
 export async function runEditorialQueue(
   env: Env,
   at = Date.now(),
-  targetDate?: string,
+  targetRun?: string,
 ) {
   if (!available(env)) return;
   const today = editorialDay(at),
@@ -462,7 +513,7 @@ export async function runEditorialQueue(
     env.DB,
     `UPDATE editorial_autopilot_runs SET status=CASE WHEN status IN ('generating','validating')
       THEN 'needs_review' WHEN payload IS NULL AND editorial_date<? THEN 'skipped' ELSE 'failed' END,
-    reason=CASE WHEN status IN ('generating','validating') THEN 'generation'
+    reason=CASE WHEN status IN ('generating','validating') THEN 'interrupted'
       WHEN payload IS NULL AND editorial_date<? THEN 'expired'
       WHEN payload IS NOT NULL THEN 'studio' ELSE 'technical' END,
     next_at=NULL,lease_token=NULL,lease_until=0,updated_at=?
@@ -492,10 +543,10 @@ export async function runEditorialQueue(
             AND c.editorial_status='approved' AND c.purged_at IS NULL
             AND e.observed_at>strftime('%Y-%m-%dT%H:%M:%fZ',r.updated_at/1000.0,'unixepoch')
         )))
-      AND (r.editorial_date=? OR r.payload IS NOT NULL) AND (? IS NULL OR r.editorial_date=?)
+      AND (r.editorial_date=? OR r.payload IS NOT NULL) AND (? IS NULL OR r.id=?)
       AND r.status IN ('scheduled','researching','sending','failed')
       AND NOT EXISTS(SELECT 1 FROM editorial_autopilot_runs active WHERE active.lease_until>?)
-      ORDER BY r.editorial_date DESC LIMIT 1) RETURNING *`,
+      ORDER BY r.editorial_date DESC,r.release_at DESC,r.started_at,r.id LIMIT 1) RETURNING *`,
     token,
     at + leaseMs,
     at,
@@ -503,8 +554,8 @@ export async function runEditorialQueue(
     at,
     maxAttempts,
     today,
-    targetDate ?? null,
-    targetDate ?? null,
+    targetRun ?? null,
+    targetRun ?? null,
     at,
   );
   if (!run) return;
@@ -517,16 +568,20 @@ export async function runEditorialQueue(
       run.id,
       token,
     ).run();
+  let measuredSpend: number | null = null;
   const finish = (
     status: EditorialRunStatus,
     reason: Reason | null = null,
     retry = false,
   ) =>
     update(
-      "status=?,reason=?,next_at=?,lease_token=NULL,lease_until=0",
+      "status=?,reason=?,next_at=?,settlement_neurons=COALESCE(settlement_neurons,?),lease_token=NULL,lease_until=0",
       status,
       reason,
       retry && run.attempts < maxAttempts ? Date.now() + 15 * 60_000 : null,
+      measuredSpend !== null && measuredSpend <= EDITORIAL_RESERVATION
+        ? measuredSpend
+        : null,
     );
 
   let payload: EditorialArticle | null = run.payload
@@ -536,6 +591,7 @@ export async function runEditorialQueue(
     ? JSON.parse(run.sources_json)
     : [];
   let inference = false;
+  let verifiedHash = run.verified_payload_sha256;
   try {
     if (!payload) {
       const candidates = await editorialCandidates(env.DB, at);
@@ -605,12 +661,13 @@ export async function runEditorialQueue(
         ),
       );
       const utcDay = iso(Date.now()).slice(0, 10);
-      if (!(await reserveEditorialBudget(env.DB, utcDay)))
+      if (!(await reserveEditorialBudget(env.DB, utcDay, run.kind)))
         return await finish("failed", "budget");
       const claimed = await update(
-        "status='generating',model=?,reserved_neurons=?",
+        "status='generating',model=?,reserved_neurons=?,budget_day=?",
         EDITORIAL_MODEL,
         EDITORIAL_RESERVATION,
+        utcDay,
       );
       if (!claimed.meta.changes) return;
       inference = true;
@@ -620,8 +677,10 @@ export async function runEditorialQueue(
         group.sources,
         utcDay,
       );
-      const bodyCharacters = generation.value
-        ? editorialBodyCharacters(generation.value.markdown)
+      measuredSpend = measuredEditorialCost(generation.usage);
+      let generated = generation.value;
+      let bodyCharacters = generated
+        ? editorialBodyCharacters(generated.markdown)
         : null;
       await update(
         "status='validating',generation_usage=?,body_characters=?",
@@ -629,24 +688,59 @@ export async function runEditorialQueue(
         bodyCharacters,
       );
       if (
+        generated &&
         bodyCharacters !== null &&
-        (bodyCharacters < EDITORIAL_MIN_CHARACTERS ||
-          bodyCharacters > EDITORIAL_MAX_CHARACTERS)
-      )
+        bodyCharacters >= 1500 &&
+        bodyCharacters < EDITORIAL_MIN_CHARACTERS &&
+        measuredSpend !== null
+      ) {
+        if (iso(Date.now()).slice(0, 10) !== utcDay)
+          return await finish("needs_review", "budget");
+        const firstCost = measuredSpend;
+        measuredSpend = null;
+        const completion = await completeEditorialArticle(
+          env,
+          generated,
+          group.sources,
+          utcDay,
+        );
+        const completionCost = measuredEditorialCost(completion.usage);
+        measuredSpend =
+          completionCost === null ? null : firstCost + completionCost;
+        generated = completion.value;
+        bodyCharacters = editorialBodyCharacters(generated.markdown);
+        await update(
+          "completion_usage=?,body_characters=?",
+          JSON.stringify(completion.usage),
+          bodyCharacters,
+        );
+      }
+      if (bodyCharacters === null)
+        return await finish("needs_review", "generation_format");
+      if (bodyCharacters < EDITORIAL_MIN_CHARACTERS)
         return await finish("needs_review", "length");
-      const article = validateGeneratedArticle(generation.value, group.sources);
+      if (bodyCharacters > EDITORIAL_MAX_CHARACTERS)
+        return await finish("needs_review", "length_long");
+      const article = validateGeneratedArticle(generated, group.sources);
       if (!article) return await finish("needs_review", "verification");
       if (repeatsArticle(article, memory.history))
         return await finish("needs_review", "repeat");
       if (iso(Date.now()).slice(0, 10) !== utcDay)
         return await finish("needs_review", "budget");
+      const preparationCost = measuredSpend;
+      measuredSpend = null;
       const verification = await verifyEditorialArticle(
         env,
         article,
         group.sources,
         utcDay,
       );
+      const verificationCost = measuredEditorialCost(verification.usage);
+      if (preparationCost !== null && verificationCost !== null)
+        measuredSpend = preparationCost + verificationCost;
       await update("verification_usage=?", JSON.stringify(verification.usage));
+      if (!editorialReportHasFormat(verification.value))
+        return await finish("needs_review", "verification_format");
       if (!validateEditorialReport(verification.value, article, group.sources))
         return await finish("needs_review", "verification");
       payload = editorialPayload(
@@ -656,12 +750,23 @@ export async function runEditorialQueue(
         article,
         group.sources,
       );
+      const serialized = JSON.stringify(payload);
+      verifiedHash = await payloadDigest(serialized);
       const saved = await update(
-        "status='sending',payload=?",
-        JSON.stringify(payload),
+        "status='sending',payload=?,verified_payload_sha256=?,settlement_neurons=?",
+        serialized,
+        verifiedHash,
+        measuredSpend !== null && measuredSpend <= EDITORIAL_RESERVATION
+          ? measuredSpend
+          : null,
       );
       if (!saved.meta.changes) return;
     }
+    if (
+      verifiedHash &&
+      verifiedHash !== (await payloadDigest(JSON.stringify(payload)))
+    )
+      return await finish("needs_review", "verification");
     if (run.release_at > Date.now()) {
       await update(
         "status='sending',next_at=?,lease_token=NULL,lease_until=0",

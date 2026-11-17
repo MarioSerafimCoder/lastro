@@ -5,6 +5,7 @@ import {
   editorialOverview,
   processRequestedEditorial,
   queueEditorialRun,
+  queueEditorialHomologation,
   retryEditorialRun,
   runEditorialQueue,
   scheduledEditorial,
@@ -840,6 +841,14 @@ app.put("/api/editorial-autopilot/settings", async (c) =>
 );
 app.post("/api/editorial-autopilot/runs", async (c) => {
   const queued = await queueEditorialRun(c.env);
+  return c.json(await processRequestedEditorial(c.env, queued), 202);
+});
+app.post("/api/editorial-autopilot/homologations", async (c) => {
+  const { id } = await json(
+    c,
+    z.strictObject({ id: z.string().regex(editorialId) }),
+  );
+  const queued = await queueEditorialHomologation(c.env, id);
   return c.json(await processRequestedEditorial(c.env, queued), 202);
 });
 app.post("/api/editorial-autopilot/runs/:id/retry", async (c) => {

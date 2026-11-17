@@ -12,6 +12,7 @@ import {
   editorialOverview,
   nextEditorialExecution,
   queueEditorialRun,
+  queueEditorialHomologation,
   retryEditorialRun,
   runEditorialQueue,
   scheduledEditorial,
@@ -519,6 +520,74 @@ test("reserve is revalidated, draft prepared at 07 and delivered only at 08, onc
   const overview = await editorialOverview(env);
   assert.equal(overview.latestDraft?.relevance, "Reflexão");
   assert.equal(overview.reserve.length, 0);
+});
+
+test("homologation is independently idempotent and sends outside the daily release window", async () => {
+  await seedEditorial(db, sources);
+  const daily = await queueEditorialRun(env);
+  const request = crypto.randomUUID();
+  const manual = await queueEditorialHomologation(env, request);
+  assert.equal((await queueEditorialHomologation(env, request)).id, manual.id);
+  await runEditorialQueue(env, Date.now(), manual.id);
+  const view = await editorialOverview(env);
+  assert.equal(view.latestDraft?.id, manual.id);
+  assert.equal(view.latestDraft?.kind, "homologation");
+  assert.equal(
+    view.history.find(({ id }) => id === daily.id)?.status,
+    "scheduled",
+  );
+  assert.equal(
+    (await queueEditorialRun(env, Date.now() + 86400000)).kind,
+    "daily",
+  );
+  assert.equal(studioCalls, 1);
+});
+
+test("a measured short response is complemented once and the final article must pass factual review", async () => {
+  await seedEditorial(db, sources);
+  const mock = env.AI!.run;
+  let expansion = "";
+  let reviewed = "";
+  env.AI!.run = async (model, input) => {
+    const prompt = input.messages[0].content;
+    if (prompt.startsWith("Escreva um acréscimo")) {
+      aiCalls++;
+      return {
+        response: { expansions: [expansion] },
+        usage: { ...fakeUsage, completion_tokens: 150 },
+      };
+    }
+    const result = (await mock(model, input)) as {
+      response: string;
+      usage: typeof fakeUsage;
+    };
+    if (prompt.includes("checagem editorial independente")) {
+      reviewed = input.messages[1].content;
+      const report = JSON.parse(result.response);
+      report.blocks.push({
+        index: report.blocks.length,
+        verdict: "unsupported",
+        quotes: [],
+      });
+      return { ...result, response: report };
+    }
+    const article = JSON.parse(result.response);
+    const paragraph = article.paragraphs[0] as string;
+    const end = paragraph.indexOf(". ") + 1;
+    article.paragraphs[0] = paragraph.slice(0, end);
+    expansion = paragraph.slice(end).trim();
+    return { ...result, response: article };
+  };
+  const run = await queueEditorialHomologation(env, crypto.randomUUID());
+  await runEditorialQueue(env, Date.now(), run.id);
+  const result = (await editorialOverview(env)).history.find(
+    ({ id }) => id === run.id,
+  );
+  assert.equal(result?.status, "needs_review");
+  assert.match(result?.reason ?? "", /suporte factual/);
+  assert.ok(reviewed.includes(expansion));
+  assert.equal(aiCalls, 3);
+  assert.equal(studioCalls, 0);
 });
 
 test("source shortage retries without spending AI, reserve cannot override revoked permissions", async () => {

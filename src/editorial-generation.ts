@@ -22,11 +22,12 @@ export const EDITORIAL_MODEL = "@cf/google/gemma-4-26b-a4b-it";
 export const PROMPT_VERSION = EDITORIAL_PROMPT_VERSION;
 export const EDITORIAL_BUDGET = 1000;
 const phases = {
-  generation: { model: EDITORIAL_MODEL, inputBytes: 10000, outputTokens: 2800 },
+  generation: { model: EDITORIAL_MODEL, inputBytes: 10000, outputTokens: 2200 },
+  completion: { model: EDITORIAL_MODEL, inputBytes: 9600, outputTokens: 550 },
   verification: { model: VERIFIER, inputBytes: 16000, outputTokens: 1300 },
 };
 // Use published rates per model. UTF-8 bytes bound the tokenized
-// request, plus 1,024 framing tokens per call. Never credit retries back.
+// request, plus 1,024 framing tokens per call. Release only measured phases.
 export const EDITORIAL_RESERVATION = Math.ceil(
   Object.values(phases).reduce(
     (total, phase) =>
@@ -38,18 +39,24 @@ export const EDITORIAL_RESERVATION = Math.ceil(
     0,
   ),
 );
-export function reserveEditorialBudget(db: D1Database, utcDay: string) {
+export function reserveEditorialBudget(
+  db: D1Database,
+  utcDay: string,
+  kind: "daily" | "homologation" = "daily",
+) {
+  const column =
+    kind === "daily" ? "editorial_neurons" : "editorial_homologation_neurons";
   return first(
     db,
-    `INSERT INTO synopsis_usage(day,editorial_neurons,editorial_reservations) VALUES (?,?,1)
-    ON CONFLICT(day) DO UPDATE SET editorial_neurons=editorial_neurons+excluded.editorial_neurons,
+    `INSERT INTO synopsis_usage(day,${column},editorial_reservations) VALUES (?,?,1)
+    ON CONFLICT(day) DO UPDATE SET ${column}=${column}+excluded.${column},
       editorial_reservations=editorial_reservations+1
-    WHERE blocked=0 AND editorial_neurons+excluded.editorial_neurons<=?
-      AND reserved_neurons+editorial_neurons+excluded.editorial_neurons<=? RETURNING day`,
+    WHERE blocked=0 AND ${column}+excluded.${column}<=?
+      AND reserved_neurons+editorial_neurons+editorial_homologation_neurons+excluded.${column}<=? RETURNING day`,
     utcDay,
     EDITORIAL_RESERVATION,
     EDITORIAL_BUDGET,
-    DAILY_BUDGET + EDITORIAL_BUDGET,
+    DAILY_BUDGET + 2 * EDITORIAL_BUDGET,
   );
 }
 
@@ -72,7 +79,7 @@ const verificationSchema = z.strictObject({
     .array(
       z.strictObject({
         index: z.number().int().nonnegative(),
-        verdict: z.enum(["supported", "interpretation"]),
+        verdict: z.enum(["supported", "interpretation", "unsupported"]),
         quotes: z
           .array(
             z.strictObject({
@@ -132,7 +139,7 @@ async function infer(
     response_format: responseSchema
       ? { type: "json_schema" as const, json_schema: responseSchema }
       : { type: "json_object" as const },
-    ...(phase === "generation"
+    ...(phase !== "verification"
       ? { chat_template_kwargs: { enable_thinking: false } }
       : {}),
   };
@@ -272,7 +279,7 @@ export function validateEditorialReport(
   )
     return false;
   return report.blocks.every(({ index, verdict, quotes }) => {
-    if (index >= blocks.length) return false;
+    if (index >= blocks.length || verdict === "unsupported") return false;
     const text = removeCitations(blocks[index]);
     const cites = new Set(citationIds(blocks[index]));
     const technical = folded(text).match(technicalTerms) ?? [];
@@ -343,6 +350,50 @@ Retorne JSON com title, summary, argument, paragraphs e expansions. Use cinco pa
     },
   };
 }
+
+export function measuredEditorialCost(usage: InferenceUsage | null) {
+  if (
+    !usage ||
+    (usage.providerNeurons === null && usage.calculatedNeurons === null)
+  )
+    return null;
+  return Math.ceil(
+    Math.max(usage.providerNeurons ?? 0, usage.calculatedNeurons ?? 0),
+  );
+}
+
+export async function completeEditorialArticle(
+  env: Env,
+  article: z.infer<typeof generationSchema>,
+  sources: SourceEvidence[],
+  utcDay: string,
+) {
+  const missing = 1950 - editorialBodyCharacters(article.markdown);
+  const result = await infer(
+    env,
+    "completion",
+    `Escreva um acréscimo autoral em português brasileiro que caiba imediatamente antes da conclusão do artigo. Explore um contraponto ou consequência prática pertinente, ancorada nos trechos. Evite repetir ideias, fatos novos sem evidência, frases genéricas e explicações sobre o formato. Retorne JSON com expansions contendo três alternativas independentes de aproximadamente ${missing - 30}, ${missing} e ${missing + 30} caracteres. Use frases completas e texto simples.`,
+    { article, sources: material(sources) },
+    utcDay,
+  );
+  const expansions = generationOutputSchema.shape.expansions.safeParse(
+    (result.value as { expansions?: unknown } | null)?.expansions,
+  );
+  return {
+    usage: result.usage,
+    value: {
+      ...article,
+      markdown: fitEditorialBody(
+        article.markdown.split(/\n\s*\n/),
+        expansions.data ?? [],
+        sources.length,
+      ),
+    },
+  };
+}
+
+export const editorialReportHasFormat = (value: unknown) =>
+  verificationSchema.safeParse(value).success;
 
 function fitEditorialBody(
   blocks: string[],

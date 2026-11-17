@@ -315,6 +315,23 @@ export default function EditorialAutopilot() {
         </button>
         <button
           className="secondary-button"
+          disabled={!data?.available || busy}
+          onClick={() => {
+            if (
+              window.confirm("Criar um rascunho privado de homologação agora?")
+            )
+              void perform("Processando homologação…", async () => {
+                const run = await api.queueEditorialHomologation(
+                  crypto.randomUUID(),
+                );
+                return `Homologação · ${statuses[run.status]}.`;
+              });
+          }}
+        >
+          Homologar agora
+        </button>
+        <button
+          className="secondary-button"
           disabled={(!data?.available && !data?.enabled) || busy}
           onClick={() => {
             const enable = !data?.enabled;
@@ -443,6 +460,7 @@ export default function EditorialAutopilot() {
                 <li key={run.id}>
                   <strong>
                     <time dateTime={run.date}>{date(run.date)}</time>
+                    {run.kind === "homologation" && " · Homologação"}
                     {run.title && ` · ${run.title}`}
                     {run.bodyCharacters != null &&
                       ` · ${run.bodyCharacters.toLocaleString("pt-BR")} caracteres`}

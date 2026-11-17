@@ -11,6 +11,7 @@ export type EditorialRunStatus =
   | "failed"
   | "skipped";
 export type EditorialRun = {
+  kind?: "daily" | "homologation";
   relevance?: "Em alta" | "Reflexão" | "Retroativo";
   id: string;
   date: string;
